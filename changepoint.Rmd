@@ -1,0 +1,39 @@
+---
+title: "changepoint package"
+author: "Dom Owens"
+date: "10/01/2020"
+output: html_document
+---
+
+Using the package `changepoint` on [CRAN](cran.r-project.org/web/packages/changepoint)
+
+
+```{r}
+#install.packages("changepoint")
+library(changepoint)
+```
+
+```{r}
+data("ftse100") #load data
+returns <- as.ts(ftse100$V2)
+plot(returns, main = "FTSE 100")
+```
+
+We look for changepoints in the series variance
+
+```{r}
+change <- cpt.var(data = returns,  method = "BinSeg", Q = 100) 
+change
+```
+```{r}
+plot(returns, main = "FTSE 100")
+abline(v=change@cpts, col = "red")
+```
+
+--------------------
+
+```{r}
+data(HC1)
+plot(HC1)
+```
+

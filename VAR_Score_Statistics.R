@@ -1,5 +1,4 @@
-## WALD AND SCORE STATISTICS FOR VAR(p) MODEL
-library(zoo)
+## SCORE STATISTIC FOR VAR(p) MODEL
 
 
 ##EXAMPLES-------------------------
@@ -91,13 +90,14 @@ getsigma_iGlobal <- function(eps,i){
 
 ##estimate inverse sqrt of long-run covariance, Sigma^{-1/2}
 getSigma_root_inv <- function(x, eps, p){ 
+  n <- dim(x)[1]
   d <- dim(x)[2]
   sigma_d <- rep(0,d)
   for (i in 1:d) { #sigma(i)^{-1/2}
     sigma_d[i] <- getsigma_iGlobal(eps,i)^(-0.5)
   }
   
-  c <- cov(x)
+  c <- 1/n * t(x) %*% x #c <- cov(x)
   e <- eigen(c) #SVD of c
   V <- e$vectors
   c_ <- V %*% diag((e$values)^(-.5)) %*% t(V) #c^{1-/2}
@@ -131,43 +131,64 @@ getT <- function(x, p, G, Phi, eps){
   for(k in K){
     Tkn[k] <- getTkn(x,k,p,G,Phi,eps, H_all, Sig_) 
   }
-  return(Tkn)
+  #return(Tkn)
+  return(Sig_)
 }
-#getT(x=bf_ts, p=1, G= 20, Phi=A_1, eps=eps)
+#Tn_example <- getT(x=bf_ts, p=1, G= 20, Phi=A_1, eps=eps)
 #getT(x=var_change, p=1, G=40, Phi = a_change, eps = eps_change)
+
+##get change point estimates
+get_cps <- function(Tn, D_n, nu = 1/4){
+    n <- length(Tn)
+    lshift <- c(Tn[-1],0); rshift <- c(0,Tn[-n]); 
+    over <- (Tn >D_n) #indices are greater than D_n?
+    v <- which(over && (lshift < D_n) )#lowers
+    v <- c(1,v) #append n
+    w <- which(over && (rshift < D_n) )#uppers
+    w <- c(w,n) #append 0
+    q <- length(w) #number of CPs
+    cps <- rep(0, q)
+    for (i in 1:q) {
+      cps[i] <- v[i] + which.max(Tn[ (v[i]):(w[i]) ] )
+    }
+    return(cps)
+}
+#get_cps(Tn = Tn_example, D_n = 5,nu = 1/4)
 
 ##Score-type test
 test_Score <- function(x, p, G, Phi, eps, alpha = 0.05){ 
   n <- dim(x)[1] #dimensions
   d <- dim(x)[2] 
+  ##Test setup----------------------------
   c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
   a <- sqrt(2*log(n/G)) #test transform multipliers
   b <- 2*log(n/G) + d/2 * log(log(n/G)) - log(2/3 * gamma(d/2))
   D_n <- (b+c_alpha)/a #threshold
   Reject <- FALSE
+  ##Run test-----------------------------
   Tn <- ts(getT(x,p,G,Phi,eps)) #evaluate statistic at each time k
   test_stat <- max(Tn)
-  plot(Tn); abline(h = D_n, col = "blue") #test plot
-  #plot( a*Tn - b); abline(h=c_alpha, col="blue")
-  if(test_stat > D_n){Reject <- TRUE} #compare test stat with threshold
-  
-  out <- list(Reject = Reject, Threshold = D_n, mosum = Tn)
+  cps <- c() #empty changepoint vector
+  if(test_stat > D_n){ #compare test stat with threshold
+    Reject <- TRUE
+    cps <- get_cps(Tn,D_n, nu=1/4)
+  } 
+  ##Plot------------------------------------
+  plot(Tn) # plot test statistic
+  abline(h = D_n, col = "blue") #add threshold
+  if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
+  #plot( a*Tn - b); abline(h=c_alpha, col="blue") #rescaled plot
+  ##Output------------------------------------
+  out <- list(Reject = Reject, Threshold = D_n, mosum = Tn, cps = cps)
   return(out)
 }
 
 
 ##  bf example
-test_Score(x=bf_ts, p=1, G=150, Phi = A_1, eps = eps, alpha = 0.01)
+test_Score(x=bf_ts, p=1, G=150, Phi = A_1, eps = eps, alpha = 0.1)
 ##  change example
-test_Score(x=var_change, p=1, G=150, Phi = a_change, eps = eps_change, alpha = 0.01) 
+test_Score(x=var_change, p=1, G=150, Phi = a_change, eps = eps_change, alpha = 0.1) 
 
 
 
 
-
-########################################
-##WALD-------------------------------
-Wkn <- function(x, X, eps){
-  getGamma <- function()
-  Gamma <-
-}

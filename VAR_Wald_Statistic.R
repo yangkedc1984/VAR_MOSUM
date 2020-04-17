@@ -3,28 +3,7 @@
 
 
 ##EXAMPLES-------------------------
-##example------------------------- bankfox data
-bf_ts <- ts(bf[672:dim(bf)[1], c(1, 3:6, 8:10)])
-bf_ts <- na.fill(bf_ts, fill = "extend")
-ts.plot(bf_ts)
 
-model <- ar(bf_ts, demean = F, method = "ols")
-#Phi <- as.vector(t(as.matrix(model$ar)))
-A_1 <- matrix(model$ar, nrow=8, ncol=8)
-eps <- model$resid
-
-##example------------------------- change data
-rData1 <- rSim(a1, e1)
-rData1[1,] <- runif(5, 0, 0.02) #prevent NaN
-rData2 <- rSim(a2, e2)
-rData2[1,] <- runif(5, 0, 0.02)
-
-
-var_change <- ts(rbind(rData1, rData2))
-change_model <- ar(var_change, order.max = 1, demean = F, method = "ols")
-a_change <- matrix(change_model$ar, nrow=5, ncol=5)
-eps_change <- change_model$resid
-plot(var_change)
 
 
 ########################################
@@ -53,16 +32,18 @@ make_a_lu <- function(x, p, l, u){
 make_a_lu(bf_ts, p=1, l= 10, u= 100)
 
 ## sqrt of local uncentred covariance C_nk
-get_root_C_nk <- function(x, p, l, u){
-  n <- dim(x)[2]
+get_V_nk <- function(x, p, l, u){
+  d <- dim(x)[2]
   xk <- x[(l-1):(u-1),] #time sample
-  C <- 1/n * t(xk) %*% (xk) #uncentred covariance of sample
-  e <- eigen(C) #SVD of C
-  V <- e$vectors
-  C_ <- V %*% diag((e$values)^(.5)) %*% t(V) #c^{1/2}
-  return(C_)
+  C <- 1/(u-l) * t(xk) %*% (xk) #uncentred covariance of sample
+  Vlist <- list(1:d)
+  for(i in 1:d) {
+    Vlist[[i]] <- 2 *(C) #coerce into block diagonal form
+  }
+  out <- Matrix::bdiag(Vlist)
+  return(out)
 }
-#get_root_C_nk(bf_ts, p=1, l= 10, u= 100)
+#get_V_nk(as.matrix(bf_ts), p=1, l= 10, u= 100)
 
 ## LOCAL1 estimator of variance in channel i at k
 getsigma_i_kLOCAL1 <- function(x, i, k, G, a_upper, a_lower) {
@@ -77,57 +58,64 @@ getsigma_i_kLOCAL1 <- function(x, i, k, G, a_upper, a_lower) {
 #a_lower_example <- get_a_lu_i(bf_ts, i=1, l= 69, u= 99)
 #getsigma_i_kLOCAL1(x = bf_ts, i=1, k = 100, G= 30, a_upper = a_upper_example, a_lower = a_lower_example)
 
-#get_Gamma <- function(){
-#}
 
-get_Wkn <- function(x, p, k, G){
-  d <- dim(x)[2]
-  root_C <- get_root_C_nk(x, p, k-G+1, k+G)
-  W <- 0 #initialise stat
-  for (i in 1:d) {
-    a_i_upper <- get_a_lu_i(x, i, l=k, u=k+G)
-    a_i_lower <- get_a_lu_i(x, i, l=k-G-1, u=k-1)
-    sigma_i <- sqrt( getsigma_i_kLOCAL1(x, i, k, G, a_upper = a_i_upper, a_lower = a_i_lower) )
-    W <- W + 1/sigma_i * norm(root_C %*% (a_i_upper - a_i_lower), type = "2")
-  }
-  W <- sqrt(G) * W
-  return(W)
-}
-get_Wkn(x = bf_ts, p=1, k= 33, G=30)
-
-get_W <- function(x, p, G){
+## sigma^2_i estimate for all times k; example function only, not used in test
+getsigma_i_all <- function(x,i,G){
   n <- dim(x)[1]
+  d <- dim(x)[2]
   K <- (G+3):(n-G-2)
   out <- rep(0, n)
   for (k in K) {
-    out[k] <- get_Wkn(x,p,k,G)
+    a_i_upper <- get_a_lu_i(x, i, l=k+1, u=k+G)
+    a_i_lower <- get_a_lu_i(x, i, l=k-G+1, u=k)
+    out[k] <- getsigma_i_kLOCAL1(x,i,k,G, a_i_upper, a_i_lower)
   }
-  #out <- sapply(K, get_Wkn, x=x, p=p, G=G)
-  #zeros <- rep(0,G)
-  #cbind(zeros, out, zeros)
-  return(out)
+  return(ts(out))
 }
-#get_W(x=bf_ts, p=1, G=30)
+#plot(1/sqrt(getsigma_i_all(x=bf_ts,i=1,G=50)) )
+#plot(1/sqrt(getsigma_i_all(x=var_change,i=1,G=50)) ); abline( h= getsigma_iGlobal(eps,1)^(-0.5) )
 
-##get change point estimates -- same as Score procedure
-#get_cps <- function(Tn, D_n, nu = 1/4){
-#  n <- length(Tn)
-#  lshift <- c(Tn[-1],0); rshift <- c(0,Tn[-n]); 
-#  over <- (Tn >D_n) #indices are greater than D_n?
-#  v <- which(over && (lshift < D_n) )#lowers
-#  v <- c(1,v) #append n
-#  w <- which(over && (rshift < D_n) )#uppers
-#  w <- c(w,n) #append 0
-#  q <- length(w) #number of CPs
-#  cps <- rep(0, q)
-#  for (i in 1:q) {
-#    cps[i] <- v[i] + which.max(Tn[ (v[i]):(w[i]) ] )
-#  }
-#  return(cps)
+
+#get_Gamma <- function(){
 #}
 
-##Score-type test
-test_Wald <- function(x, p, G, alpha = 0.05){ 
+## evaluate Wkn (test statistic) for time k
+get_Wkn <- function(x, p, k, G, H_all, estim){ 
+  d <- dim(x)[2]
+  V <- get_V_nk(x, p, k-G+1, k)
+    
+  a_upper <- make_a_lu(x, p, l=k+1, u=k+G)
+  a_lower <- make_a_lu(x, p, l=k-G+1, u=k)
+  ##Sigma estimator options------
+  #if(estim == "DiagC")Sig_ <- get_DiagC_rootinv(x,eps,sigma_d,k,G)
+  if(estim == "DiagH")Sig_ <- get_DiagH_rootinv(x,k,G,H_all) #DiagH estimator for Sigma
+  if(estim == "FullH")Sig_ <- get_FullH_rootinv(x,k,G,H_all) #FullH estimator
+  #------------------------------
+  #W <- W + 1/sigma_i * norm(root_C %*% (a_i_upper - a_i_lower), type = "F")
+  W_mat <- as.matrix(Sig_ %*%V %*% (a_upper-a_lower)) #argument for norm
+  W <- sqrt(G/2) * norm(W_mat, type="F")
+  return(W)
+}
+get_Wkn(x = as.matrix(bf_ts), p=1, k= 200, G=100, H_all=H_all_bfts, estim="DiagH")
+
+get_W <- function(x, p, G, Phi, eps, estim){
+  n <- dim(x)[1]
+  K <- (G+1):(n-G)
+  H_all <- makeH_all(x, p, G, Phi, eps)
+  out <- rep(0, n)
+  for (k in K) {
+    out[k] <- get_Wkn(x,p,k,G,H_all,estim)
+  }
+  return(out)
+}
+get_W(x= as.matrix(bf_ts), p=1, G=100, Phi=A_1, eps=eps, estim="DiagH")
+
+##get change point estimates -- same as Score procedure
+
+
+##Wald-type test
+test_Wald <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){ 
+  if(is.null(dim(x)) || dim(x)[2] == 1 ) {x <- matrix(x)} #handle univariate case
   n <- dim(x)[1] #dimensions
   d <- dim(x)[2] 
   ##Test setup----------------------------
@@ -137,26 +125,34 @@ test_Wald <- function(x, p, G, alpha = 0.05){
   D_n <- (b+c_alpha)/a #threshold
   Reject <- FALSE
   ##Run test-----------------------------
-  Wn <- ts(get_W(x,p,G)) #evaluate statistic at each time k
+  Wn <- ts(get_W(x,p,G,Phi,eps,estim)) #evaluate statistic at each time k
   test_stat <- max(Wn)
   cps <- c() #empty changepoint vector
   if(test_stat > D_n){ #compare test stat with threshold
     Reject <- TRUE
-    cps <- get_cps(Wn,D_n, nu=1/4)
+    cps <- get_cps(Wn,D_n,G, nu=1/4)
   } 
   ##Plot------------------------------------
   plot(Wn) # plot test statistic
   abline(h = D_n, col = "blue") #add threshold
   if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
+  pl <- recordPlot()
   #plot( a*Tn - b); abline(h=c_alpha, col="blue") #rescaled plot
   ##Output------------------------------------
-  out <- list(Reject = Reject, Threshold = D_n, mosum = Wn, cps = cps)
+  out <- list(Reject = Reject, Threshold = D_n, mosum = Wn, cps = cps, plot = pl, estim=estim)
   return(out)
 }
 
 ## examples
 # bf
-test_Wald(x=bf_ts, p=1, G=100, alpha= .05)
-
+bf_test_wald <- test_Wald(x= as.matrix(bf_ts), p=1, G=200, Phi = A_1, eps=eps, alpha= .1, estim = "DiagH")
+bf_test_wald
 # change
-test_Wald(x= var_change, p=1, G= 300, alpha = .1)
+change_test_wald <- test_Wald(x= var_change, p=1, G= 200, Phi = a_change, eps=eps_change, alpha = .1, estim = "DiagH")
+change_test_wald
+# no change
+nochange_test <- test_Wald(x=nochange, p=1, G=150, Phi = a_nochange, eps = eps_nochange, alpha = 0.1) 
+nochange_test
+#univariate
+univ_test_wald <- test_Wald(matrix(univData), p=1, G= 300, Phi = matrix(a_univ), eps=matrix(eps_univ), alpha = .1, estim="DiagH")
+univ_test_wald

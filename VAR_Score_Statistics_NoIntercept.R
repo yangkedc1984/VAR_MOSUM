@@ -3,14 +3,16 @@
 
 ##EXAMPLES-------------------------
 ##example------------------------- bankfox data
-bf_ts <- ts(bf[672:dim(bf)[1], c(1, 3:6, 8:10)])
-bf_ts <- na.fill(bf_ts, fill = "extend")
+#bf_ts <- ts(bf[672:dim(bf)[1], c(1, 3:6, 8:10)])
+#bf_ts <- na.fill(bf_ts, fill = "extend")
 ts.plot(bf_ts)
 
-model <- ar(bf_ts, demean = T, method = "ols")
+model <- ar(bf_ts, demean = T, method = "ols") #remove mean for E[Y]=0
+bf_ts_0 <- as.matrix(t( t(bf_ts) - (model$x.mean))) #centre
 #Phi <- as.vector(t(as.matrix(model$ar)))
-A_1 <-cbind(model$x.intercept,  matrix(model$ar, nrow=8, ncol=8))
+A_1 <- matrix(model$ar, nrow=8, ncol=8)
 eps <- model$resid
+ts.plot(bf_ts_0)
 
 ##example------------------------- change data
 rData1 <- rSim(a1, e1)
@@ -19,28 +21,46 @@ rData2 <- rSim(a2, e2)
 rData2[1,] <- runif(5, 0, 0.02)
 
 var_change <- ts(rbind(rData1, rData2) + 3)
-change_model <- ar(var_change, order.max = 1, demean = T, method = "ols")
-a_change <- cbind(change_model$x.intercept, matrix( change_model$ar, nrow=5, ncol=5))
+change_model <- ar(var_change, order.max = 1, demean = T, method = "ols") #remove mean for E[Y]=0
+var_change_0 <- as.matrix(t( t(var_change) - (change_model$x.mean))) #centre
+a_change <- matrix(change_model$ar, nrow=5, ncol=5)
 eps_change <- change_model$resid
-plot(var_change)
+ts.plot(var_change_0)
 
 ##example------------------------- nochange data
 nochange <- ts(rData1)
-nochange_model <- ar(nochange, order.max = 1, demean = F, method = "ols")
+nochange_model <- ar(nochange, order.max = 1, demean = T, method = "ols")
+nochange_0 <- as.matrix(t( t(nochange) - (nochange_model$x.mean))) #centre
 a_nochange <- matrix(nochange_model$ar, nrow=5, ncol=5)
 eps_nochange <- nochange_model$resid
-plot(nochange)
+ts.plot(nochange_0)
+
+##example-------------------------two change data
+rData1 <- rSim(a1, e1)
+rData1[1,] <- runif(5, 0, 0.02) #prevent NaN
+rData2 <- rSim(a2, e2)
+rData2[1,] <- runif(5, 0, 0.02)
+rData3 <- rSim(a1, e2)
+
+two_change_data <- ts(rbind(rData1, rData2, rData3) )
+two_change_model <- ar(two_change_data, order.max = 1, demean = T, method = "ols") #remove mean for E[Y]=0
+two_change_0 <- as.matrix(t( t(two_change_data) - (two_change_model$x.mean))) #centre
+a_two_change <- matrix(two_change_model$ar, nrow=5, ncol=5)
+eps_two_change <- two_change_model$resid
+ts.plot(two_change_0)
+
+
 
 ##example------------------------- univariate data
-univData1 <- arima.sim(n=2000, list(ar=c(a1_univ)), sd = 0.05) + 0.05; univData2 <- arima.sim(n=2000, list(ar=c(a2_univ)), sd = 0.05)
+univData1 <- arima.sim(n=2000, list(ar=c(a1_univ)), sd = 0.05) + 0; univData2 <- arima.sim(n=2000, list(ar=c(a2_univ)), sd = 0.05)
 #univData1[1] <- univData2[1] <- 0.1 #prevent nan
 univData <-  ts(c(univData1, univData2))
 plot(univData)
 univ_model <- ar(univData, aic=FALSE, order.max = 1, demean = T, method = "ols")
-a_univ <- matrix(c(univ_model$x.intercept, univ_model$ar), nrow=1, ncol=2)
+univData_0 <- as.matrix(t( t(univData) - (univ_model$x.mean))) #centre
+a_univ <- matrix(univ_model$ar, nrow=1, ncol=1)
 eps_univ <- univ_model$resid
-
-
+ts.plot(univData_0)
 
 
 
@@ -51,29 +71,29 @@ eps_univ <- univ_model$resid
 getH_ik <- function(x, i,k, Phi, eps) { 
   if(is.null(dim(x))) {x <- matrix(x); Phi <- matrix(Phi); eps <- matrix(eps)} #handle univariate case
   a <- t(Phi[i,]) #A_1[i,]
-  X <- c(1, x[(k-1),]) #with intercept
+  X <- x[(k-1),]
   #X <- t(X)
   y <- as.numeric(x[k,i])
   e <- eps[k,i]
-  H_ik <- 2 *t(- y*X + a%*%X%*%t(X) - e*X)
+  H_ik <- t(- y*X + a%*%X%*%t(X) - e*X) #*2
   return( H_ik)
   #return(list(X%*%t(X), cov(X,X)))
 }
-#getH_ik(bf_ts, i=1, k=10, Phi = A_1, eps = (eps))
-#getH_ik(matrix(univData), 1, 100, (a_univ), matrix(eps_univ))
+#getH_ik(bf_ts, i=1, k=10, Phi = A_1, eps = eps)
+#getH_ik(matrix(univData), 1, 100, matrix(a_univ), matrix(eps_univ))
 
 ##make whole estimating function H (pd^2 vector) at time k
 makeH_k <- function(x, k, p, Phi, eps){ 
   d <- dim(x)[2]
   if(is.null(dim(x))) {d <- 1} #handle univariate case
-  H <- t(rep(0, d + d*d*p)) #accounts for intercept
+  H <- t(rep(0, d*d*p))
   for (i in 1:d) {
-    H[((i-1)*(d+1)+1):((i-1)*(d+1)+ d+1)] <- getH_ik(x,i,k,Phi,eps) #accounts for intercept
+    H[((i-1)*d+1):( (i-1)*d+d)] <- getH_ik(x,i,k,Phi,eps)
   }
   return(t(H))
 }
 #makeH_k(bf_ts, k=10, p=1, Phi = A_1, eps = eps)
-#makeH_k(matrix(univData), k=101, p=1, Phi = (a_univ), eps = matrix(eps_univ))
+#makeH_k(matrix(univData), k=101, p=1, Phi = matrix(a_univ), eps = matrix(eps_univ))
 
 
 ##evaluate estimating function H at all time steps
@@ -83,7 +103,7 @@ makeH_all <- function(x, p, G, Phi, eps){
   d <- dim(x)[2]
   if(is.null(dim(x))) {n <- length(x); d<- 1} #handle univariate case
   K <- (G+1):(n-G) #time indices to evaluate over
-  H_all <- matrix(0, nrow = d+d*d*p, ncol = n) #matrix of H values #accounts for intercept
+  H_all <- matrix(0, nrow = d*d*p, ncol = n) #matrix of H values
   for (t in K) {
     H_all[,t] <- makeH_k(x, k=t, p, Phi, eps) 
   }
@@ -91,7 +111,7 @@ makeH_all <- function(x, p, G, Phi, eps){
 }
 #H_all_bfts <- makeH_all(x=bf_ts, p=1, G=100, Phi=A_1, eps=eps)
 #H_all_nochange <- makeH_all(x=nochange, p=1, G=10, Phi=a_nochange, eps=eps_nochange)
-H_all_univ <- makeH_all(matrix(univData), 1, 100, (a_univ), matrix(eps_univ))
+H_all_univ <- makeH_all(matrix(univData), 1, 100, matrix(a_univ), matrix(eps_univ))
 
 get_DiagH_rootinv <- function(x, k, G, H_all){
   if(is.null(dim(x))) {x <- matrix(x)} #handle univariate case
@@ -99,25 +119,25 @@ get_DiagH_rootinv <- function(x, k, G, H_all){
   d <- dim(x)[2]
   l <- (k-G):(k-1) #lower time index
   u <- k:(k+G-1) #upper time index
-  H_list <- list(1: d )
+  H_list <- list(1:d)
   for (i in 1:d) {
-    #if(d>1){ #d>1
-      H_u <- H_all[((i-1)*(d+1)+1):((i-1)*(d+1)+ d+1),u] #accounts for intercept
-      H_l <- H_all[((i-1)*(d+1)+1):((i-1)*(d+1)+ d+1), l] 
+    if(d>1){ #d>1
+      H_u <- H_all[((i-1)*d+1):( (i-1)*d+d),u]
+      H_l <- H_all[((i-1)*d+1):( (i-1)*d+d), l] 
       Hbar_u <- colMeans(H_u) 
       H_u_centred <- (H_u - Hbar_u)
       Hbar_l <- colMeans(H_l)
       H_l_centred <- (H_l - Hbar_l)
       H_out <- (H_l_centred) %*% t(H_l_centred) + (H_u_centred) %*% t(H_u_centred) #sum  } else Hbar_u <- matrix(mean(H_u))
-    # } else { #d=1
-    #   H_u <- H_all[,u]
-    #   H_l <- H_all[, l] 
-    #   Hbar_u <- mean(H_u)
-    #   H_u_centred <- (H_u - Hbar_u) 
-    #   Hbar_l <- mean(H_l)
-    #   H_l_centred <- (H_l - Hbar_l)
-    #   H_out <- t(H_l_centred) %*% (H_l_centred) + t(H_u_centred) %*% (H_u_centred)
-    # }
+    } else { #d=1
+      H_u <- H_all[,u]
+      H_l <- H_all[, l] 
+      Hbar_u <- mean(H_u)
+      H_u_centred <- (H_u - Hbar_u) 
+      Hbar_l <- mean(H_l)
+      H_l_centred <- (H_l - Hbar_l)
+      H_out <- t(H_l_centred) %*% (H_l_centred) + t(H_u_centred) %*% (H_u_centred)
+    }
     ##eigen decomposition
     e <- eigen(H_out) #SVD of H_out
     V <- e$vectors
@@ -130,7 +150,7 @@ get_DiagH_rootinv <- function(x, k, G, H_all){
   return(Sig_)
 }
 #get_DiagH_rootinv(x=as.matrix(bf_ts), k =200,G=100, H_all=H_all_bfts)
-#get_DiagH_rootinv(x=as.matrix(univData), k =200,G=100, H_all= (H_all_univ))
+#get_DiagH_rootinv(x=as.matrix(univData), k =200,G=100, H_all= t(matrix(H_all_univ)))
 
 get_FullH_rootinv <- function(x, k, G, H_all){
   if(is.null(dim(x))) {x <- matrix(x); H_all = matrix(H_all)} #handle univariate case
@@ -138,7 +158,7 @@ get_FullH_rootinv <- function(x, k, G, H_all){
   d <- dim(x)[2]
   l <- (k-G):(k-1) #lower time index
   u <- k:(k+G-1) #upper time index
-#    if(d>1){ #d>1
+    if(d>1){ #d>1
       H_u <- H_all[,u]
       H_l <- H_all[,l] 
       Hbar_u <- colMeans(H_u) 
@@ -146,15 +166,15 @@ get_FullH_rootinv <- function(x, k, G, H_all){
       Hbar_l <- colMeans(H_l)
       H_l_centred <- (H_l - Hbar_l)
       H_out <- (H_l_centred) %*% t(H_l_centred) + (H_u_centred) %*% t(H_u_centred) #sum  } else Hbar_u <- matrix(mean(H_u))
-    # } else { #d=1
-    #   H_u <- H_all[u]
-    #   H_l <- H_all[l] 
-    #   Hbar_u <- mean(H_u)
-    #   H_u_centred <- (H_u - Hbar_u) 
-    #   Hbar_l <- mean(H_l)
-    #   H_l_centred <- (H_l - Hbar_l)
-    #   H_out <- t(H_l_centred) %*% (H_l_centred) + t(H_u_centred) %*% (H_u_centred)
-    # }
+    } else { #d=1
+      H_u <- H_all[u]
+      H_l <- H_all[l] 
+      Hbar_u <- mean(H_u)
+      H_u_centred <- (H_u - Hbar_u) 
+      Hbar_l <- mean(H_l)
+      H_l_centred <- (H_l - Hbar_l)
+      H_out <- t(H_l_centred) %*% (H_l_centred) + t(H_u_centred) %*% (H_u_centred)
+    }
     ##eigen decomposition
     e <- eigen(H_out) #SVD of H_out
     V <- e$vectors
@@ -165,21 +185,21 @@ get_FullH_rootinv <- function(x, k, G, H_all){
   return(Sig_)
 }
 #get_FullH_rootinv(x=as.matrix(bf_ts), k =200,G=100, H_all=H_all_bfts)
-#get_FullH_rootinv(x=as.matrix(univData), k =200,G=100, H_all= (H_all_univ))
+#get_FullH_rootinv(x=as.matrix(univData), k =200,G=100, H_all= t(matrix(H_all_univ)))
 
 ##Difference Vector at k
 getA <- function(x, k, p, G, Phi, eps, H_all){ 
   d <- dim(x)[2]
   r <- H_all[,(k+1):(k+G)]; l <- H_all[,(k-G+1):(k)] #left/right of window
-  #if (d > 1){ 
+  if (d > 1){ 
     A <- rowSums(r) - rowSums(l)#difference 
-  #} else {A <- sum(r) - sum(l)}
+  } else {A <- sum(r) - sum(l)}
   A <- as.matrix(A)
   return(A)
 }
 #getA(x=bf_ts, k = 200, p=1, G=100, Phi=A_1, eps=eps, H_all = H_all_bfts)
 #getA(x=nochange, k = 10, p=1, G=10, Phi=a_nochange, eps=eps_nochange, H_all = H_all_example)
-#getA(matrix(univData), 200, 1, 100, (a_univ), (eps_univ), H_all_univ)
+#getA(matrix(univData), 200, 1, 100, matrix(a_univ), matrix(eps_univ), H_all_univ)
 
 ##sigma_i options---------------------------------------------
 ##global estimate for sigma^2_i 
@@ -224,23 +244,25 @@ get_DiagC_rootinv <- function(x, eps, sigma_d, k, G){
   if(is.null(dim(x))) {x <- matrix(x)} #handle univariate case
   n <- dim(x)[1]
   d <- dim(x)[2]
-  xk <-  cbind(1, x[(k-G):(k+G-1),]) #lower time sample #includes intercept
-  C <- 1/(2*G) * t(xk) %*% (xk)
+  xk <- x[(k-G):(k+G-1),] #lower time sample
+  if(d==1) xk <- matrix(xk)
+  C <- cov(xk)
+  #C<-1/(2*G) * t(xk) %*% (xk)
   ##eigen decomposition
   e <- eigen(C) #SVD of C
   V <- e$vectors
-  #if(d>1) {
-    C_ <- V %*% diag( e$values^(-0.5) ) %*% t(V)
-  #} else {C_ <- e$values^(-0.5) * V %*% t(V)}
+  if(d>1) {
+    C_ <- V %*% diag((e$values)^(-0.5)) %*% t(V)
+  } else {C_ <- e$values^(-0.5) * V %*% t(V)}
   C_list <- list(1:d)
   for (i in 1:d) {
     C_list[[i]] <- sigma_d[i]^(-0.5) * C_
   }
-  Sig_ <-  (2)^(-0.5) *Matrix::bdiag(C_list) #coerce into block diagonal form
+  Sig_ <-  Matrix::bdiag(C_list) #coerce into block diagonal form #(2)^(-0.5) *
   return(Sig_)
 }
-#Sig_example <- get_DiagC_rootinv(as.matrix(bf_ts), eps, bf_sigma_d, 400,100)
-#get_DiagC_rootinv(matrix(univData), matrix(eps_univ), getsigma_dGlobal(eps_univ), 400, 100)
+#Sig_example <- get_DiagC_rootinv(as.matrix(bf_ts_0), eps, bf_sigma_d, 400,100)
+#get_DiagC_rootinv(matrix(univData_0), matrix(eps_univ), getsigma_dGlobal(eps_univ), 400, 100)
 
 
 ## inverse sqrt of local uncentred covariance C_nk
@@ -306,10 +328,14 @@ get_cps <- function(Tn, D_n, G, nu = 1/4){
     nu_remove <- which(w-v >= nu*G) #nu(epsilon) test for distance between 
     v_nu <- v[nu_remove]; w_nu <- c(w[nu_remove],n)
     q <- length(v_nu) #number of CPs
-    cps <- rep(0, q)
-    for (i in 1:q) {
+    if(q>0){
+      cps <- rep(0, q)
+      for (i in 1:q) {
       cps[i] <- v_nu[i] + which.max(Tn[ (v_nu[i]):(w_nu[i]) ] )
-    }
+      }
+    } else {
+      cps <- NULL #if fails nu-gap
+    }  
     return(cps)
 }
 get_cps(Tn = Tn_example, D_n = 5, G= 100,nu = 1/4)
@@ -346,15 +372,22 @@ test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){
 
 
 ##  bf example
-bf_test <- test_Score(x=bf_ts, p=1, G=200, Phi = A_1, eps = eps, alpha = 0.05)
+bf_test <- test_Score(x=bf_ts_0, p=1, G=125, Phi = A_1, eps = eps, alpha = 0.1)
 bf_test
+
 ##  change example
-change_test <- test_Score(x=var_change, p=1, G=200, Phi = a_change, eps = eps_change, alpha = 0.05, estim = "DiagC") 
+change_test <- test_Score(x=var_change_0, p=1, G=200, Phi = a_change, eps = eps_change, alpha = 0.05, "DiagH") 
 change_test$plot
+
+## two change example
+two_change_test <- test_Score(x=two_change_0, p=1, G=250, Phi = a_two_change, eps = eps_two_change, alpha = 0.05, "DiagH") 
+two_change_test$plot
+
 ##  nochange example
-nochange_test <- test_Score(x=nochange, p=1, G=150, Phi = a_nochange, eps = eps_nochange, alpha = 0.1) 
+nochange_test <- test_Score(x=nochange_0, p=1, G=150, Phi = a_nochange, eps = eps_nochange, alpha = 0.1, "DiagH") 
 nochange_test
+
 ## univariate example
-univ_test <- test_Score(x=matrix(univData), p=1, G= 300, Phi = (a_univ), eps= matrix(eps_univ), alpha=0.1)
+univ_test <- test_Score(x=univData_0, p=1, G= 250, Phi = matrix(a_univ), eps= matrix(eps_univ), alpha=0.1, estim = "DiagC")
 univ_test
 

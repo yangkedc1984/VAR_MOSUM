@@ -55,7 +55,7 @@ getH_ik <- function(x, i,k, Phi, eps) {
   #X <- t(X)
   y <- as.numeric(x[k,i])
   e <- eps[k,i]
-  H_ik <- 2 *t(- y*X + a%*%X%*%t(X) - e*X)
+  H_ik <- t(- y*X + a%*%X%*%t(X) - e*X)
   return( H_ik)
   #return(list(X%*%t(X), cov(X,X)))
 }

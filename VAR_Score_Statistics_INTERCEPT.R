@@ -5,9 +5,11 @@
 ##example------------------------- bankfox data
 bf_ts <- ts(bf[672:dim(bf)[1], c(1, 3:6, 8:10)])
 bf_ts <- na.fill(bf_ts, fill = "extend")
-ts.plot(bf_ts)
+bf_ts_0 <- as.matrix(t( t(bf_ts) - (model$x.mean))) #centre
+ts.plot(bf_ts_0)
 
-model <- ar(bf_ts, demean = T, method = "ols")
+
+model <- ar(bf_ts_0, demean = T, method = "ols")
 #Phi <- as.vector(t(as.matrix(model$ar)))
 A_1 <-cbind(model$x.intercept,  matrix(model$ar, nrow=8, ncol=8))
 eps <- model$resid
@@ -18,7 +20,7 @@ rData1[1,] <- runif(5, 0, 0.02) #prevent NaN
 rData2 <- rSim(a2, e2)
 rData2[1,] <- runif(5, 0, 0.02)
 
-var_change <- ts(rbind(rData1, rData2) + 3)
+var_change <- ts(rbind(rData1+ 2, rData2- 1) )
 change_model <- ar(var_change, order.max = 1, demean = T, method = "ols")
 a_change <- cbind(change_model$x.intercept, matrix( change_model$ar, nrow=5, ncol=5))
 eps_change <- change_model$resid
@@ -26,13 +28,13 @@ plot(var_change)
 
 ##example------------------------- nochange data
 nochange <- ts(rData1)
-nochange_model <- ar(nochange, order.max = 1, demean = F, method = "ols")
-a_nochange <- matrix(nochange_model$ar, nrow=5, ncol=5)
+nochange_model <- ar(nochange, order.max = 1, demean = T, method = "ols")
+a_nochange <- cbind(nochange_model$x.intercept,matrix(nochange_model$ar, nrow=5, ncol=5))
 eps_nochange <- nochange_model$resid
 plot(nochange)
 
 ##example------------------------- univariate data
-univData1 <- arima.sim(n=2000, list(ar=c(a1_univ)), sd = 0.05) + 0.05; univData2 <- arima.sim(n=2000, list(ar=c(a2_univ)), sd = 0.05)
+univData1 <- arima.sim(n=2000, list(ar=c(a1_univ)), sd = 0.05) + 0.1; univData2 <- arima.sim(n=2000, list(ar=c(a2_univ)), sd = 0.05) -0.05
 #univData1[1] <- univData2[1] <- 0.1 #prevent nan
 univData <-  ts(c(univData1, univData2))
 plot(univData)
@@ -51,6 +53,7 @@ eps_univ <- univ_model$resid
 getH_ik <- function(x, i,k, Phi, eps) { 
   if(is.null(dim(x))) {x <- matrix(x); Phi <- matrix(Phi); eps <- matrix(eps)} #handle univariate case
   a <- t(Phi[i,]) #A_1[i,]
+  if(dim(x)[2]==1) a <- t(matrix(Phi))
   X <- c(1, x[(k-1),]) #with intercept
   #X <- t(X)
   y <- as.numeric(x[k,i])
@@ -73,7 +76,7 @@ makeH_k <- function(x, k, p, Phi, eps){
   return(t(H))
 }
 #makeH_k(bf_ts, k=10, p=1, Phi = A_1, eps = eps)
-#makeH_k(matrix(univData), k=101, p=1, Phi = (a_univ), eps = matrix(eps_univ))
+#makeH_k(matrix(univData), k=101, p=1, Phi = t(a_univ), eps = matrix(eps_univ))
 
 
 ##evaluate estimating function H at all time steps
@@ -91,7 +94,7 @@ makeH_all <- function(x, p, G, Phi, eps){
 }
 #H_all_bfts <- makeH_all(x=bf_ts, p=1, G=100, Phi=A_1, eps=eps)
 #H_all_nochange <- makeH_all(x=nochange, p=1, G=10, Phi=a_nochange, eps=eps_nochange)
-H_all_univ <- makeH_all(matrix(univData), 1, 100, (a_univ), matrix(eps_univ))
+H_all_univ <- makeH_all(matrix(univData), 1, 100, t(matrix(a_univ)), matrix(eps_univ))
 
 get_DiagH_rootinv <- function(x, k, G, H_all){
   if(is.null(dim(x))) {x <- matrix(x)} #handle univariate case
@@ -121,9 +124,9 @@ get_DiagH_rootinv <- function(x, k, G, H_all){
     ##eigen decomposition
     e <- eigen(H_out) #SVD of H_out
     V <- e$vectors
-    if(d>1) {
+    #if(d>1) {
       H_ <- V %*% diag((e$values)^(-0.5)) %*% t(V)
-    } else {H_ <- e$values^(-0.5) * V %*% t(V)}
+   # } else {H_ <- e$values^(-0.5) * V %*% t(V)}
     H_list[[i]] <- H_
   }
   Sig_ <-  sqrt(2*G) *Matrix::bdiag(H_list) #coerce into block diagonal form
@@ -158,9 +161,9 @@ get_FullH_rootinv <- function(x, k, G, H_all){
     ##eigen decomposition
     e <- eigen(H_out) #SVD of H_out
     V <- e$vectors
-    if(d>1) {
+    #if(d>1) {
       H_ <- V %*% diag((e$values)^(-0.5)) %*% t(V)
-    } else {H_ <- e$values^(-0.5) * V %*% t(V)}
+    #} else {H_ <- e$values^(-0.5) * V %*% t(V)}
   Sig_ <-  sqrt(2*G) * H_ 
   return(Sig_)
 }
@@ -225,6 +228,7 @@ get_DiagC_rootinv <- function(x, eps, sigma_d, k, G){
   n <- dim(x)[1]
   d <- dim(x)[2]
   xk <-  cbind(1, x[(k-G):(k+G-1),]) #lower time sample #includes intercept
+  #if(d==1) xk <- matrix(xk) #redundant
   C <- 1/(2*G) * t(xk) %*% (xk)
   ##eigen decomposition
   e <- eigen(C) #SVD of C
@@ -296,21 +300,25 @@ getT <- function(x, p, G, Phi, eps, estim){
 
 ##get change point estimates
 get_cps <- function(Tn, D_n, G, nu = 1/4){
-    n <- length(Tn)
-    rshift <- c(Tn[-1],0); lshift <- c(0,Tn[-n]); 
-    over <- (Tn >D_n) #indices are greater than D_n?
-    v <- which(over & lshift < D_n) #lowers
-    #v <- which(v) #append 0
-    w <- which(over & rshift < D_n) #uppers
-    #w <- which(w) #append n
-    nu_remove <- which(w-v >= nu*G) #nu(epsilon) test for distance between 
-    v_nu <- v[nu_remove]; w_nu <- c(w[nu_remove],n)
-    q <- length(v_nu) #number of CPs
+  n <- length(Tn)
+  rshift <- c(Tn[-1],0); lshift <- c(0,Tn[-n]); 
+  over <- (Tn >D_n) #indices are greater than D_n?
+  v <- which(over & lshift < D_n) #lowers
+  #v <- which(v) #append 0
+  w <- which(over & rshift < D_n) #uppers
+  #w <- which(w) #append n
+  nu_remove <- which(w-v >= nu*G) #nu(epsilon) test for distance between 
+  v_nu <- v[nu_remove]; w_nu <- c(w[nu_remove],n)
+  q <- length(v_nu) #number of CPs
+  if(q>0){
     cps <- rep(0, q)
     for (i in 1:q) {
       cps[i] <- v_nu[i] + which.max(Tn[ (v_nu[i]):(w_nu[i]) ] )
     }
-    return(cps)
+  } else {
+    cps <- NULL #if fails nu-gap
+  }  
+  return(cps)
 }
 get_cps(Tn = Tn_example, D_n = 5, G= 100,nu = 1/4)
 
@@ -349,12 +357,12 @@ test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){
 bf_test <- test_Score(x=bf_ts, p=1, G=200, Phi = A_1, eps = eps, alpha = 0.05)
 bf_test
 ##  change example
-change_test <- test_Score(x=var_change, p=1, G=200, Phi = a_change, eps = eps_change, alpha = 0.05, estim = "DiagC") 
+change_test <- test_Score(x=var_change, p=1, G=200, Phi = a_change, eps = eps_change, alpha = 0.05, estim = "DiagH") 
 change_test$plot
 ##  nochange example
 nochange_test <- test_Score(x=nochange, p=1, G=150, Phi = a_nochange, eps = eps_nochange, alpha = 0.1) 
 nochange_test
 ## univariate example
-univ_test <- test_Score(x=matrix(univData), p=1, G= 300, Phi = (a_univ), eps= matrix(eps_univ), alpha=0.1)
+univ_test <- test_Score(x=matrix(univData), p=1, G= 300, Phi = matrix(a_univ), eps= matrix(eps_univ), alpha=0.1, estim = "DiagH")
 univ_test
 

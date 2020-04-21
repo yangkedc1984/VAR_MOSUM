@@ -1,0 +1,94 @@
+---
+title: "VAR MOSUM Plots"
+author: "Dom Owens"
+date: "20/04/2020"
+output: html_document
+---
+
+```{r}
+##  bf example
+#bf_test <- test_Score(x=bf_ts_0, p=1, G=125, Phi = A_1, eps = eps, alpha = 0.1)
+bf_test$plot
+
+##  change example
+#change_test <- test_Score(x=var_change_0, p=1, G=200, Phi = a_change, eps = eps_change, alpha = 0.05, "DiagH") 
+change_test$plot
+
+## two change example
+#two_change_test <- test_Score(x=two_change_0, p=1, G=250, Phi = a_two_change, eps = eps_two_change, alpha = 0.05, "DiagH") 
+two_change_test$plot
+
+##  nochange example
+#nochange_test <- test_Score(x=nochange_0, p=1, G=150, Phi = a_nochange, eps = eps_nochange, alpha = 0.1, "DiagH") 
+nochange_test$plot
+
+## univariate example
+#univ_test <- test_Score(x=univData_0, p=1, G= 250, Phi = matrix(a_univ), eps= matrix(eps_univ), alpha=0.1, estim = "DiagC")
+univ_test$plot
+
+```
+
+```{r}
+# bf
+#bf_test_wald <- test_Wald(x= bf_ts_0, p=1, G=200, Phi = A_1, eps=eps, alpha= .1, estim = "DiagH")
+#bf_test_wald_C <- test_Wald(x= bf_ts_0, p=1, G=200, Phi = A_1, eps=eps, alpha= .1, estim = "DiagC")
+bf_test_wald$plot
+# change
+#change_test_wald <- test_Wald(x= var_change_0, p=1, G= 200, alpha = .1, estim = "DiagH")
+change_test_wald$plot
+# no change
+#nochange_test <- test_Wald(x=nochange_0, p=1, G=150, alpha = 0.1) 
+nochange_test_wald$plot
+#univariate
+#univ_test_wald <- test_Wald(univData_0, p=1, G= 300, alpha = .1, estim="DiagH")
+univ_test_wald$plot
+```
+
+
+# Simulation Studies
+
+d=4 p=1
+```{r}
+A1 <- matrix( c(.7, -.1, -.1, -.1,
+                -.1,.7,  -.1, -.1,
+                -.1, -.1, .7, -.1,
+                 -.1, -.1, -.1,.7), nrow = 4, ncol = 4 ) 
+A2 <- matrix( c(.6, .1, .1, .1,
+                .1,.6,  .1, .1,
+                .1, .1, .6, .1,
+                 .1, .1, .1,.6), nrow = 4, ncol = 4 ) 
+A3 <- matrix( c(.5, .1, .1, -.1,
+                .1,.5,  -.1, .1,
+                .1, -.1, .5, .1,
+                 -.1, .1, .1,.5), nrow = 4, ncol = 4 ) 
+Reject_count <- 0
+Rej_vec <- rep(FALSE, 100)
+#for (replicate in 1:100) {
+testloop <- function(d){
+  e1 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
+  e2 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
+  e3 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
+  e4 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
+  ##null
+  sim_n41 <- rbind(rSim(A1,e1),rSim(A1,e2),rSim(A1,e3),rSim(A1,e4))
+  plot.ts(sim_n41)
+  m_n41 <- ar(sim_n41, order.max = 1, demean = F, method = "ols") #remove mean for E[Y]=0
+  #var_change_0 <- as.matrix(t( t(var_change) - (change_model$x.mean))) #centre
+  m_n41_a <- matrix(m_n41$ar, nrow=4, ncol=4)
+  m_n41_res <- m_n41$resid
+  t_n41 <- test_Score(x=sim_n41, p=1, G=50, Phi = m_n41_a, eps = m_n41_res, alpha = 0.05, "DiagH")
+  return(t_n41$Reject)#if (t_n41$Reject == TRUE) Reject_count <- Reject_count +1
+}
+library(parallel)
+Rej_list <- mclapply(rep(4,100), FUN=testloop,  mc.cores = getOption("mc.cores", 4L))
+
+##alt
+sim_a41 <- rbind(rSim(A1,e1),rSim(A2,e2),rSim(A3,e3),rSim(A1,e4))
+plot.ts(sim_a41)
+m_a41 <- ar(sim_a41, order.max = 1, demean = F, method = "ols") #remove mean for E[Y]=0
+#var_change_0 <- as.matrix(t( t(var_change) - (change_model$x.mean))) #centre
+m_a41_a <- matrix(m_a41$ar, nrow=4, ncol=4)
+m_a41_res <- m_a41$resid
+t_a41 <- test_Score(x=sim_a41, p=1, G=200, Phi = m_a41_a, eps = m_a41_res, alpha = 0.05, "DiagH") 
+```
+

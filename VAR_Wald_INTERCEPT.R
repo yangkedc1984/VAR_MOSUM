@@ -15,8 +15,8 @@
 getH_ik_Wald <- function(x, i,k, a) { 
   #if(is.null(dim(x))) {x <- matrix(x); Phi <- matrix(Phi); eps <- matrix(eps)} #handle univariate case
   d <- dim(x)[2]
-  ai <- a[((i-1)*d+1):( (i-1)*d+d)] #select params for channel i
-  X <- x[(k-1),]
+  ai <- a[((i-1)*(d+1) + 1):( (i-1)*(d+1) +d+1)] #select params for channel i #accounts for intercept
+  X <- c(1, x[(k-1),]) #with intercept X <- x[(k-1),]
   #X <- t(X)
   y <- as.numeric(x[k,i])
   e <- as.numeric(x[k,i] - ai %*% X) #eps[k,i] #p=1 residual
@@ -30,9 +30,9 @@ getH_ik_Wald(bf_ts_0, i=1, k=10, a = (make_a_lu(bf_ts_0, p=1, l= 10, u= 100)))
 makeH_k_Wald <- function(x, k, p, a){ 
   d <- dim(x)[2]
   if(is.null(dim(x))) {d <- 1} #handle univariate case
-  H <- t(rep(0, d*d*p))
+  H <- t(rep(0, d+  d*d*p)) #accounts for intercept 
   for (i in 1:d) {
-    H[((i-1)*d+1):( (i-1)*d+d)] <- getH_ik_Wald(x,i,k,a)
+    H[((i-1)*(d+1)+1):((i-1)*(d+1)+ d+1)] <- getH_ik_Wald(x,i,k,a) #accounts for intercept  H[((i-1)*d+1):( (i-1)*d+d)] <- getH_ik_Wald(x,i,k,a)
   }
   return(t(H))
 }
@@ -45,7 +45,7 @@ makeH_l_u <- function(x, p, l, u, a){
   d <- dim(x)[2]
   if(is.null(dim(x))) {n <- length(x); d<- 1} #handle univariate case
   #K <- (G+1):(n-G) #time indices to evaluate over
-  H_l_u <- matrix(0, nrow = d*d*p, ncol = u-l+1) #matrix of H values
+  H_l_u <- matrix(0, nrow = d+ d*d*p, ncol = u-l+1) #matrix of H values #accounts for intercept
   for (t in 1:(u-l+1)) {
     H_l_u[,t] <- makeH_k_Wald(x, k=l+t-1, p, a) 
   }
@@ -56,8 +56,8 @@ makeH_l_u(x=bf_ts_0, p=1, l=10, u =100, a= (make_a_lu(bf_ts_0, p=1, l= 10, u= 10
 
 ##local (l,u) regression parameter for channel i
 get_a_lu_i <- function(x, i, l, u){
-  y <- x[l:u,i] #- mean(x[l:u,i]) #response
-  Xt <- t(x[(l-1):(u-1),]) #regressors ##p = 1 case only
+  y <-   x[l:u,i]  #- mean(x[l:u,i]) #response #intercept
+  Xt <- t(cbind(1, x[(l-1):(u-1),])) #regressors ##p = 1 case only
   #Xt_centred <- Xt - rowMeans(Xt) 
   y_soln <- colSums(diag(y) %*% t(Xt)) #t(Xt_centred)
   X_soln <- solve(Xt %*% t(Xt))#cov(t(Xt))
@@ -69,9 +69,9 @@ get_a_lu_i(bf_ts_0, 1, 10, 100)
 ##local (l,u) regression parameter for all channels
 make_a_lu <- function(x, p, l, u){
   d <- dim(x)[2]
-  a_lu <- rep(0, d*d*p)
+  a_lu <- rep(0, d + d*d*p) #accounts for intercept
   for (i in 1:d) {
-    a_lu[((i-1)*d+1):( (i-1)*d+d)] <- get_a_lu_i(x,i,l,u)
+    a_lu[((i-1)*(d+1)+1):((i-1)*(d+1)+ d+1)] <- get_a_lu_i(x,i,l,u)  #((i-1)*d+1):( (i-1)*d+d)  #accounts for intercept
   }
   return(a_lu)
 }
@@ -80,7 +80,7 @@ make_a_lu(bf_ts, p=1, l= 10, u= 100)
 ## sqrt of local uncentred covariance C_nk
 get_V_nk <- function(x, p, l, u){
   d <- dim(x)[2]
-  xk <- x[(l-1):(u-1),] #time sample
+  xk <- cbind(1,x[(l-1):(u-1),]) #time sample #intercept
   #C <- 1/(u-l) * t(xk) %*% (xk) #uncentred covariance of sample
   if(d==1) xk <- matrix(xk)
   C <- cov(xk)
@@ -147,41 +147,61 @@ get_DiagH_Wald <- function(x, G, H_l, H_u){
   #u <- k:(k+G-1) #upper time index
   H_list <- list(1:d)
   for (i in 1:d) {
-    if(d>1){ #d>1
-      H_u_i <- (H_u[((i-1)*d+1):( (i-1)*d+d),] )##LOCALISE
-      H_l_i <- (H_l[((i-1)*d+1):( (i-1)*d+d),] )
+    #if(d>1){ #d>1
+      H_u_i <- (H_u[((i-1)*(d+1)+1):((i-1)*(d+1)+ d+1),] )##LOCALISE ((i-1)*d+1):( (i-1)*d+d) ##accounts for intercept
+      H_l_i <- (H_l[((i-1)*(d+1)+1):((i-1)*(d+1)+ d+1),] )
       Hbar_u <- rowMeans(H_u_i) 
       H_u_centred <- (H_u_i - Hbar_u)
       Hbar_l <- rowMeans(H_l_i)
       H_l_centred <- (H_l_i - Hbar_l)
       H_out <- (H_l_centred) %*% t(H_l_centred) + (H_u_centred) %*% t(H_u_centred) #sum  } else Hbar_u <- matrix(mean(H_u))
-    } else { #d=1
+    #} else { #d=1
       #H_u_i <- H_u[,u]
       #H_l_i <- H_l[, l] 
-      Hbar_u <- mean(H_u)
-      H_u_centred <- (H_u - Hbar_u) 
-      Hbar_l <- mean(H_l)
-      H_l_centred <- (H_l - Hbar_l)
-      H_out <- (H_l_centred) %*% t(H_l_centred) + (H_u_centred) %*% t(H_u_centred)
-    }
+    #  Hbar_u <- mean(H_u)
+    #  H_u_centred <- (H_u - Hbar_u) 
+    #  Hbar_l <- mean(H_l)
+    #  H_l_centred <- (H_l - Hbar_l)
+    #  H_out <- (H_l_centred) %*% t(H_l_centred) + (H_u_centred) %*% t(H_u_centred)
+    #}
     ##eigen decomposition
     e <- eigen(H_out) #SVD of H_out
     V <- e$vectors
-    if(d>1) {
+    #if(d>1) {
       H_ <- V %*% diag((e$values)^(-0.5)) %*% t(V)
-    } else {H_ <- e$values^(-0.5) * V %*% t(V)}
+   # } else {H_ <- e$values^(-0.5) * V %*% t(V)}
     H_list[[i]] <- H_
   }
   Sig_ <-  sqrt(2*G) *Matrix::bdiag(H_list) #coerce into block diagonal form
   return(Sig_)
 }
-H_l_ex <- makeH_l_u(x=bf_ts_0, p=1, l=101, u =200, a= (make_a_lu(bf_ts_0, p=1, l= 101, u= 200)))#, eps=bf_ts)
-H_u_ex <- makeH_l_u(x=bf_ts_0, p=1, l=201, u =300, a= (make_a_lu(bf_ts_0, p=1, l= 201, u= 300)))# , eps=bf_ts)
-get_DiagH_Wald(x=bf_ts_0, G=100, H_l = H_l_ex, H_u = H_u_ex)
-H_l_univ <- makeH_l_u(x=univData_0, p=1, l=101, u =200, a= (make_a_lu(univData_0, p=1, l= 101, u= 200)))#, eps=bf_ts)
-H_u_univ <- makeH_l_u(x=univData_0, p=1, l=201, u =300, a= (make_a_lu(univData_0, p=1, l= 201, u= 300)))# , eps=bf_ts)
-get_DiagH_Wald(x=univData_0, G=100, H_l = H_l_univ, H_u = H_u_univ)
+# H_l_ex <- makeH_l_u(x=bf_ts_0, p=1, l=101, u =200, a= (make_a_lu(bf_ts_0, p=1, l= 101, u= 200)))#, eps=bf_ts)
+# H_u_ex <- makeH_l_u(x=bf_ts_0, p=1, l=201, u =300, a= (make_a_lu(bf_ts_0, p=1, l= 201, u= 300)))# , eps=bf_ts)
+# get_DiagH_Wald(x=bf_ts_0, G=100, H_l = H_l_ex, H_u = H_u_ex)
+# H_l_univ <- makeH_l_u(x=univData_0, p=1, l=101, u =200, a= (make_a_lu(univData_0, p=1, l= 101, u= 200)))#, eps=bf_ts)
+# H_u_univ <- makeH_l_u(x=univData_0, p=1, l=201, u =300, a= (make_a_lu(univData_0, p=1, l= 201, u= 300)))# , eps=bf_ts)
+# get_DiagH_Wald(x=univData_0, G=100, H_l = H_l_univ, H_u = H_u_univ)
 
+get_FullH_Wald <- function(x, G, H_l, H_u){
+  if(is.null(dim(x))) {x <- matrix(x)} #handle univariate case
+  n <- dim(x)[1]
+  d <- dim(x)[2]
+  #l <- (k-G):(k-1) #lower time index
+  #u <- k:(k+G-1) #upper time index
+      Hbar_u <- rowMeans(H_u) 
+      H_u_centred <- (H_u - Hbar_u)
+      Hbar_l <- rowMeans(H_l)
+      H_l_centred <- (H_l - Hbar_l)
+      H_out <- (H_l_centred) %*% t(H_l_centred) + (H_u_centred) %*% t(H_u_centred) #sum  } else Hbar_u <- matrix(mean(H_u))
+
+    ##eigen decomposition
+    e <- eigen(H_out) #SVD of H_out
+    V <- e$vectors
+  Sig_ <-  sqrt(2*G) *V %*% diag((e$values)^(-0.5)) %*% t(V) #coerce into block diagonal form
+  return(Sig_)
+}
+#get_FullH_Wald(x=bf_ts_0, G=100, H_l = H_l_ex, H_u = H_u_ex)
+#get_FullH_Wald(x=univData_0, G=100, H_l = H_l_univ, H_u = H_u_univ)
 
 ## W Statistic --------------------------------
 
@@ -189,30 +209,30 @@ get_DiagH_Wald(x=univData_0, G=100, H_l = H_l_univ, H_u = H_u_univ)
 get_Wkn <- function(x, p, k, G, estim){ 
   n<- dim(x)[1]
   d <- dim(x)[2]
-  if(d>1){
-  x_lower_mean <- (colMeans(x[(k-G+1):k,])) ##DYNAMIC CENTERING 
-  x_upper_mean <- (colMeans(x[(k+1):(k+G),]))
-  } else { #d=1
-    x_lower_mean <- mean(x[(k-G+1):k,]) ##DYNAMIC CENTERING 
-    x_upper_mean <- mean(x[(k+1):(k+G),])
-  }
-  x_l <- sweep(x,2, x_lower_mean)
-  x_u <- sweep(x, 2, x_upper_mean) 
-  V <- get_V_nk(x_l, p, k-G+1, k)
+  #if(d>1){
+  #x_lower_mean <- (colMeans(x[(k-G+1):k,])) ##DYNAMIC CENTERING 
+  #x_upper_mean <- (colMeans(x[(k+1):(k+G),]))
+  #} else { #d=1
+  #  x_lower_mean <- mean(x[(k-G+1):k,]) ##DYNAMIC CENTERING 
+  #  x_upper_mean <- mean(x[(k+1):(k+G),])
+  #}
+  #x_l <- sweep(x,2, x_lower_mean)
+  #x_u <- sweep(x, 2, x_upper_mean) 
+  V <- get_V_nk(x, p, k-G+1, k)#x_l
     
-  a_upper <- make_a_lu(x_u, p, l=k+1, u=k+G)
+  a_upper <- make_a_lu(x, p, l=k+1, u=k+G)#x_u
   #res_u <-  x_u - t(a_upper) %*% rbind(rep(0,p),x_u[(p+1):n,]) #upper residuals
-  a_lower <- make_a_lu(x_l, p, l=k-G+1, u=k)
+  a_lower <- make_a_lu(x, p, l=k-G+1, u=k)#x_l
   #res_l <-  x_l - t(a_lower) %*% rbind(rep(0,p),x_l[(p+1):n,] ) #lower residuals
   ##Sigma estimator options------
   if(estim == "DiagC"){
     #sigma_d <- getsigma_d_kLOCAL1(x,k,G,a_upper,a_lower)
     #Sig_ <- get_DiagC_rootinv(x,eps,sigma_d,k,G) ## NOT WALD-SPECIFIC
   } else{
-    H_l <- makeH_l_u(x_l, p, l=k-G+1, u=k , a=a_lower)
-    H_u <- makeH_l_u(x_u, p, l=k+1, u=k+G , a=a_upper)
+    H_l <- makeH_l_u(x, p, l=k-G+1, u=k , a=a_lower)#x_l
+    H_u <- makeH_l_u(x, p, l=k+1, u=k+G , a=a_upper)#x_u
     if(estim == "DiagH")Sig_ <- get_DiagH_Wald(x,G,H_l,H_u) #DiagH estimator for Sigma 
-    #if(estim == "FullH")Sig_ <- get_FullH_rootinv(x,k,G,H_all) #FullH estimator ## NOT WALD-SPECIFIC
+    if(estim == "FullH")Sig_ <- get_FullH_Wald(x,G,H_l,H_u) #FullH estimator ## NOT WALD-SPECIFIC
   }
   
   #------------------------------
@@ -221,7 +241,7 @@ get_Wkn <- function(x, p, k, G, estim){
   W <- sqrt(G/2) * norm(W_mat, type="F")
   return(W)
 }
-get_Wkn(bf_ts_0, p=1, k= 101, G=100, estim = "DiagH")
+get_Wkn(bf_ts_0, p=1, k= 101, G=100, estim = "FullH")
 get_Wkn(univData_0, p=1, k= 101, G=100, estim = "DiagH")
 
 get_W <- function(x, p, G, estim){

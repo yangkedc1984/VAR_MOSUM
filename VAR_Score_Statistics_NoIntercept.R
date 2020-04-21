@@ -52,7 +52,7 @@ ts.plot(two_change_0)
 
 
 ##example------------------------- univariate data
-univData1 <- arima.sim(n=2000, list(ar=c(a1_univ)), sd = 0.05) + 0; univData2 <- arima.sim(n=2000, list(ar=c(a2_univ)), sd = 0.05)
+univData1 <- arima.sim(n=2000, list(ar=c(a1_univ)), sd = 0.05) + 0; univData2 <- arima.sim(n=2000, list(ar=c(a2_univ)), sd = 0.05) +0
 #univData1[1] <- univData2[1] <- 0.1 #prevent nan
 univData <-  ts(c(univData1, univData2))
 plot(univData)
@@ -247,7 +247,6 @@ get_DiagC_rootinv <- function(x, eps, sigma_d, k, G){
   xk <- x[(k-G):(k+G-1),] #lower time sample
   if(d==1) xk <- matrix(xk)
   C <- cov(xk)
-  #C<-1/(2*G) * t(xk) %*% (xk)
   ##eigen decomposition
   e <- eigen(C) #SVD of C
   V <- e$vectors
@@ -312,7 +311,6 @@ getT <- function(x, p, G, Phi, eps, estim){
   }
   return(Tkn)
   #return(Sig_)
-}
 #Tn_example <- getT(x=bf_ts, p=1, G= 100, Phi=A_1, eps=eps, estim="DiagH")
 #getT(x=var_change, p=1, G=40, Phi = a_change, eps = eps_change)
 
@@ -358,6 +356,7 @@ test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){
   if(test_stat > D_n){ #compare test stat with threshold
     Reject <- TRUE
     cps <- get_cps(Tn,D_n,G, nu=1/4)
+    if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
   } 
   ##Plot------------------------------------
   plot(Tn) # plot test statistic
@@ -385,9 +384,9 @@ two_change_test$plot
 
 ##  nochange example
 nochange_test <- test_Score(x=nochange_0, p=1, G=150, Phi = a_nochange, eps = eps_nochange, alpha = 0.1, "DiagH") 
-nochange_test
+nochange_test$plot
 
 ## univariate example
-univ_test <- test_Score(x=univData_0, p=1, G= 250, Phi = matrix(a_univ), eps= matrix(eps_univ), alpha=0.1, estim = "DiagC")
-univ_test
+univ_test <- test_Score(x=univData_0, p=1, G= 300, Phi = matrix(a_univ), eps= matrix(eps_univ), alpha=0.1, estim = "DiagC")
+univ_test$plot
 

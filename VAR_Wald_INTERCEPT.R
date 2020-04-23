@@ -82,8 +82,8 @@ get_V_nk <- function(x, p, l, u){
   d <- dim(x)[2]
   xk <- cbind(1,x[(l-1):(u-1),]) #time sample #intercept
   #C <- 1/(u-l) * t(xk) %*% (xk) #uncentred covariance of sample
-  if(d==1) xk <- matrix(xk)
-  C <- cov(xk)
+  #if(d==1) xk <- matrix(xk)
+  C <- 1/(u-l) * t(xk) %*% (xk)
   Vlist <- list(1:d)
   for(i in 1:d) {
     Vlist[[i]] <- (C) #coerce into block diagonal form
@@ -94,13 +94,16 @@ get_V_nk <- function(x, p, l, u){
 #get_V_nk(as.matrix(bf_ts_0), p=1, l= 10, u= 100)
 #get_V_nk(univData_0, p=1, l= 10, u= 100)
 
+
+## S estimators ----------------------------------------------
+
 ## LOCAL1 estimator of variance in channel i at k
 getsigma_i_kLOCAL1 <- function(x, i, k, G, a_upper, a_lower) {
-  x_upper <- t(x[(k):(k+G-1),]) #upper sample
+  x_upper <- rbind(1,t(x[(k):(k+G-1),])) #upper sample
   res_upper <-  x[(k+1):(k+G), i] - t(a_upper) %*% x_upper #upper residuals
-  x_lower <- t(x[(k-G):(k-1),]) #lower sample
+  x_lower <- rbind(1,t(x[(k-G):(k-1),])) #lower sample
   res_lower <-  x[(k-G+1):(k), i] - t(a_lower) %*% x_lower #lower residuals
-  sigma_i <- 1/(2*G) * (mean(res_upper^2) +mean(res_lower^2) ) #LOCAL1
+  sigma_i <- 1/(2*G) * (sum(res_upper^2) + sum(res_lower^2) ) #LOCAL1
   return(sigma_i)
 }
 #a_upper_example <- get_a_lu_i(bf_ts_0, i=1, l= 100, u= 130)
@@ -111,15 +114,15 @@ getsigma_d_kLOCAL1 <- function(x, k, G, a_upper, a_lower){
   d <- dim(x)[2]
   sigma_d <- rep(0, d)
   for (i in 1:d) {
-    sigma_d[i] <- getsigma_i_kLOCAL1(x,i,k,G,a_upper[((i-1)*d+1):( (i-1)*d+d)] ,a_lower[((i-1)*d+1):( (i-1)*d+d)])
+    sigma_d[i] <- getsigma_i_kLOCAL1(x,i,k,G,a_upper[((i-1)*(d+1) + 1):( (i-1)*(d+1) + d+1)] ,a_lower[((i-1)*(d+1) + 1):( (i-1)*(d+1) + d+1)]) #accounts for intercept
   }
   return(sigma_d)
 }
-#a_upper_all_ex <- make_a_lu(bf_ts_0, p=1, l= 100, u= 130)
-#a_lower_all_ex <- make_a_lu(bf_ts_0, p=1, l= 69, u= 99)
-#getsigma_d_kLOCAL1(x = bf_ts_0, k = 100, G= 30, a_upper = a_upper_all_ex, a_lower = a_lower_all_ex)
+# a_upper_all_ex <- make_a_lu(bf_ts_0, p=1, l= 100, u= 130)
+# a_lower_all_ex <- make_a_lu(bf_ts_0, p=1, l= 69, u= 99)
+# bf_sigma_d <- getsigma_d_kLOCAL1(x = bf_ts_0, k = 100, G= 30, a_upper = a_upper_all_ex, a_lower = a_lower_all_ex)
 
-## sigma^2_i estimate for all times k; example function only, not used in test
+## sigma^2_i estimate for all times k; example function only, NOT used in test
 getsigma_i_all <- function(x,i,G, a_upper, a_lower){
   n <- dim(x)[1]
   d <- dim(x)[2]
@@ -203,6 +206,29 @@ get_FullH_Wald <- function(x, G, H_l, H_u){
 #get_FullH_Wald(x=bf_ts_0, G=100, H_l = H_l_ex, H_u = H_u_ex)
 #get_FullH_Wald(x=univData_0, G=100, H_l = H_l_univ, H_u = H_u_univ)
 
+get_DiagC_Wald <- function(x, sigma_d, k, G){ #Root, NOT Root inverse
+  if(is.null(dim(x))) {x <- matrix(x)} #handle univariate case
+  n <- dim(x)[1]
+  d <- dim(x)[2]
+  xk <-  cbind(1, x[(k-G):(k+G-1),]) #lower time sample #includes intercept
+  #if(d==1) xk <- matrix(xk) #redundant
+  C <- 1/(2*G) * t(xk) %*% (xk)
+  ##eigen decomposition
+  e <- eigen(C) #SVD of C
+  V <- e$vectors
+  #if(d>1) {
+  C_ <- V %*% diag( e$values^(0.5) ) %*% t(V)
+  #} else {C_ <- e$values^(-0.5) * V %*% t(V)}
+  C_list <- list(1:d)
+  for (i in 1:d) {
+    C_list[[i]] <- sigma_d[i]^(-0.5) * C_#
+  }
+  Sig_ <-  (2)^(-0.5) *Matrix::bdiag(C_list) #coerce into block diagonal form
+  return(Sig_)
+}
+Sig_example <- get_DiagC_Wald(bf_ts_0, bf_sigma_d, 100,30)
+#get_DiagC_Wald(matrix(univData), getsigma_d_kLOCAL1(univData,100,100,), 400, 100)
+
 ## W Statistic --------------------------------
 
 ## evaluate Wkn (test statistic) for time k
@@ -218,7 +244,7 @@ get_Wkn <- function(x, p, k, G, estim){
   #}
   #x_l <- sweep(x,2, x_lower_mean)
   #x_u <- sweep(x, 2, x_upper_mean) 
-  V <- get_V_nk(x, p, k-G+1, k)#x_l
+  
     
   a_upper <- make_a_lu(x, p, l=k+1, u=k+G)#x_u
   #res_u <-  x_u - t(a_upper) %*% rbind(rep(0,p),x_u[(p+1):n,]) #upper residuals
@@ -226,22 +252,26 @@ get_Wkn <- function(x, p, k, G, estim){
   #res_l <-  x_l - t(a_lower) %*% rbind(rep(0,p),x_l[(p+1):n,] ) #lower residuals
   ##Sigma estimator options------
   if(estim == "DiagC"){
-    #sigma_d <- getsigma_d_kLOCAL1(x,k,G,a_upper,a_lower)
-    #Sig_ <- get_DiagC_rootinv(x,eps,sigma_d,k,G) ## NOT WALD-SPECIFIC
+    sigma_d <- getsigma_d_kLOCAL1(x,k,G,a_upper,a_lower)
+    Sig_ <- get_DiagC_Wald(x,sigma_d,k,G) 
+    W_mat <- as.matrix(Sig_ %*% (a_upper-a_lower))
   } else{
+    V <- get_V_nk(x, p, k-G+1, k)#x_l
     H_l <- makeH_l_u(x, p, l=k-G+1, u=k , a=a_lower)#x_l
     H_u <- makeH_l_u(x, p, l=k+1, u=k+G , a=a_upper)#x_u
     if(estim == "DiagH")Sig_ <- get_DiagH_Wald(x,G,H_l,H_u) #DiagH estimator for Sigma 
-    if(estim == "FullH")Sig_ <- get_FullH_Wald(x,G,H_l,H_u) #FullH estimator ## NOT WALD-SPECIFIC
+    if(estim == "FullH")Sig_ <- get_FullH_Wald(x,G,H_l,H_u) #FullH estimator 
+    W_mat <- as.matrix(Sig_ %*%V %*% (a_upper-a_lower)) #argument for norm
   }
   
   #------------------------------
   #W <- W + 1/sigma_i * norm(root_C %*% (a_i_upper - a_i_lower), type = "F")
-  W_mat <- as.matrix(Sig_ %*%V %*% (a_upper-a_lower)) #argument for norm
+ 
   W <- sqrt(G/2) * norm(W_mat, type="F")
   return(W)
 }
 get_Wkn(bf_ts_0, p=1, k= 101, G=100, estim = "FullH")
+get_Wkn(bf_ts_0, p=1, k= 101, G=100, estim = "DiagC")
 get_Wkn(univData_0, p=1, k= 101, G=100, estim = "DiagH")
 
 get_W <- function(x, p, G, estim){
@@ -254,7 +284,7 @@ get_W <- function(x, p, G, estim){
   }
   return(out)
 }
-W_ex <- get_W(x= bf_ts_0, p=1, G=100, estim="DiagH")
+#W_ex <- get_W(x= bf_ts_0, p=1, G=100, estim="DiagH")
 
 ##get change point estimates -- same as Score procedure
 
@@ -299,9 +329,13 @@ bf_test_wald$plot
 # change
 change_test_wald <- test_Wald(x= var_change_0, p=1, G= 200, alpha = .1, estim = "DiagH")
 change_test_wald$plot
+change_test_wald_C <- test_Wald(x= var_change_0, p=1, G= 200, alpha = .1, estim = "DiagC")
+change_test_wald_C$plot
 # no change
 nochange_test_wald <- test_Wald(x=nochange_0, p=1, G=150, alpha = 0.1) 
 nochange_test_wald$plot
+nochange_test_wald_C <- test_Wald(x=nochange_0, p=1, G=150, alpha = 0.1,estim = "DiagC") 
 #univariate
 univ_test_wald <- test_Wald(univData_0, p=1, G= 300, alpha = .1, estim="DiagH")
 univ_test_wald$plot
+univ_test_wald_C <- test_Wald(univData_0, p=1, G= 300, alpha = .1, estim="DiagC")

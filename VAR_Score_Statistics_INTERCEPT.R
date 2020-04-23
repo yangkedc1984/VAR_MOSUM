@@ -340,6 +340,7 @@ test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){
   if(test_stat > D_n){ #compare test stat with threshold
     Reject <- TRUE
     cps <- get_cps(Tn,D_n,G, nu=1/4)
+    if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
   } 
   ##Plot------------------------------------
   plot(Tn) # plot test statistic

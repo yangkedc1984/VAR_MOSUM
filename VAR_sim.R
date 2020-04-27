@@ -24,5 +24,28 @@ rSim <- function(coeff, errors) {
   }
   return(ts(simdata))
 }
+## p=2
+rSim_p2 <- function(coeff, coeff2,  errors) {
+  simdata <- matrix(0, nrow(errors), ncol(errors))
+  simdata[1:2,] <- errors[1:2,]
+  for (row in 3:nrow(errors)) {
+    simdata[row,] = coeff %*% simdata[(row-1),] + coeff2 %*% simdata[(row-2),] + errors[row,]
+  }
+  return(ts(simdata))
+}
+rSim_p2(a1,a2,e1)
 
+## p=5
+rSim_p <- function(coeff_list,  errors) {
+  simdata <- matrix(0, nrow(errors), ncol(errors))
+  p <- length(coeff_list)
+  simdata[1:p,] <- errors[1:p,]
+  for (row in (p+1):nrow(errors)) {
+    simdata[row,] <-  errors[row,]
+    for (i in 1:p) {
+      simdata[row,] <-simdata[row,] + coeff_list[[i]] %*% simdata[(row-i),] 
+    }
+  }
+  return(ts(simdata))
+}
 

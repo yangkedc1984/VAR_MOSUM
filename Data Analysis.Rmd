@@ -1,0 +1,40 @@
+---
+title: "data analysis"
+author: "Dom Owens"
+date: "27/04/2020"
+output: html_document
+---
+
+```{r}
+bf_ <- as.ts(bf)
+bf_ <- na.fill(bf_, fill = "extend")
+bf_ <-bf_[,c(-2,-13)]
+
+library(ggfortify)
+#bf_ts_0 <- as.matrix(t( t(bf_) - (model$x.mean))) #centre
+autoplot(bf_, facets=F, main = "Risk Measures, 1980-1985")
+```
+
+```{r}
+bf_sub <- bf_[,5:10]
+bf_sub_0 <- as.matrix(t( t(bf_sub) - colMeans(bf_sub) )) #centrebf_sub - colMeans(bf_sub)
+
+autoplot(ts(bf_sub_0), facets=F, main = "Risk Measures, 1980-1985")
+model_ <- ar(bf_sub_0, demean = T, order.max = 4, method = "ols")  
+A_ <- cbind(model_$x.intercept,  matrix(model_$ar[1,,], nrow=6, ncol=6), matrix(model_$ar[2,,], nrow=6, ncol=6),  matrix(model_$ar[3,,], nrow=6, ncol=6),  
+           matrix(model_$ar[4,,], nrow=6, ncol=6) )
+eps_ <- model_$resid
+bf_test <- test_Score(x=as.matrix(bf_sub_0), p=4, G=200, Phi = A_, eps = as.matrix(eps_), alpha = 0.05, estim = "DiagH")
+bf_test
+
+#bf_wald_ <- test_Wald(x=as.matrix(bf_sub_0), p=1, G=250, estim = "DiagC")
+#bf_wald_
+```
+
+```{r}
+library(igraph)
+c <- cov(bf, use = "pairwise.complete.obs" )
+g <-graph_from_adjacency_matrix(c, mode = "undirected", weighted = T)
+plot(g, vertex.color=10)
+```
+

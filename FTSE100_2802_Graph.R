@@ -51,5 +51,5 @@ ms <- mosum(x = exch_price$Price, G = 20, alpha = 0.1 ) #calc mosum
 ms
 
 plot(ms, xlab = "Date")
-title(main = "USD - CNY, 2019/03/18 - 2020/03/18")
+#title(main = "USD - CNY, 2019/03/18 - 2020/03/18")
 #axis(side = 1, at = ftse28.new$Date, labels = ftse28.new$Date)

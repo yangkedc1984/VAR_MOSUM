@@ -391,7 +391,7 @@ change_test <- test_Score(x=var_change, p=1, G=200, Phi = a_change, eps = eps_ch
 change_test$plot
 ##  nochange example
 nochange_test <- test_Score(x=nochange, p=1, G=150, Phi = a_nochange, eps = eps_nochange, alpha = 0.1) 
-nochange_test
+  nochange_test
 ## univariate example
 univ_test <- test_Score(x=matrix(univData), p=1, G= 300, Phi = matrix(a_univ), eps= matrix(eps_univ), alpha=0.1, estim = "DiagH")
 univ_test

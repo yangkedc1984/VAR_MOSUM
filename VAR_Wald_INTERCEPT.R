@@ -122,10 +122,17 @@ get_V_nk <- function(x, p, l, u){
 ## S estimators ----------------------------------------------
 
 ## LOCAL1 estimator of variance in channel i at k
-getsigma_i_kLOCAL1 <- function(x, i, k, G, a_upper, a_lower) {
-  x_upper <- rbind(1,t(x[(k):(k+G-1),])) #upper sample
+getsigma_i_kLOCAL1 <- function(x, i, k, G, p, a_upper, a_lower) {
+  if(p==1)x_upper <-  rbind(1, t(x[(k):(k+G-1),])) #upper sample
+  if(p==2)x_upper <-  rbind(1, t(x[(k):(k+G-1),]),t(x[(k-1):(k+G-2),]))
+  if(p==3)x_upper <-  rbind(1, t(x[(k):(k+G-1),]) ,t(x[(k-1):(k+G-2),]), t(x[(k-2):(k+G-3),] ))
+  if(p==4)x_upper <-  rbind(1, t(x[(k):(k+G-1),]),t(x[(k-1):(k+G-2),]), t(x[(k-2):(k+G-3),]), t(x[(k-3):(k+G-4),] ))
   res_upper <-  x[(k+1):(k+G), i] - t(a_upper) %*% x_upper #upper residuals
-  x_lower <- rbind(1,t(x[(k-G):(k-1),])) #lower sample
+  if(p==1)x_lower <-  rbind(1, t(x[(k-G):(k-1),])) #lower sample
+  if(p==2)x_lower <-  rbind(1, t(x[(k-G):(k-1),]),t(x[(k-G-1):(k-2),]))
+  if(p==3)x_lower <-  rbind(1, t(x[(k-G):(k-1),]) ,t(x[(k-G-1):(k-2),]), t(x[(k-G-2):(k-3),] ))
+  if(p==4)x_lower <-  rbind(1, t(x[(k-G):(k-1),]),t(x[(k-G-1):(k-2),]), t(x[(k-G-2):(k-3),]), t(x[(k-G-3):(k-4),] ))
+  
   res_lower <-  x[(k-G+1):(k), i] - t(a_lower) %*% x_lower #lower residuals
   sigma_i <- 1/(2*G) * (sum(res_upper^2) + sum(res_lower^2) ) #LOCAL1
   return(sigma_i)
@@ -133,12 +140,13 @@ getsigma_i_kLOCAL1 <- function(x, i, k, G, a_upper, a_lower) {
 #a_upper_example <- get_a_lu_i(bf_ts_0, i=1, l= 100, u= 130)
 #a_lower_example <- get_a_lu_i(bf_ts_0, i=1, l= 69, u= 99)
 #getsigma_i_kLOCAL1(x = bf_ts_0, i=1, k = 100, G= 30, a_upper = a_upper_example, a_lower = a_lower_example)
+#getsigma_i_kLOCAL1(x = p2_change, i=1, k = 100, G= 30, p =2, a_upper = get_a_lu_i(p2_change, i=1, p=2, l= 100, u= 130), a_lower = get_a_lu_i(p2_change, i=1,p=2, l= 69, u= 99))
 
 getsigma_d_kLOCAL1 <- function(x, k, G,p, a_upper, a_lower){
   d <- dim(x)[2]
   sigma_d <- rep(0, d)
   for (i in 1:d) {
-    sigma_d[i] <- getsigma_i_kLOCAL1(x,i,k,G,a_upper[((i-1)*(d*p+1)+1):((i-1)*(d*p+1)+ d*p +1)] ,a_lower[((i-1)*(d*p+1)+1):((i-1)*(d*p+1)+ d*p +1)]) #accounts for intercept
+    sigma_d[i] <- getsigma_i_kLOCAL1(x,i,k,G,p,a_upper[((i-1)*(d*p+1)+1):((i-1)*(d*p+1)+ d*p +1)] ,a_lower[((i-1)*(d*p+1)+1):((i-1)*(d*p+1)+ d*p +1)]) #accounts for intercept
   }
   return(sigma_d)
 }

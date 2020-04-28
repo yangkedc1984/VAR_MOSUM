@@ -742,4 +742,10 @@ FH150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Wald",
 FH200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
 gc() # garb 
 
+DC100 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=100 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+DC150 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=150 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+DC200 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=200 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+DC100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+DC150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+DC200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
 save.image(file = "ws_sims_2.Rdata")

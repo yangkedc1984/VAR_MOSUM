@@ -333,8 +333,9 @@ test_Wald <- function(x, p, G, alpha = 0.05, estim="DiagH"){
   ##Test setup----------------------------
   c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
   a <- sqrt(2*log(n/G)) #test transform multipliers
-  b <- 2*log(n/G) + d/2 * log(log(n/G)) - log(2/3 * gamma(d/2))
+  b <- 2*log(n/G) + d*(d*p+1)/2 * log(log(n/G)) - log(2/3 * gamma(d*(d*p+1)/2)) ##CORRECTED
   D_n <- (b+c_alpha)/a #threshold
+  D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   Reject <- FALSE
   ##Run test-----------------------------
   Wn <- ts(get_W(x,p,G,estim)) #evaluate statistic at each time k
@@ -355,6 +356,14 @@ test_Wald <- function(x, p, G, alpha = 0.05, estim="DiagH"){
   out <- list(Reject = Reject, Threshold = D_n, mosum = Wn, cps = cps, plot = pl, estim=estim)
   return(out)
 }
+
+
+
+
+
+
+
+
 
 
 ## examples-------------------------------------------------------------
@@ -379,7 +388,10 @@ univ_test_wald_C <- test_Wald(univData_0, p=1, G= 300, alpha = .1, estim="DiagC"
 # p=2 change
 p2_test_wald <- test_Wald(p2_change, p=2, G= 300, alpha = .1, estim="DiagH")
 
-## benchmark---------------------------
+## d=p=2
+dp2_test_wald <- test_Wald(as.matrix(dp2_change), p=2, G= 300, alpha=0.1, estim="DiagH")
+
+  ## benchmark---------------------------
 library(microbenchmark)
 library(ggplot2)
 dcw <- function()test_Wald(x=var_change, p=1, G=200, alpha = 0.05, estim = "DiagC") 

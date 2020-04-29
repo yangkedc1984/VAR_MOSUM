@@ -67,6 +67,25 @@ p2_model <- ar(p2_change, order.max = 2, demean = T, method = "ols")
 p2_a <- cbind(p2_model$x.intercept,  p2_model$ar[1,,],  p2_model$ar[2,,])
 p2_eps <- p2_model$resid
 plot(p2_change)
+
+##change d=p=2 data------------------------- 
+#
+a_dp_2 <- matrix(data=c(0.7,0.1,0.7,0.1), 2,2 );a_dp_2_ <- matrix(data=c(-0.1,0.1,-0.1,0.1), 2,2 )
+a_dp2_2 <- matrix(data=c(0.5,0.2,0.5,0.2), 2,2 );a_dp2_2_ <- matrix(data=c(-0.2,0.1,-0.2,0.1), 2,2 )
+edp2_1 <- matrix(rnorm(2000*2, 0, 0.1), ncol = 2) ;edp2_2 <- matrix(rnorm(2000*2, 0, 0.1), ncol = 2)
+dp2_Data1 <- rSim_p2(a_dp_2, a_dp_2_, edp2_1)
+dp2_Data2 <- rSim_p2(a_dp2_2, a_dp2_2_, edp2_2)
+
+
+dp2_change <- ts(rbind(dp2_Data1, dp2_Data2) )
+dp2_model <- ar(dp2_change, order.max = 2, demean = T, method = "ols")
+dp2_a <- cbind(dp2_model$x.intercept,  dp2_model$ar[1,,],  dp2_model$ar[2,,])
+dp2_eps <- dp2_model$resid
+plot(dp2_change)
+
+
+
+
 ########################################
 ##SCORE----------------------------------
 
@@ -356,8 +375,9 @@ test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){
   ##Test setup----------------------------
   c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
   a <- sqrt(2*log(n/G)) #test transform multipliers
-  b <- 2*log(n/G) + d/2 * log(log(n/G)) - log(2/3 * gamma(d/2))
+  b <- 2*log(n/G) + d*(d*p+1)/2 * log(log(n/G)) - log(2/3 * gamma(d*(d*p+1)/2)) ##CORRECTED
   D_n <- (b+c_alpha)/a #threshold
+  D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   Reject <- FALSE
   ##Run test-----------------------------
   Tn <- ts(getT(x,p,G,Phi,eps,estim)) #evaluate statistic at each time k
@@ -379,6 +399,10 @@ test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){
   return(out)
 }
 
+
+
+
+
 ## examples -----------------------------
 ##  bf example
 bf_test <- test_Score(x=bf_ts, p=1, G=200, Phi = A_1, eps = eps, alpha = 0.05)
@@ -397,8 +421,10 @@ univ_test <- test_Score(x=matrix(univData), p=1, G= 300, Phi = matrix(a_univ), e
 univ_test
 
 ## p=2 change example
+p2_test <- test_Score(as.matrix(p2_change), p=2, G= 300, Phi = p2_a, eps = p2_eps, alpha=0.1, estim="DiagH")
 
-p2_test <- test_Score(as.matrix(p2_change), p=2, G= 300, Phi = p2_a, eps = p2_eps, alpha=0.1, estim="DiagC")
+## d=p=2
+dp2_test <- test_Score(as.matrix(dp2_change), p=2, G= 300, Phi = dp2_a, eps = dp2_eps, alpha=0.1, estim="DiagH")
 
 
 ## benchmark---------------------------

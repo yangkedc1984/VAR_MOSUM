@@ -76,3 +76,22 @@ DC100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Wald",
 DC150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
 DC200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
 gc() # garb 
+
+##
+SDC100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Score", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+SDC150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Score", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+SDC200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Score", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+
+SDH100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Score", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+SDH150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Score", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+SDH200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Score", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+
+SFH100 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=100 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+SFH150 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=150 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+SFH200 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=200 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+SFH100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+SFH150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+SFH200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+
+report <- function(x){ c(rowMeans(x),sd(x[2,]) ) }
+

@@ -3,6 +3,9 @@ library(Matrix)
 library(stats)
 library(gdata)
 
+########################################
+##SCORE----------------------------------
+
 ##estimating fn for channel i, time k
 getH_ik <- function(x, i,k,p, Phi, eps){ 
   if(is.null(dim(x))) {x <- matrix(x); Phi <- matrix(Phi); eps <- matrix(eps)} #handle univariate case
@@ -10,6 +13,8 @@ getH_ik <- function(x, i,k,p, Phi, eps){
   if(dim(x)[2]==1) a <- t(matrix(Phi))
   if(p==1) X <- c(1, x[(k-1),]) #with intercept
   if(p==2) X <- c(1, x[(k-1),],x[(k-2),] )
+  if(p==3) X <- c(1, x[(k-1),],x[(k-2),],x[(k-3),] )
+  if(p==4) X <- c(1, x[(k-1),],x[(k-2),],x[(k-3),],x[(k-4),] )
   #X <- t(X)
   y <- as.numeric(x[k,i])
   e <- eps[k,i]
@@ -184,6 +189,8 @@ get_DiagC_rootinv <- function(x, eps, p, sigma_d, k, G){
   d <- dim(x)[2]
   if(p==1) xk <-  cbind(1, x[(k-G):(k+G-1),]) #lower time sample #includes intercept
   if(p==2) xk <-  cbind(1, x[(k-G):(k+G-1),],x[(k-G-1):(k+G-2),])
+  if(p==3) xk <-  cbind(1, x[(k-G):(k+G-1),],x[(k-G-1):(k+G-2),],x[(k-G-2):(k+G-3),] )
+  if(p==4) xk <-  cbind(1, x[(k-G):(k+G-1),],x[(k-G-1):(k+G-2),],x[(k-G-2):(k+G-3),],x[(k-G-3):(k+G-4),] )
   C <- 1/(2*G) * t(xk) %*% (xk)
   ##eigen decomposition
   e <- eigen(C) #SVD of C
@@ -285,8 +292,9 @@ test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){
   ##Test setup----------------------------
   c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
   a <- sqrt(2*log(n/G)) #test transform multipliers
-  b <- 2*log(n/G) + d/2 * log(log(n/G)) - log(2/3 * gamma(d/2))
+  b <- 2*log(n/G) + d*(d*p+1)/2 * log(log(n/G)) - log(2/3 * gamma(d*(d*p+1)/2)) ##CORRECTED
   D_n <- (b+c_alpha)/a #threshold
+  D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   Reject <- FALSE
   ##Run test-----------------------------
   Tn <- ts(getT(x,p,G,Phi,eps,estim)) #evaluate statistic at each time k
@@ -308,6 +316,22 @@ test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){
   return(out)
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##WALD-------------------------------
+
 ##WALD-------------------------------
 
 ## Wald H
@@ -319,6 +343,8 @@ getH_ik_Wald <- function(x, i,k,p, a) {
   ai <- a[((i-1)*(d*p+1)+1):((i-1)*(d*p+1)+ d*p +1)] #select params for channel i #accounts for intercept
   if(p==1)X <- c(1, x[(k-1),]) #with intercept X <- x[(k-1),]
   if(p==2)X <- c(1, x[(k-1),], x[(k-2),])
+  if(p==3)X <- c(1, x[(k-1),], x[(k-2),],x[(k-3),])
+  if(p==4)X <- c(1, x[(k-1),], x[(k-2),],x[(k-3),],x[(k-4),])
   y <- as.numeric(x[k,i])
   e <- as.numeric(x[k,i] - ai %*% X) #eps[k,i] #p=1 residual
   H_ik <- t(- y*X + ai%*%X%*%t(X) - e*X) #*2
@@ -368,6 +394,14 @@ get_a_lu_i <- function(x, i,p, l, u){
     Xt <- rbind(1, gdata::interleave(t(x[(l-1):(u-1),]),t(x[(l-2):(u-2),]) )) 
     y_soln <- colSums(diag(y) %*% t(Xt))
   }
+  if(p==3){
+    Xt <- rbind(1, gdata::interleave(t(x[(l-1):(u-1),]),t(x[(l-2):(u-2),]), t(x[(l-3):(u-3),]))) 
+    y_soln <- colSums(diag(y) %*% t(Xt))
+  }
+  if(p==4){
+    Xt <- rbind(1, gdata::interleave(t(x[(l-1):(u-1),]),t(x[(l-2):(u-2),]), t(x[(l-3):(u-3),]),t(x[(l-4):(u-4),]) )) 
+    y_soln <- colSums(diag(y) %*% t(Xt))
+  }  
   #Xt_centred <- Xt - rowMeans(Xt) 
   #t(Xt_centred)
   X_soln <- solve(Xt %*% t(Xt))#cov(t(Xt))
@@ -394,6 +428,8 @@ get_V_nk <- function(x, p, l, u){
   d <- dim(x)[2]
   if(p==1)xk <- cbind(1,x[(l-1):(u-1),]) #time sample #intercept
   if(p==2)xk <- cbind(1,x[(l-1):(u-1),],x[(l-2):(u-2),]) 
+  if(p==3)xk <- cbind(1,x[(l-1):(u-1),],x[(l-2):(u-2),], x[(l-3):(u-3),], ) 
+  if(p==4)xk <- cbind(1,x[(l-1):(u-1),],x[(l-2):(u-2),], x[(l-3):(u-3),], x[(l-4):(u-4),] ) 
   #C <- 1/(u-l) * t(xk) %*% (xk) #uncentred covariance of sample
   #if(d==1) xk <- matrix(xk)
   C <- 1/(u-l) * t(xk) %*% (xk)
@@ -411,10 +447,17 @@ get_V_nk <- function(x, p, l, u){
 ## S estimators ----------------------------------------------
 
 ## LOCAL1 estimator of variance in channel i at k
-getsigma_i_kLOCAL1 <- function(x, i, k, G, a_upper, a_lower) {
-  x_upper <- rbind(1,t(x[(k):(k+G-1),])) #upper sample
+getsigma_i_kLOCAL1 <- function(x, i, k, G, p, a_upper, a_lower) {
+  if(p==1)x_upper <-  rbind(1, t(x[(k):(k+G-1),])) #upper sample
+  if(p==2)x_upper <-  rbind(1, t(x[(k):(k+G-1),]),t(x[(k-1):(k+G-2),]))
+  if(p==3)x_upper <-  rbind(1, t(x[(k):(k+G-1),]) ,t(x[(k-1):(k+G-2),]), t(x[(k-2):(k+G-3),] ))
+  if(p==4)x_upper <-  rbind(1, t(x[(k):(k+G-1),]),t(x[(k-1):(k+G-2),]), t(x[(k-2):(k+G-3),]), t(x[(k-3):(k+G-4),] ))
   res_upper <-  x[(k+1):(k+G), i] - t(a_upper) %*% x_upper #upper residuals
-  x_lower <- rbind(1,t(x[(k-G):(k-1),])) #lower sample
+  if(p==1)x_lower <-  rbind(1, t(x[(k-G):(k-1),])) #lower sample
+  if(p==2)x_lower <-  rbind(1, t(x[(k-G):(k-1),]),t(x[(k-G-1):(k-2),]))
+  if(p==3)x_lower <-  rbind(1, t(x[(k-G):(k-1),]) ,t(x[(k-G-1):(k-2),]), t(x[(k-G-2):(k-3),] ))
+  if(p==4)x_lower <-  rbind(1, t(x[(k-G):(k-1),]),t(x[(k-G-1):(k-2),]), t(x[(k-G-2):(k-3),]), t(x[(k-G-3):(k-4),] ))
+  
   res_lower <-  x[(k-G+1):(k), i] - t(a_lower) %*% x_lower #lower residuals
   sigma_i <- 1/(2*G) * (sum(res_upper^2) + sum(res_lower^2) ) #LOCAL1
   return(sigma_i)
@@ -422,12 +465,13 @@ getsigma_i_kLOCAL1 <- function(x, i, k, G, a_upper, a_lower) {
 #a_upper_example <- get_a_lu_i(bf_ts_0, i=1, l= 100, u= 130)
 #a_lower_example <- get_a_lu_i(bf_ts_0, i=1, l= 69, u= 99)
 #getsigma_i_kLOCAL1(x = bf_ts_0, i=1, k = 100, G= 30, a_upper = a_upper_example, a_lower = a_lower_example)
+#getsigma_i_kLOCAL1(x = p2_change, i=1, k = 100, G= 30, p =2, a_upper = get_a_lu_i(p2_change, i=1, p=2, l= 100, u= 130), a_lower = get_a_lu_i(p2_change, i=1,p=2, l= 69, u= 99))
 
 getsigma_d_kLOCAL1 <- function(x, k, G,p, a_upper, a_lower){
   d <- dim(x)[2]
   sigma_d <- rep(0, d)
   for (i in 1:d) {
-    sigma_d[i] <- getsigma_i_kLOCAL1(x,i,k,G,a_upper[((i-1)*(d*p+1)+1):((i-1)*(d*p+1)+ d*p +1)] ,a_lower[((i-1)*(d*p+1)+1):((i-1)*(d*p+1)+ d*p +1)]) #accounts for intercept
+    sigma_d[i] <- getsigma_i_kLOCAL1(x,i,k,G,p,a_upper[((i-1)*(d*p+1)+1):((i-1)*(d*p+1)+ d*p +1)] ,a_lower[((i-1)*(d*p+1)+1):((i-1)*(d*p+1)+ d*p +1)]) #accounts for intercept
   }
   return(sigma_d)
 }
@@ -525,6 +569,8 @@ get_DiagC_Wald <- function(x, p, sigma_d, k, G){ #Root, NOT Root inverse
   d <- dim(x)[2]
   if(p==1)xk <-  cbind(1, x[(k-G):(k+G-1),]) #lower time sample #includes intercept
   if(p==2)xk <-  cbind(1, x[(k-G):(k+G-1),],x[(k-G-1):(k+G-2),])
+  if(p==3)xk <-  cbind(1, x[(k-G):(k+G-1),],x[(k-G-1):(k+G-2),], x[(k-G-2):(k+G-3),] )
+  if(p==4)xk <-  cbind(1, x[(k-G):(k+G-1),],x[(k-G-1):(k+G-2),], x[(k-G-2):(k+G-3),], x[(k-G-3):(k+G-4),] )
   #if(d==1) xk <- matrix(xk) #redundant
   C <- 1/(2*G) * t(xk) %*% (xk)
   ##eigen decomposition
@@ -612,8 +658,9 @@ test_Wald <- function(x, p, G, alpha = 0.05, estim="DiagH"){
   ##Test setup----------------------------
   c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
   a <- sqrt(2*log(n/G)) #test transform multipliers
-  b <- 2*log(n/G) + d/2 * log(log(n/G)) - log(2/3 * gamma(d/2))
+  b <- 2*log(n/G) + d*(d*p+1)/2 * log(log(n/G)) - log(2/3 * gamma(d*(d*p+1)/2)) ##CORRECTED
   D_n <- (b+c_alpha)/a #threshold
+  D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   Reject <- FALSE
   ##Run test-----------------------------
   Wn <- ts(get_W(x,p,G,estim)) #evaluate statistic at each time k
@@ -636,7 +683,9 @@ test_Wald <- function(x, p, G, alpha = 0.05, estim="DiagH"){
 }
 
 
-## Let's start with the R version
+
+
+##SIMS
 rSim <- function(coeff, errors) {
   simdata <- matrix(0, nrow(errors), ncol(errors))
   for (row in 2:nrow(errors)) {
@@ -653,6 +702,7 @@ rSim_p2 <- function(coeff, coeff2,  errors) {
   }
   return(ts(simdata))
 }
+
 
 
 
@@ -694,12 +744,7 @@ testloop <- function(d, G, test = "Score", estim = "DiagC"){
   return(c(t_n41$Reject, length(t_n41$cps), length(int500), length(int1000), length(int1500) ))
 }
 library(parallel)
-DH150 <- mcmapply(1:60, FUN=testloop, MoreArgs = list(G=150 , test="Wald", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
-DH200 <- mcmapply(1:60, FUN=testloop, MoreArgs = list(G=200 , test="Wald", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
-FH100 <- mcmapply(1:60, FUN=testloop, MoreArgs = list(G=100 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
-FH150 <- mcmapply(1:60, FUN=testloop, MoreArgs = list(G=150 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
-FH200 <- mcmapply(1:60, FUN=testloop, MoreArgs = list(G=200 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
-gc() # garb 
+
 
 testloop_alt <- function(d, G, test = "Score", estim = "DiagC"){
   e1 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
@@ -721,12 +766,55 @@ testloop_alt <- function(d, G, test = "Score", estim = "DiagC"){
   gc()
   return(c(t_n41$Reject, length(t_n41$cps), length(int500), length(int1000), length(int1500) ))
 }
-DH100A <- mcmapply(1:60, FUN=testloop_alt, MoreArgs = list(G=100 , test="Wald", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
-DH150A <- mcmapply(1:60, FUN=testloop_alt, MoreArgs = list(G=150 , test="Wald", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
-DH200A <- mcmapply(1:60, FUN=testloop_alt, MoreArgs = list(G=200 , test="Wald", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
-FH100A <- mcmapply(1:60, FUN=testloop_alt, MoreArgs = list(G=100 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
-FH150A <- mcmapply(1:60, FUN=testloop_alt, MoreArgs = list(G=150 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
-FH200A <- mcmapply(1:60, FUN=testloop_alt, MoreArgs = list(G=200 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+
+
+SDC100 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=100 , test="Score", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+SDC150 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=150 , test="Score", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+SDC200 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=200 , test="Score", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+SDC100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Score", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+SDC150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Score", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+SDC200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Score", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+gc()
+SDH100 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=100 , test="Score", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+SDH150 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=150 , test="Score", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+SDH200 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=200 , test="Score", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+SDH100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Score", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+SDH150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Score", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+SDH200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Score", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
 gc() # garb 
+SFH100 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=100 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+SFH150 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=150 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+SFH200 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=200 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+SFH100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+SFH150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+SFH200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+
+
+
+
+
+
+WDC100 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=100 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+WDC150 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=150 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+WDC200 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=200 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+WDC100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+WDC150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+WDC200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Wald", estim="DiagC"),  mc.cores = getOption("mc.cores", 4L))
+gc() # garb 
+WDH100 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=100 , test="Wald", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+WDH150 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=150 , test="Wald", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+WDH200 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=200 , test="Wald", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+WDH100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Wald", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+WDH150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Wald", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+WDH200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Wald", estim="DiagH"),  mc.cores = getOption("mc.cores", 4L))
+gc() # garb 
+WFH100 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=100 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+WFH150 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=150 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+WFH200 <- mcmapply(1:100, FUN=testloop, MoreArgs = list(G=200 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+WFH100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+WFH150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+WFH200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
+gc() # garb 
+  
 
 save.image(file = "workspace.Rdata")

@@ -369,7 +369,7 @@ test_Wald <- function(x, p, G, alpha = 0.05, estim="DiagH"){
 ## examples-------------------------------------------------------------
 # bf
 bf_test_wald <- test_Wald(x= bf_ts_0, p=1, G=200, alpha= .1, estim = "DiagH")
-bf_test_wald_C <- test_Wald(x= bf_ts_0, p=1, G=200, Phi = A_1, eps=eps, alpha= .1, estim = "DiagC")
+bf_test_wald_C <- test_Wald(x= bf_ts_0, p=1, G=200, alpha= .1, estim = "DiagC")
 bf_test_wald$plot
 # change
 change_test_wald <- test_Wald(x= var_change_0, p=1, G= 200, alpha = .1, estim = "DiagH")

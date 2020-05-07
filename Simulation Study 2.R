@@ -93,5 +93,5 @@ SFH100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Score
 SFH150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
 SFH200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Score", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
 
-report <- function(x){ c(rowMeans(x),sd(x[2,]) ) }
+report <- function(x){ cat(rowMeans(x)[1:2], sd(x[2,]), rowMeans(x)[3:5] ,sep=" & ") }
 

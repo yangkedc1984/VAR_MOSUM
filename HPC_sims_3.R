@@ -332,8 +332,6 @@ test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){
 
 ##WALD-------------------------------
 
-##WALD-------------------------------
-
 ## Wald H
 
 ##estimating fn for channel i, time k
@@ -685,6 +683,7 @@ test_Wald <- function(x, p, G, alpha = 0.05, estim="DiagH"){
 
 
 
+
 ##SIMS
 rSim <- function(coeff, errors) {
   simdata <- matrix(0, nrow(errors), ncol(errors))
@@ -706,37 +705,38 @@ rSim_p2 <- function(coeff, coeff2,  errors) {
 
 
 
+A1_r1 <- matrix( c(-.75, -.75,  
+                   .75, .75  ), nrow = 2, ncol = 2 ) 
 
 
-A1 <- matrix( c(.7, -.1, -.1, -.1,
-                -.1,.7,  -.1, -.1,
-                -.1, -.1, .7, -.1,
-                -.1, -.1, -.1,.7), nrow = 4, ncol = 4 ) 
-A2 <- matrix( c(.6, .1, .1, .1,
-                .1,.6,  .1, .1,
-                .1, .1, .6, .1,
-                .1, .1, .1,.6), nrow = 4, ncol = 4 ) 
-A3 <- matrix( c(.5, .1, .1, -.1,
-                .1,.5,  -.1, .1,
-                .1, -.1, .5, .1,
-                -.1, .1, .1,.5), nrow = 4, ncol = 4 ) 
+A1_r2 <- matrix( c(.25, .25,  
+                   -.25, -.25  ), nrow = 2, ncol = 2 ) 
+A1_r3 <-  matrix( c(-.25, -.25,  
+                    .25, .25  ), nrow = 2, ncol = 2 ) 
+
+A1_r4 <-matrix( c(.75, .75,  
+                  -.75, -.75  ), nrow = 2, ncol = 2 ) 
+
 
 Reject_count <- 0
 Rej_vec <- rep(FALSE, 100)
 #for (replicate in 1:100) {
 testloop <- function(d, G, test = "Score", estim = "DiagC"){
-  e1 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
-  e2 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
-  e3 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
-  e4 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
+  e1 <- matrix(rnorm(2 * 500, 0, .5),ncol=2)
+  e2 <- matrix(rnorm(2 * 500, 0, .5),ncol=2)
+  e3 <- matrix(rnorm(2 * 500, 0, .5),ncol=2)
+  e4 <- matrix(rnorm(2 * 500, 0, .5),ncol=2)
   ##null
-  sim_n41 <- rbind(rSim(A1,e1),rSim(A1,e2),rSim(A1,e3),rSim(A1,e4)) #H0 or H1
-  plot.ts(sim_n41)
-  m_n41 <- ar(sim_n41, order.max = 1, demean = T, method = "ols") #remove mean for E[Y]=0
-  #var_change_0 <- as.matrix(t( t(var_change) - (change_model$x.mean))) #centre
-  m_n41_a <- cbind(m_n41$x.intercept, matrix(m_n41$ar, nrow=4, ncol=4))
-  m_n41_res <- m_n41$resid
-  if(test =="Score") t_n41 <- test_Score(x=sim_n41, p=1, G, Phi = m_n41_a, eps = m_n41_res, alpha = 0.05, estim)
+  sim_n41 <- rbind(rSim(A1_r1,e1),rSim(A1_r1,e2),rSim(A1_r1,e3),rSim(A1_r1,e4)) #H0 or H1
+  if(test =="Score"){ 
+    
+    #plot.ts(sim_n41)
+    m_n41 <- ar(sim_n41, order.max = 1, aic = F, demean = T, method = "ols") #remove mean for E[Y]=0
+    #var_change_0 <- as.matrix(t( t(var_change) - (change_model$x.mean))) #centre
+    m_n41_a <- cbind(m_n41$x.intercept, matrix(m_n41$ar, nrow=2, ncol=2))
+    m_n41_res <- m_n41$resid
+    t_n41 <- test_Score(x=sim_n41, p=1, G, Phi = m_n41_a, eps = m_n41_res, alpha = 0.05, estim)
+  }
   if(test =="Wald") t_n41 <- test_Wald(x=sim_n41, p=1, G, alpha = 0.05, estim)
   int500 <- t_n41$cps[t_n41$cps <= 540 & t_n41$cps >= 460]
   int1000 <- t_n41$cps[t_n41$cps <= 1040 & t_n41$cps >= 960]
@@ -744,22 +744,26 @@ testloop <- function(d, G, test = "Score", estim = "DiagC"){
   gc()
   return(c(t_n41$Reject, length(t_n41$cps), length(int500), length(int1000), length(int1500) ))
 }
+
 library(parallel)
 
 
 testloop_alt <- function(d, G, test = "Score", estim = "DiagC"){
-  e1 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
-  e2 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
-  e3 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
-  e4 <- matrix(rnorm(4 * 500, 0, .5),ncol=4)
+  e1 <- matrix(rnorm(2 * 500, 0, .5),ncol=2)
+  e2 <- matrix(rnorm(2 * 500, 0, .5),ncol=2)
+  e3 <- matrix(rnorm(2 * 500, 0, .5),ncol=2)
+  e4 <- matrix(rnorm(2 * 500, 0, .5),ncol=2)
   ##null
-  sim_n41 <- rbind(rSim(A1,e1),rSim(A2,e2),rSim(A3,e3),rSim(A1,e4)) #H0 or H1
-  plot.ts(sim_n41)
-  m_n41 <- ar(sim_n41, order.max = 1, demean = T, method = "ols") #remove mean for E[Y]=0
-  #var_change_0 <- as.matrix(t( t(var_change) - (change_model$x.mean))) #centre
-  m_n41_a <- cbind(m_n41$x.intercept, matrix(m_n41$ar, nrow=4, ncol=4))
-  m_n41_res <- m_n41$resid
-  if(test =="Score") t_n41 <- test_Score(x=sim_n41, p=1, G, Phi = m_n41_a, eps = m_n41_res, alpha = 0.05, estim)
+  sim_n41 <- rbind(rSim(A1_r1,e1),rSim(A1_r2,e2),rSim(A1_r3,e3),rSim(A1_r4,e4)) #H0 or H1
+  if(test =="Score"){ 
+    
+    #plot.ts(sim_n41)
+    m_n41 <- ar(sim_n41, order.max = 1, aic = F, demean = T, method = "ols") #remove mean for E[Y]=0
+    #var_change_0 <- as.matrix(t( t(var_change) - (change_model$x.mean))) #centre
+    m_n41_a <- cbind(m_n41$x.intercept, matrix(m_n41$ar, nrow=2, ncol=2))
+    m_n41_res <- m_n41$resid
+    t_n41 <- test_Score(x=sim_n41, p=1, G, Phi = m_n41_a, eps = m_n41_res, alpha = 0.05, estim)
+  }
   if(test =="Wald") t_n41 <- test_Wald(x=sim_n41, p=1, G, alpha = 0.05, estim)
   int500 <- t_n41$cps[t_n41$cps <= 540 & t_n41$cps >= 460]
   int1000 <- t_n41$cps[t_n41$cps <= 1040 & t_n41$cps >= 960]
@@ -816,6 +820,7 @@ WFH100A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=100 , test="Wald"
 WFH150A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=150 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
 WFH200A <- mcmapply(1:100, FUN=testloop_alt, MoreArgs = list(G=200 , test="Wald", estim="FullH"),  mc.cores = getOption("mc.cores", 4L))
 gc() # garb 
-  
 
-save.image(file = "workspace.Rdata")
+
+
+save.image(file = "ws_sims_3.Rdata")

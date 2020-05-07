@@ -332,8 +332,6 @@ test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){
 
 ##WALD-------------------------------
 
-##WALD-------------------------------
-
 ## Wald H
 
 ##estimating fn for channel i, time k
@@ -685,7 +683,9 @@ test_Wald <- function(x, p, G, alpha = 0.05, estim="DiagH"){
 
 
 
-## SIMS
+
+
+##SIMS
 rSim <- function(coeff, errors) {
   simdata <- matrix(0, nrow(errors), ncol(errors))
   for (row in 2:nrow(errors)) {
@@ -702,7 +702,6 @@ rSim_p2 <- function(coeff, coeff2,  errors) {
   }
   return(ts(simdata))
 }
-
 
 
 
@@ -725,18 +724,31 @@ A2_r3 <- matrix( c(-.2, .0, .0,
                    .0, .0, -.2), nrow = 3, ncol = 3 ) 
 
 
-Reject_count <- 0
-Rej_vec <- rep(FALSE, 100)
-#for (replicate in 1:100) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(parallel)
 testloop <- function(d, G, test = "Score", estim = "DiagC"){
   e1 <- matrix(rnorm(3 * 500, 0, .5),ncol=3)
   e2 <- matrix(rnorm(3 * 500, 0, .5),ncol=3)
   e3 <- matrix(rnorm(3 * 500, 0, .5),ncol=3)
   e4 <- matrix(rnorm(3 * 500, 0, .5),ncol=3)
-  ##null
+  ##alt
   sim_n41 <- rbind(rSim_p2(A1_r1,A2_r1,e1),rSim_p2(A1_r1,A2_r1,e2),rSim_p2(A1_r1,A2_r1,e3),rSim_p2(A1_r1,A2_r1,e4)) #H0 or H1
   if(test =="Score"){ 
-    
     #plot.ts(sim_n41)
     m_n41 <- ar(sim_n41, order.max = 2, aic = F, demean = T, method = "ols") #remove mean for E[Y]=0
     #var_change_0 <- as.matrix(t( t(var_change) - (change_model$x.mean))) #centre
@@ -751,9 +763,6 @@ testloop <- function(d, G, test = "Score", estim = "DiagC"){
   gc()
   return(c(t_n41$Reject, length(t_n41$cps), length(int500), length(int1000), length(int1500) ))
 }
-
-library(parallel)
-
 
 testloop_alt <- function(d, G, test = "Score", estim = "DiagC"){
   e1 <- matrix(rnorm(3 * 500, 0, .5),ncol=3)

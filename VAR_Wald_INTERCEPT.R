@@ -119,6 +119,11 @@ get_V_nk <- function(x, p, l, u){
 #get_V_nk(univData_0, p=1, l= 10, u= 100)
 #get_V_nk(p2_change, p=2, l= 10, u= 100)
 
+
+
+
+
+
 ## S estimators ----------------------------------------------
 
 ## LOCAL1 estimator of variance in channel i at k
@@ -309,6 +314,8 @@ get_Wkn <- function(x, p, k, G, estim){
 #get_Wkn(univData_0, p=1, k= 101, G=100, estim = "DiagH")
 #get_Wkn(p2_change, p=2, k= 105, G=100, estim = "DiagH")
 
+
+ ## PARALLELISE OVER THIS LOOP ########################
 get_W <- function(x, p, G, estim){
   n <- dim(x)[1]
   K <- (G+p):(n-G)

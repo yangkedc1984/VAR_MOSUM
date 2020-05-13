@@ -1,6 +1,7 @@
 library(Rcpp)
 library(RcppParallel)
 library(RcppArmadillo)
+library(Matrix)
 ## RcppParallel implementation
 
 
@@ -25,8 +26,9 @@ getH_ik_Wald_RCPP(as.matrix(p2_change), i=1, k=10,p=2, a = as.vector(ap2) )
 
 makeH_k_Wald_RCPP(p2_change, k=10,p=2, a = ap2)
 
-H_l_u <- makeH_l_u_RCPP(p2_change, p=2, l=10, u=100, a = ap2)
-H_l_u
+H_l_ex <- makeH_l_u_RCPP(p2_change, p=2, l=69, u=99, a = ap2);H_l_1 <- makeH_l_u_RCPP(p2_change, p=1, l=69, u=99, a = ap1) 
+H_u_ex <- makeH_l_u_RCPP(p2_change, p=2, l=100, u=130, a = ap2);H_u_1 <- makeH_l_u_RCPP(p2_change, p=1, l=100, u=130, a = ap1) 
+
 
 library(Matrix)
 data <- list(
@@ -46,5 +48,20 @@ V <- get_V_nk_RCPP(p2_change, p=2, 10, 100)
 
 getsigma_i_kLOCAL1_RCPP(x = p2_change, i=1, k = 100, G= 30, p =2, 
                         a_upper = get_a_lu_i(p2_change, i=1, p=2, l= 100, u= 130), a_lower = get_a_lu_i(p2_change, i=1,p=2, l= 69, u= 99))
-getsigma_d_kLOCAL1_RCPP(x = p2_change, k = 100, G= 30, p =2, 
+sigma_d_ex <- getsigma_d_kLOCAL1_RCPP(x = p2_change, k = 100, G= 30, p =2, 
                         a_upper = make_a_lu(p2_change, p=2, l= 100, u= 130), a_lower = make_a_lu(p2_change, p=2, l= 69, u= 99))
+
+#for (ii in 1:5) {
+  d <- 5; p <-2
+  print( (ii-1)*(d*p+1)+1-1)
+  print((ii-1)*(d*p+1)+ d*p +1-1)
+}
+
+get_DiagH_Wald_RCPP(p2_change, G=30, p=2, H_l_ex, H_u_ex)
+
+get_FullH_Wald_RCPP(p2_change, G=30, p=2, H_l_ex, H_u_ex); get_FullH_Wald_RCPP(p2_change, G=30, p=1, H_l_1, H_u_1)
+
+get_DiagC_Wald_RCPP(x=p2_change,p=2,sigma_d = sigma_d_ex,k=100,G=30)
+
+## evaluate Wkn (test statistic) for time k
+get_Wkn_RCPP(x=p2_change,p=2,k=100,G=30, estim = "DiagC")

@@ -208,8 +208,133 @@ vec sigma_d_k(mat x, int k,int G,int p,vec a_upper,vec a_lower)
 {
   int d = x.n_cols;
   vec sigma_d = zeros(d);
-  // for (int ii=1; ii< d+1; ii++) {
-  //     sigma_d(ii-1) = sigma_i_k(x,ii,k,G,p,a_upper.subvec( (ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1),a_lower.subvec( (ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1) ) ;
-  // };
+   for (int ii=1; ii< d+1; ii++) {
+       sigma_d(ii-1) = sigma_i_k(x,ii-1,k,G,p, a_upper( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)),
+               a_lower( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)) ) ;
+   };
     return sigma_d;
+}
+
+
+
+
+// SIGMA ESTIMATORS ------------------------
+
+// [[Rcpp::export(get_DiagH_Wald_RCPP)]] //get_DiagH_Wald
+sp_mat DiagH(mat x, int G,int p,mat H_l, mat H_u)
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+  field<mat> H_list(d);
+  mat H_u_i; mat H_l_i; mat H_out;
+  vec Hbar_u; vec Hbar_l;
+  vec evals; mat evecs;
+  for (int ii=1; ii< d+1; ii++) {
+        H_u_i = H_u.rows( ((ii-1)*(d*p+1)+1-1), ((ii-1)*(d*p+1)+ d*p +1-1) );
+        H_l_i = H_l.rows( ((ii-1)*(d*p+1)+1-1), ((ii-1)*(d*p+1)+ d*p +1-1) );
+        Hbar_u = mean(H_u_i,1) ;
+        H_u_i.each_col() -= Hbar_u ;//H_u_centred
+        Hbar_l = mean(H_l_i,1) ;
+        H_l_i.each_col() -= Hbar_l; //H_l_centred
+        H_out = H_l_i * H_l_i.t() + H_u_i * H_u_i.t();
+        //eigen decomposition
+        eig_sym(evals,evecs,H_out);
+        H_out = evecs * diagmat(pow(evals,-0.5))*  evecs.t();
+        H_list(ii-1) = H_out;
+  }
+  sp_mat Sig_ =  sqrt(2*G) * blockDiag(H_list); //coerce into block diagonal form
+  return Sig_;
+}
+
+// [[Rcpp::export(get_FullH_Wald_RCPP)]] //get_FullH_Wald
+mat FullH(mat x, int G,int p,mat H_l, mat H_u)
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+  //field<mat> H_list(d);
+  mat H_out;
+  vec Hbar_u; vec Hbar_l;
+  vec evals; mat evecs;
+  
+    Hbar_u = mean(H_u,1) ;
+    H_u.each_col() -= Hbar_u ;//H_u_centred
+    Hbar_l = mean(H_l,1) ;
+    H_l.each_col() -= Hbar_l; //H_l_centred
+    H_out = H_l * H_l.t() + H_u * H_u.t();
+    //eigen decomposition
+    eig_sym(evals,evecs,H_out);
+    H_out = evecs * diagmat(pow(evals/(2*G),-0.5))*  evecs.t();
+    
+    
+    //DEAL WITH OVERFLOW
+    // int n = x.n_rows;
+    // int d = x.n_cols;
+    // //field<mat> H_list(d);
+    // mat H_; Mat<long double> H_out;
+    // vec Hbar_u; vec Hbar_l;
+    // vec evals; mat evecs; std::vector<long double> evld;
+    // 
+    // Hbar_u = mean(H_u,1) ;
+    // H_u.each_col() -= Hbar_u ;//H_u_centred
+    // Hbar_l = mean(H_l,1) ;
+    // H_l.each_col() -= Hbar_l; //H_l_centred
+    // H_ = H_l * H_l.t() + H_u * H_u.t();
+    // //eigen decomposition
+    // eig_sym(evals,evecs,H_);
+    // evld = conv_to<std::vector<long double>>::from(evals);
+    // //Col<long double> pp = conv_to<Col<long double>>::from(powl(evld/(2*G),-0.5) );
+    // Mat<long double> D = diagmat()evld;
+    // H_out = evecs * (D)*  evecs.t();
+  return H_out; // RETURNS NaNs
+}
+
+
+// [[Rcpp::export(get_DiagC_Wald_RCPP)]] //get_DiagC_Wald
+sp_mat DiagC(mat x, int p, vec sigma_d, int k, int G)
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+  mat xk;vec evals; mat evecs;
+  mat O = ones(2*G,1) ;
+  if(p==1) xk = join_rows(O, x.rows( k-G-1,k+G-1-1) );
+  if(p==2) xk = join_rows(O, x.rows( k-G-1,k+G-1-1) , x.rows( k-G-1-1,k+G-2-1));
+  mat C =  xk.t() * xk /(2*G);
+  //eigen decomposition
+  eig_sym(evals,evecs,C);
+  mat C_ = evecs * diagmat(sqrt(evals) )*  evecs.t();
+  field<mat> Clist(d);
+  for (int ii=0; ii< d; ii++) {
+    Clist(ii) =   C_ /sqrt(2*sigma_d(ii)); 
+  };
+  sp_mat out = blockDiag(Clist); //coerce into block diagonal form
+  
+  return out;
+}
+
+
+// [[Rcpp::export(get_Wkn_RCPP)]] //get_Wkn
+double Wkn(mat x, int p, int k, int G, String estim = "DiagC")
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+    
+  vec a_upper = make_a_lu(x, p, k+1, k+G);
+  vec a_lower = make_a_lu(x, p, k-G+1, k);
+  vec W_mat;
+//Sigma estimator options------
+    if(estim == "DiagC"){
+      vec sigma_d = sigma_d_k(x,k,G,p,a_upper,a_lower);
+      sp_mat Sig_ = DiagC(x,p,sigma_d,k,G) ;
+      W_mat = Sig_ * (a_upper-a_lower) ;
+    } else{
+      // sp_mat V = V_nk(x, p, k-G+1, k);
+      // mat H_l = H_l_u(x, p, l=k-G+1, u=k , a=a_lower);
+      // mat H_u <- H_l_u(x, p, l=k+1, u=k+G , a=a_upper);
+      // if(estim == "DiagH")Sig_ <- get_DiagH_Wald(x,G,p,H_l,H_u) #DiagH estimator for Sigma 
+      // if(estim == "FullH")Sig_ <- get_FullH_Wald(x,G,H_l,H_u) #FullH estimator 
+      //     W_mat <- as.matrix(Sig_ %*%V %*% (a_upper-a_lower)) #argument for norm
+    }
+//------------------------------
+  double W = sqrt(G/2) * norm(W_mat, "fro");
+  return W;
 }

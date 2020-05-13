@@ -276,15 +276,7 @@ get_DiagC_Wald <- function(x, p, sigma_d, k, G){ #Root, NOT Root inverse
 get_Wkn <- function(x, p, k, G, estim){ 
   n<- dim(x)[1]
   d <- dim(x)[2]
-  #if(d>1){
-  #x_lower_mean <- (colMeans(x[(k-G+1):k,])) ##DYNAMIC CENTERING 
-  #x_upper_mean <- (colMeans(x[(k+1):(k+G),]))
-  #} else { #d=1
-  #  x_lower_mean <- mean(x[(k-G+1):k,]) ##DYNAMIC CENTERING 
-  #  x_upper_mean <- mean(x[(k+1):(k+G),])
-  #}
-  #x_l <- sweep(x,2, x_lower_mean)
-  #x_u <- sweep(x, 2, x_upper_mean) 
+
   a_upper <- make_a_lu(x, p, l=k+1, u=k+G)#x_u
   #res_u <-  x_u - t(a_upper) %*% rbind(rep(0,p),x_u[(p+1):n,]) #upper residuals
   a_lower <- make_a_lu(x, p, l=k-G+1, u=k)#x_l

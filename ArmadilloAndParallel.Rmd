@@ -1,0 +1,283 @@
+---
+title: 'SC2 Coursework 2: Armadillo and Parallel'
+author: "Dom Owens"
+date: "13/05/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+
+In this document, we outline an efficient implementation of the Wald-type procedure for multiple change-point analysis of multiple time series, as outlined in chapter 3 of
+[MOSUM Methods for Multiple Change-Point Analysis in Causal Networks](https://github.com/Dom-Owens-UoB/VAR_MOSUM/blob/master/Mini_Project.pdf).
+
+# RcppArmadillo Implementation
+
+The original implementation relies largely on base-R functionality and a few functions from popular packages (e.g. `stats`), and takes an extremely long time even in problems of moderate dimension. The new implementation is written entirely in `RcppArmadillo`, which performs large-dimensional linear algebra calculations at a compiled level. Given our procedure consists of many matrix calculations, we should expect to see a strong improvement in performance.
+
+The relevant `Rcpp` code can be viewed [here](https://github.com/Dom-Owens-UoB/VAR_MOSUM/blob/master/Wald_RcppParallel.cpp). 
+
+```{r setup, include=FALSE}
+library(Rcpp)
+library(RcppParallel)
+library(RcppArmadillo)
+library(Matrix)
+library(microbenchmark)
+library(ggplot2)
+source("VAR_Wald_INTERCEPT.R")
+```
+
+
+## Runtime Comparison
+
+We compare how our implementation performs in terms of runtime against the previous base-R implementation.
+
+
+First, we generate an example set of data from a VAR process, with dimension $d=5$ and lag $p=1$, and a change in structure at time $t=1000$.
+
+```{r}
+source("VAR_sim.R") #load VAR data simulator
+a1 <- diag(0.6, nrow = 5, ncol = 5 ) + 0.05  #regime 1
+e1 <- matrix(rnorm(5 * 1000, 0, 0.2),ncol=5)
+a2 <- diag(-0.4, nrow = 5, ncol = 5 ) - 0.03 #regime 2
+e2 <- matrix(rnorm(5 * 1000, 0, 0.2),ncol=5)
+rData1 <- rSim(a1, e1)
+#rData1[1,] <- runif(5, 0, 0.02) #prevent NaN
+rData2 <- rSim(a2, e2)
+#rData2[1,] <- runif(5, 0, 0.02)
+var_change <- ts(rbind(rData1+ 0, rData2- 0) )
+plot(var_change)
+```
+
+
+```{r}
+sourceCpp(file = "Wald_RcppParallel.cpp")
+dcw <- function()test_Wald_RCPP(x=var_change, p=1, G=200, alpha = 0.05, estim = "DiagC") 
+dhw <- function()test_Wald_RCPP(x=var_change, p=1, G=200, alpha = 0.05, estim = "DiagH")
+fhw <- function()test_Wald_RCPP(x=var_change, p=1, G=200, alpha = 0.05, estim = "FullH")
+mb <- microbenchmark(dcw, dhw, fhw, times = 100)
+print(mb)
+autoplot(mb) + ggtitle("Armadillo Implemenation of Wald Procedure, Runtime, by Estimator") 
+```
+
+We can see that these methods take around 50 nanoseconds to compute.
+
+![Base R Implementation Runtime](WaldRuntime.pdf)
+
+The base-R methods take between 10 and 150 seconds to compute (see Figure 1), which is of the order of **one billion** times as long.
+The original code contains multiple embedded for-loops, which makes up the majority of the time taken.
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Constituent functions
+
+In this section, we compare each Rcpp function to its' corresponding base R function, to ensure the procedure is doing what we expect it to.
+
+We use a new example with $p=2$.
+```{r}
+p2_Data1 <- rSim_p2(a1, a2, e1)
+p2_Data2 <- rSim_p2(a2, -a1, e2)
+p2_change <- ts(rbind(p2_Data1, p2_Data2) )
+plot(p2_change)
+```
+
+
+### Regression parameter estimators
+
+$$\boldsymbol{\tilde{a}}_{l,u}$$ (3.19)
+```{r}
+ai <-get_a_lu_i(p2_change, i=1,p=2, 10, 100) ;aiC <-get_a_lu_i_RCPP(p2_change, i=1,p=2, 10, 100) 
+max(abs(ai-aiC))
+head(aiC)
+```
+
+$$\boldsymbol{\tilde{a}}_{l,u}$$ (3.18)
+```{r}
+ap2 <- make_a_lu(p2_change, p=2, l= 11, u= 100); ap2C <- make_a_lu_RCPP(p2_change, p=2, 11, 100)
+max(abs(ap2-ap2C))
+head(ap2C)
+```
+
+### Estimating functions
+
+$$\boldsymbol{H}_i$$ (3.11)
+```{r}
+H_ik <- getH_ik_Wald(p2_change, i=1, k=100,p=2, a = ap2 ); H_ikC <- getH_ik_Wald_RCPP(p2_change, i=1, k=100,p=2, a = ap2C )
+max(abs(H_ik-H_ikC))
+head(H_ikC)
+```
+
+$$\boldsymbol{H}$$ (3.12)
+```{r}
+H_k <- makeH_k_Wald(p2_change, k=100,p=2, a = ap2 );H_kC <- makeH_k_Wald_RCPP(p2_change, k=100,p=2, a = ap2C )
+max(abs(H_k-H_kC))
+head(H_kC)
+```
+
+Lower and upper summands of difference vector $$\boldsymbol{A}_{\boldsymbol{\tilde{a}},k} $$ (3.14)
+```{r}
+H_l <- makeH_l_u(p2_change, p=2, l=11, u=100, a = ap2); H_u <- makeH_l_u(p2_change, p=2, l=101, u=190, a = ap2)
+H_l_C <- makeH_l_u_RCPP(p2_change, p=2, l=11, u=100, a = ap2C); H_u_C <- makeH_l_u_RCPP(p2_change, p=2, l=101, u=190, a = ap2C)
+max(abs(H_l-H_l_C))
+max(abs(H_u-H_u_C))
+head(H_l_C[,1:5])
+```
+
+### Outer expectation matrix 
+
+estimator $$\widehat{\boldsymbol{V}}$$ (3.41)
+```{r}
+V <- get_V_nk(p2_change, p=2, l=10, u=99);V_C <- get_V_nk_RCPP(p2_change, p=2, l=10, u=99)
+max(abs(V-V_C))
+str(V_C)
+```
+
+### LOCAL1
+
+Channel variance estimator $$\hat{\sigma}^2_{n,k}(i)$$ (3.60)
+```{r}
+sigi <- getsigma_i_kLOCAL1(x = p2_change, i=1, k = 100, G= 90, p =2, ai, get_a_lu_i(p2_change, i=1,p=2, 101, 190) )
+sigi_C <- getsigma_i_kLOCAL1_RCPP(x = p2_change, i=1, k = 100, G= 90, p =2, aiC, get_a_lu_i_RCPP(p2_change, i=1,p=2, 101, 190) )
+sigi
+sigi_C
+```
+
+All channels
+```{r}
+sigd <- getsigma_d_kLOCAL1(x = p2_change, k = 100, G= 90, p =2, ap2, make_a_lu_RCPP(p2_change,p=2, 101, 190))
+sigd_C <- getsigma_d_kLOCAL1_RCPP(x = p2_change, k = 100, G= 90, p =2, ap2C, make_a_lu_RCPP(p2_change,p=2, 101, 190))
+max(abs(sigd-sigd_C))
+```
+
+
+### Sigma estimators
+
+$$\boldsymbol{\widehat{\Sigma}}_{n,k}$$ **Diagonal-H** (3.56)
+```{r}
+DH <- get_DiagH_Wald(p2_change, G=90, p=2, H_l, H_u)
+DH_C <- get_DiagH_Wald_RCPP(p2_change, G=90, p=2, H_l_C, H_u_C)
+max(abs(DH-DH_C))
+str(DH_C)
+```
+
+$$\boldsymbol{\widehat{\Sigma}}_{n,k}$$ **Full-H** (3.57)
+```{r}
+FH <- get_FullH_Wald(p2_change, G=90, H_l, H_u)
+FH_C <- get_FullH_Wald_RCPP(p2_change, G=90, H_l_C, H_u_C)
+max(abs(FH-FH_C))
+```
+Note this currently leads to overflow errors for larger `G` values; this needs amending.
+
+$$\boldsymbol{\widehat{\Sigma}}_{n,k}$$ **Diagonal-C** (3.58)
+```{r}
+DC <- get_DiagC_Wald_RCPP(p2_change, p=2, sigma_d = sigd, k=100, G=90)
+DC_C <- get_DiagC_Wald_RCPP(p2_change, p=2, sigma_d = sigd_C, k=100, G=90)
+max(abs(DC-DC_C))
+str(DC_C)
+```
+
+### W
+
+$${W}_{k,n}(G)$$ (3.17)
+```{r}
+get_Wkn(p2_change, p=2, k=100, G=90, estim = "DiagC")
+get_Wkn_RCPP(p2_change, p=2, k=100, G=90, estim = "DiagC")
+get_Wkn(p2_change, p=2, k=100, G=90, estim = "DiagH")
+get_Wkn_RCPP(p2_change, p=2, k=100, G=90, estim = "DiagH")
+get_Wkn(p2_change, p=2, k=100, G=90, estim = "FullH")
+get_Wkn_RCPP(p2_change, p=2, k=100, G=90, estim = "FullH")
+```
+
+
+
+$${W}_{n}(G)$$ (3.17)
+```{r}
+WDC <- get_W(p2_change, p=2, G=90, estim = "DiagC")
+WDC_C <- get_W_RCPP(p2_change, p=2, G=90, estim = "DiagC")
+max(abs(WDC-WDC_C))
+plot.ts(WDC); lines(WDC_C, col = "blue")
+```
+
+
+```{r}
+WDH <- get_W(p2_change, p=2, G=90, estim = "DiagH")
+WDH_C <- get_W_RCPP(p2_change, p=2, G=90, estim = "DiagH")
+max(abs(WDH-WDH_C))
+plot.ts(WDH); lines(WDH_C, col = "blue")
+```
+
+```{r}
+WFH <- get_W(p2_change, p=2, G=90, estim = "FullH")
+WFH_C <- get_W_RCPP(p2_change, p=2, G=90, estim = "FullH")
+max(abs(WFH-WFH_C))
+plot.ts(WFH); lines(WFH_C, col = "blue")
+```
+
+Here, the results are identical.
+
+
+# RcppParallel Simulations
+
+While the computation of each individual test could be easily parallelised over the evaluation of $W_{k,n}$ for each time $k$, the procedure is already way faster than we should require it to be. We can, however, make some gains in monte carlo experiments. When simulating multiple replicates from a given process, as in chapter 5 of the report, each replicate can be sent to a different worker in parallel, allowing a greater number of simulations to be used. This should give us better approximations of properties such as asymptotic power, size, and estimation precision.
+
+## Runtime 
+
+The function `var_simulate_RCPP` generates, for each replicate, data from the stochastic process determined by the autoregression matrices `pars`, and returns a vector of zeros and ones corresponding to non-rejected nulls and rejected nulls.
+
+```{r}
+pars <- list(a1,a2,a2,a1,a1+a2,a1%*%a2)
+var_simulate_RCPP(pars,reps=10, ncores = 1)
+```
+
+This is parallelised as follows
+```
+// [[Rcpp::export(var_simulate_RCPP)]] 
+NumericVector var_sim(List pars, int reps =100, int p=2, int G=200, double alpha =0.05, String estim = "DiagC",int ncores =1){
+  vec cp={500,1000,1500};
+  NumericVector out(reps) ;
+  RcppParallel::RVector<double> wo(out);
+  //RcppParallel::RVector<double> wx(x);
+  
+  #if defined(_OPENMP)
+  #pragma omp parallel for num_threads(ncores)
+  #endif
+   for(int repl = 0; repl < reps; repl++ ){
+   List p1 = List::create(pars[0], pars[1]);List p2 = List::create(pars[2], pars[3]);List p3 = List::create(pars[4], pars[5]);
+   mat r1 = sim_data(p1, cp(0), 5);mat r2 = sim_data(p2, cp(1)-cp(0), 5);mat r3 = sim_data(p3, cp(2)-cp(1), 5); //in-regime data
+   mat r = join_cols(r1,r2,r3); //full data
+   List t = test_Wald(r, p, G, alpha,estim);
+   wo[repl] = t[0];
+   };
+  //Output------------------------------------
+  // List out = List::create(Named("Reject") = Reject, _["Wn"] = Wn, _["ChangePoints"] = cp, _["D_n"]=D_n);
+  return out ;
+}
+```
+
+We compare how this performs for different numbers of cores
+
+```{r}
+sim1core <- function()var_simulate_RCPP(pars,reps=10e10, ncores = 1)
+sim2cores <- function()var_simulate_RCPP(pars,reps=10e10, ncores = 2)
+sim4cores <- function()var_simulate_RCPP(pars,reps=10e10, ncores = 4)
+simmb <- microbenchmark(sim1core, sim2cores, sim4cores, times = 100000)
+print(simmb)
+autoplot(simmb) + ggtitle("Simulations, Runtime, by Number of Cores") 
+```
+
+Running these simulations in parallel does not seem to speed them up, and indeed spreading the job across workers may actually slow the computation down; it is possible this is due to the relatively low dimensionality of the problem.
+For comparison, simulations with $N=100$ replicates of the base-R implementation took hours, and necessitated use of HPC capability.
+
+
+

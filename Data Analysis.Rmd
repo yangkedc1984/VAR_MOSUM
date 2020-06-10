@@ -113,3 +113,77 @@ tkplot(Tlasso_prechange$dag, vertex.color=c(rep(10,3), rep(11,3), rep(12,3), rep
 
 ```
 
+
+
+
+
+```{r}
+library(Rcpp)
+library(RcppParallel)
+library(RcppArmadillo)
+library(Matrix)
+sourceCpp(file = "Wald_RcppParallel.cpp")
+```
+```{r}
+library(tidyverse); library(openxlsx); library(zoo)
+bf <- read.xlsx("bf_for_dom.xlsx", detectDates = T)
+bf_ <- ts(bf)
+bf_ <- bf_[,-1]
+bf_ <- na.fill(bf_, fill = "extend")
+#bf_ <-bf_[,c(-2,-13)]
+#time(bf_) <- bf$Index
+library(ggfortify)
+#bf_ts_0 <- as.matrix(t( t(bf_) - (model$x.mean))) #centre
+#autoplot(bf_[,1], facets=F, main = "Risk Measures")
+dates <- bf$Index[c(1,1001,2001,3001,4001)]
+autoplot(bf_,facets = F, main="Risk Measures, 2000-12-22 - 2018-04-24") + scale_x_continuous(breaks = c(1,1001,2001,3001,4001), labels= dates )
+```
+
+
+```{r}
+colSums(is.na(bf))
+#bf_ <- na.fill(bf_, fill = "extend")
+bf_sub <- bf_[,c(1,22:24)]#c(6:10)]
+autoplot(bf_sub, facets = F, main="Risk Measure Panel")
+library(urca)
+ur.df(bf_sub[,1], type="trend", selectlags = "AIC")
+ur.df(bf_sub[,2], type="trend", selectlags = "AIC")
+ur.df(bf_sub[,3], type="trend", selectlags = "AIC")
+d_bf <- ts(diff(bf_sub))
+autoplot(d_bf, main = "Risk Measure Panel, First Difference")+ scale_x_continuous(breaks = c(1,1001,2001,3001,4001), labels= dates )
+```
+```{r}
+model_d <- ar(d_bf, demean = T, order.max = 2, method = "ols")  
+A_d <- cbind(model_d$x.intercept,  matrix(model_d$ar[1,,], nrow=4, ncol=4), matrix(model_d$ar[2,,], nrow=4, ncol=4)) #,matrix(model_d$ar[3,,], nrow=3, ncol=3))
+eps_d <- model_d$resid
+t_d <- test_Score(d_bf, p=2, G=400,alpha=0.01, Phi=A_d, eps = eps_d, estim = "DiagH")
+t_d_w <- test_Wald_new(d_bf, p=2, G=400, alpha=0.01, estim = "DiagH") 
+```
+
+```{r}
+xmu <- c(rep(0,400),rep(1,200), rep(0.5,400))
+xsingle <- rnorm(1000) + xmu
+plot.ts(xsingle, ylab="X_t");lines(xmu,col="green")
+```
+```{r}
+library(mosum)
+ms <-mosum(xsingle, G=1000^.66)
+plot(ms, "mosum")
+```
+
+```{r}
+aa <- matrix(data=c(0.7,0.1,0.1, 0.1,0.7,0.1, 0.1,0.1,0.7), 3,3 )
+aa_2 <- matrix(data=c(-0.5,0.3,0.3, 0.3,-0.5,0.3, 0.3,0.3,-0.5), 3,3 )
+aa_3 <- aa^2
+edp2_1 <- matrix(rnorm(1000*3, 0, 0.1), ncol = 3) ;edp2_2 <- matrix(rnorm(1000*3, 0, 0.1), ncol = 3);edp2_3 <- matrix(rnorm(1000*3, 0, 0.1), ncol = 3)
+dp2_Data1 <- rSim(aa, edp2_1)
+dp2_Data2 <- rSim(aa_2, edp2_2)
+dp2_Data3 <- rSim(aa_3, edp2_3)
+
+dp2_change <- ts(rbind(dp2_Data1, dp2_Data2,dp2_Data3) )
+dp2_model <- ar(dp2_change, order.max = 1, demean = T, method = "ols")
+dp2_a <- cbind(dp2_model$x.intercept,  dp2_model$ar)
+dp2_eps <- dp2_model$resid
+plot(dp2_change, main="Change in Autoregression"); abline(v = c(1000,2000), col= "red")
+```
+

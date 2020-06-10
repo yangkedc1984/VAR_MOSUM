@@ -2,11 +2,19 @@
 //#include <Rcpp.h>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::depends(RcppParallel)]]
+// [[Rcpp::plugins(openmp)]]
 
 #include <iostream>
+#include <RcppParallel.h>
 using namespace Rcpp;
 using namespace arma;
 using namespace std;
+                                    
+                                    
+                                    
+
+                                   
                                     
 
 // [[Rcpp::export(getH_ik_Wald_RCPP)]] //getH_ik_Wald
@@ -16,10 +24,10 @@ vec H_ik(mat& x, int i, int k, int p, vec a)
   int d = x.n_cols;
   vec ai = a.rows( span((i-1)*(d*p+1)+1 -1 , (i-1)*(d*p+1)+ d*p +1 -1) ); //intercept - index
   
-  mat X = x.rows( span(k-p,k-1)) ;
+  mat X = x.rows( span(k-p-1,k-1-1)) ;
   //arma::mat XX = x.rows( span(k-p,k-1));
   //XX.attr("dim") = Dimension(1, d*p);
-  vec V = vectorise(X);
+  vec V = vectorise(flipud(X),1).t();
   vec O = ones(1);
   vec VV = join_cols(O,V);
   //V.rows(span(1  ,d*p +1) ) = XX;
@@ -30,11 +38,13 @@ vec H_ik(mat& x, int i, int k, int p, vec a)
   // V.rows( span((ii-1)*(d+1)+1  , (ii-1)*(d+1)+ d +1 ) ) =  xr.t();
   //} 
   
-  double y = x[k,i];
-  double  e = y - dot(ai, VV);  //residual
+  double y = x(k-1,i-1); double aV = dot(ai, VV);
+  double  e = y - aV;  //residual
   //vec Vt = transpose(V)
-  vec  H_ik = - y*VV + ai * VV.t() * VV- e*VV ;
-  
+  //double vv =dot(VV,VV);
+  vec  H_ik = - y*VV +  VV*VV.t()*ai - e*VV ;
+  //vec Y(size(H_ik));
+  //Y.fill(vv);
   return H_ik;
   
 }
@@ -64,7 +74,7 @@ mat H_l_u(mat& x,  int p, int l,int u, vec a)
   int nc = u-l+1;
   mat H; H.zeros(nr,nc); //matrix of H values #accounts for intercept
   for (int t=0; t <(u-l+1); t++ ) {
-          H.col(t) = H_k(x, l+t-1, p, a) ;
+          H.col(t) = H_k(x, l+t, p, a) ;//-1-1
   };
   return H;
     
@@ -74,7 +84,7 @@ struct Matrix_types {
   arma::mat m;
   arma::sp_mat M;
 }; 
-// [[Rcpp::export]] // INTERLEAVE
+// [[Rcpp::export]] // INTERLEAVE rows of input list
 arma::mat write_rows2(Rcpp::List data,  int nrows, int ncols) {//Rcpp::CharacterVector clss,
   
   const int len = data.length();
@@ -123,6 +133,16 @@ vec a_lu_i(mat& x, int i, int p, int l, int u)
     }  
      if(p==2){
        List L = List::create(x.rows( l-1-1,u-1-1).t(), x.rows( l-2-1,u-2-1).t() ); //construct data list
+       X = join_rows(O, write_rows2(L,d,y.n_elem ).t() ) ;
+       y_soln = sum(Y * X);
+     }  
+     if(p==3){
+       List L = List::create(x.rows( l-1-1,u-1-1).t(), x.rows( l-2-1,u-2-1).t(),x.rows( l-3-1,u-3-1).t() ); //construct data list
+       X = join_rows(O, write_rows2(L,d,y.n_elem ).t() ) ;
+       y_soln = sum(Y * X);
+     }  
+     if(p==4){
+       List L = List::create(x.rows( l-1-1,u-1-1).t(), x.rows( l-2-1,u-2-1).t(),x.rows( l-3-1,u-3-1).t(),x.rows( l-4-1,u-4-1).t() ); //construct data list
        X = join_rows(O, write_rows2(L,d,y.n_elem ).t() ) ;
        y_soln = sum(Y * X);
      }  
@@ -176,6 +196,11 @@ sp_mat V_nk(mat x, int p, int l, int u)
   mat O = ones(u-l+1,1) ;
   if(p==1) xk = join_rows(O, x.rows( l-1-1,u-1-1) );
   if(p==2) xk = join_rows(O, x.rows( l-1-1,u-1-1) , x.rows( l-2-1,u-2-1));
+  if(p==3) xk = join_rows(O, x.rows( l-1-1,u-1-1) , x.rows( l-2-1,u-2-1), x.rows( l-3-1,u-3-1));
+  if(p==4) {
+    xk = join_rows(x.rows( l-1-1,u-1-1) , x.rows( l-2-1,u-2-1), x.rows( l-3-1,u-3-1), x.rows( l-4-1,u-4-1));
+    xk.insert_cols(0,1);
+  };
   mat C =  xk.t() * xk /(u-l);
   field<mat> Vlist(d);
   for (int ii=0; ii< d; ii++) {
@@ -192,12 +217,21 @@ double sigma_i_k(mat x, int i,int k,int G,int p,vec a_upper,vec a_lower)
   mat O = ones(G,1) ;
   if(p==1) x_upper = join_rows(O, x.rows( k-1,k+G-1-1) ); //upper sample
   if(p==2) x_upper = join_rows(O, x.rows( k-1,k+G-1-1), x.rows(k-1-1, k+G-2-1 ) ); 
-  rowvec res_upper =  x( span(k+1-1,k+G-1), i).t() - a_upper.t() * x_upper.t(); //upper residuals
+  if(p==3) x_upper = join_rows(O, x.rows( k-1,k+G-1-1), x.rows(k-1-1, k+G-2-1 ), x.rows(k-2-1, k+G-3-1 ) ); 
+  if(p==4){
+    x_upper = join_rows(x.rows( k-1,k+G-1-1), x.rows(k-1-1, k+G-2-1 ), x.rows(k-2-1, k+G-3-1 ),x.rows(k-3-1, k+G-4-1 ) );
+    x_upper.insert_cols(0,1); 
+  } ;
+  rowvec res_upper =  x( span(k+1-1,k+G-1), i-1).t() - a_upper.t() * x_upper.t(); //upper residuals
     
   if(p==1)x_lower = join_rows(O, x.rows( k-G-1,k-1-1) );
   if(p==2)x_lower  = join_rows(O, x.rows( k-G-1,k-1-1), x.rows(k-G-2, k-2-1));
-                    
-  rowvec res_lower =  x( span(k-G+1-1,k-1), i).t() - a_lower.t() * x_lower.t(); //lower residuals
+  if(p==3)x_lower  = join_rows(O, x.rows( k-G-1,k-1-1), x.rows(k-G-2, k-2-1), x.rows(k-G-3, k-3-1));
+  if(p==4){
+    x_lower = join_rows(x.rows( k-G-1,k-1-1), x.rows(k-G-2, k-2-1), x.rows(k-G-3, k-3-1),x.rows(k-G-4, k-4-1) );
+    x_lower.insert_cols(0,1);
+  };
+  rowvec res_lower =  x( span(k-G+1-1,k-1), i-1).t() - a_lower.t() * x_lower.t(); //lower residuals
   double sigma_i =  (sum(square(res_upper)) + sum(square(res_lower)) ) /(2*G);
   return sigma_i;
   
@@ -209,7 +243,7 @@ vec sigma_d_k(mat x, int k,int G,int p,vec a_upper,vec a_lower)
   int d = x.n_cols;
   vec sigma_d = zeros(d);
    for (int ii=1; ii< d+1; ii++) {
-       sigma_d(ii-1) = sigma_i_k(x,ii-1,k,G,p, a_upper( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)),
+       sigma_d(ii-1) = sigma_i_k(x,ii,k,G,p, a_upper( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)),
                a_lower( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)) ) ;
    };
     return sigma_d;
@@ -221,7 +255,7 @@ vec sigma_d_k(mat x, int k,int G,int p,vec a_upper,vec a_lower)
 // SIGMA ESTIMATORS ------------------------
 
 // [[Rcpp::export(get_DiagH_Wald_RCPP)]] //get_DiagH_Wald
-sp_mat DiagH(mat x, int G,int p,mat H_l, mat H_u)
+sp_mat DiagH(mat x, int G,int p,mat H_l, mat H_u)//sp_mat
 {
   int n = x.n_rows;
   int d = x.n_cols;
@@ -246,8 +280,10 @@ sp_mat DiagH(mat x, int G,int p,mat H_l, mat H_u)
   return Sig_;
 }
 
+
+
 // [[Rcpp::export(get_FullH_Wald_RCPP)]] //get_FullH_Wald
-mat FullH(mat x, int G,int p,mat H_l, mat H_u)
+mat FullH(mat x, int G,mat H_l, mat H_u)
 {
   int n = x.n_rows;
   int d = x.n_cols;
@@ -298,6 +334,11 @@ sp_mat DiagC(mat x, int p, vec sigma_d, int k, int G)
   mat O = ones(2*G,1) ;
   if(p==1) xk = join_rows(O, x.rows( k-G-1,k+G-1-1) );
   if(p==2) xk = join_rows(O, x.rows( k-G-1,k+G-1-1) , x.rows( k-G-1-1,k+G-2-1));
+  if(p==3) xk = join_rows(O, x.rows( k-G-1,k+G-1-1) , x.rows( k-G-1-1,k+G-2-1),x.rows( k-G-2-1,k+G-3-1));
+  if(p==4) {
+    xk = join_rows(x.rows( k-G-1,k+G-1-1) , x.rows( k-G-1-1,k+G-2-1),x.rows( k-G-2-1,k+G-3-1), x.rows( k-G-3-1,k+G-4-1));
+    xk.insert_cols(0,1);
+  };
   mat C =  xk.t() * xk /(2*G);
   //eigen decomposition
   eig_sym(evals,evecs,C);
@@ -321,20 +362,162 @@ double Wkn(mat x, int p, int k, int G, String estim = "DiagC")
   vec a_upper = make_a_lu(x, p, k+1, k+G);
   vec a_lower = make_a_lu(x, p, k-G+1, k);
   vec W_mat;
+  //double v;
 //Sigma estimator options------
     if(estim == "DiagC"){
       vec sigma_d = sigma_d_k(x,k,G,p,a_upper,a_lower);
       sp_mat Sig_ = DiagC(x,p,sigma_d,k,G) ;
       W_mat = Sig_ * (a_upper-a_lower) ;
     } else{
-      // sp_mat V = V_nk(x, p, k-G+1, k);
-      // mat H_l = H_l_u(x, p, l=k-G+1, u=k , a=a_lower);
-      // mat H_u <- H_l_u(x, p, l=k+1, u=k+G , a=a_upper);
-      // if(estim == "DiagH")Sig_ <- get_DiagH_Wald(x,G,p,H_l,H_u) #DiagH estimator for Sigma 
-      // if(estim == "FullH")Sig_ <- get_FullH_Wald(x,G,H_l,H_u) #FullH estimator 
-      //     W_mat <- as.matrix(Sig_ %*%V %*% (a_upper-a_lower)) #argument for norm
+       sp_mat V = V_nk(x, p, k-G+1, k); 
+       mat H_l = H_l_u(x, p, k-G+1, k , a_lower); 
+       mat H_u = H_l_u(x, p, k+1, k+G , a_upper);//v= H_u(0,0);
+       if(estim == "DiagH") {
+         sp_mat Sig_ = DiagH(x,G,p,H_l,H_u); //DiagH estimator for Sigma 
+        W_mat = Sig_ * V * (a_upper-a_lower) ;
+       }
+       if(estim == "FullH") {
+         mat Sig_ = FullH(x,G,H_l,H_u);  //FullH estimator 
+         W_mat = Sig_ * V * (a_upper-a_lower) ;
+       }
     }
 //------------------------------
   double W = sqrt(G/2) * norm(W_mat, "fro");
   return W;
 }
+
+
+double floop(int k) {
+  mat x; int p; int G; String estim;
+  return Wkn(x,p,k,G,estim);
+} //wrapper
+
+// [[Rcpp::export(get_W_RCPP)]] //get_W
+vec W(mat x, int p, int G, String estim = "DiagC") //int ncores=1)
+{
+
+  int n = x.n_rows;
+  vec out = zeros( n);
+  //RcppParallel::RVector<double> wo(out);
+  //RcppParallel::RMatrix<double> wx(x);
+  // 
+  // #if defined(_OPENMP)
+  // #pragma omp parallel for num_threads(ncores) 
+  // #endif
+  // for(size_t ii = 0; ii < n; ii++)
+  // {
+  //   wo[ii] = boost::math::erf(wx[ii]);
+  // }
+
+  for (int k=G+ p+1; k< n-G-p; k++) {
+      //wo(k) = Wkn(wx,p,k,G,estim); }
+      out(k) = Wkn(x,p,k+p-1,G,estim); }
+  // Col<int> K = conv_to<Col<int>>::from(linspace(G+p, n-G-2) );
+  // std::transform(K.begin(),K.end(), out(G+p), floop );   
+  return out; //wo 
+}
+
+
+
+//SIMULATION -------------------------------------
+
+
+// [[Rcpp::export(get_cps_RCPP)]] //get_cps
+vec cps(vec Wn, double D_n, int G, double nu = 0.25)
+{
+    int n = Wn.size(); vec out;
+    //rshift <- c(Tn[-1],0); lshift <- c(0,Tn[-n]); 
+    vec rshift = shift(Wn,-1); vec lshift = shift(Wn,1); 
+    uvec over = find(Wn >D_n); //indices are greater than D_n?
+    uvec lunder = find(lshift < D_n);
+    uvec v = intersect(over, lunder); //lowers
+    
+    uvec runder = find(rshift < D_n);
+    uvec w = intersect(over, runder); //uppers
+    uvec nu_remove = find(w-v >= nu*G); //(epsilon) test for distance between 
+    uvec v_nu = v.elem(nu_remove); uvec w_nu = w.elem(nu_remove); //w_nu.insert_rows(w_nu.size(),1); w_nu(w_nu.size()-1)=n;
+    int q = nu_remove.size(); //number of CPs
+    if(q>0){
+       out = zeros(q);
+       for (int ii=0; ii< q; ii++) {
+             out(ii) = v_nu(ii) + Wn( span(v_nu(ii)-1,w_nu(ii)-1)).index_max() ;
+       };
+       };   
+    return out;
+}
+
+// [[Rcpp::export(test_Wald_RCPP)]] //test_Wald
+List test_Wald(mat x, int p, int G, double alpha =0.05, String estim = "DiagC"){
+  int n = x.n_rows;
+  int d = x.n_cols;
+  vec cp; //double nu=1/4;
+//Test setup----------------------------
+      double c_alpha = -log(log( pow((1-alpha),-0.5)) ); //critical value
+      double a = sqrt(2*log(n/G)); //test transform multipliers
+      double g = lgamma(d*(d*p+1)/2); double l23 = log(2)-log(3);
+      double b = 2*log(n/G) + (d*(d*p+1)/2) * log(log(n/G)) -g - l23   ;
+      // D_n =  ;//threshold
+      double D_n = max((b + c_alpha)/a, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) ); //##ASYMPTOTIC correction
+      int Reject = 0; //
+//Run test-----------------------------
+      vec Wn = W(x,p,G,estim); //evaluate statistic at each time k
+      double test_stat = Wn.max();
+      if(test_stat > D_n){ //compare test stat with threshold
+        Reject = 1; //test true
+         cp = cps(Wn,D_n,G);
+         if( cp.size()==0 ) Reject = 0 ;//doesn't pass eps-test
+      } ; 
+//Plot------------------------------------
+//       plot(Wn) # plot test statistic
+//         abline(h = D_n, col = "blue") #add threshold
+//         if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
+//           pl <- recordPlot()
+// #plot( a*Tn - b); abline(h=c_alpha, col="blue") #rescaled plot
+//Output------------------------------------
+      List out = List::create(Named("Reject") = Reject,  _["ChangePoints"] = cp);//, _["D_n"]=D_n, _["Wn"] = Wn,);
+      return out ;
+}
+
+
+// [[Rcpp::export(sim_data_RCPP)]] 
+mat sim_data(List pars, int n=1000, int d=5, double sd = 0.2){
+  mat errors = randn(n,d)*sd;
+  mat simdata = errors;
+  int p = pars.length();
+  //simdata.rows(0,p-1) = errors.rows(0,p-1);
+  for(int r =p; r < n; r++){
+    //simdata.row(r)   errors[row,]
+    for (int ii=0; ii<p;  ii++) {
+      mat mp = pars[ii];
+      vec pp = mp * simdata.row(r-ii).t();
+      simdata.row(r) = simdata.row(r) +  pp.t() ; 
+    };
+  };
+  return simdata;
+}
+
+
+
+// [[Rcpp::export(var_simulate_RCPP)]] 
+NumericVector var_sim(List pars, int reps =100, int p=2, int G=200, double alpha =0.05, String estim = "DiagC",int ncores =1){
+  vec cp={500,1000,1500};
+  NumericVector out(reps) ;
+  RcppParallel::RVector<double> wo(out);
+  //RcppParallel::RVector<double> wx(x);
+  
+  #if defined(_OPENMP)
+  #pragma omp parallel for num_threads(ncores)
+  #endif
+   for(int repl = 0; repl < reps; repl++ ){
+   List p1 = List::create(pars[0], pars[1]);List p2 = List::create(pars[2], pars[3]);List p3 = List::create(pars[4], pars[5]);
+   mat r1 = sim_data(p1, cp(0), 5);mat r2 = sim_data(p2, cp(1)-cp(0), 5);mat r3 = sim_data(p3, cp(2)-cp(1), 5); //in-regime data
+   mat r = join_cols(r1,r2,r3); //full data
+   List t = test_Wald(r, p, G, alpha,estim);
+   wo[repl] = t[0];
+   };
+  //Output------------------------------------
+  // List out = List::create(Named("Reject") = Reject, _["Wn"] = Wn, _["ChangePoints"] = cp, _["D_n"]=D_n);
+  return out ;
+}
+
+

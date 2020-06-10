@@ -83,6 +83,11 @@ dp2_a <- cbind(dp2_model$x.intercept,  dp2_model$ar[1,,],  dp2_model$ar[2,,])
 dp2_eps <- dp2_model$resid
 plot(dp2_change)
 
+## Big example d= 10---------------
+a_10 <- diag(0.5, 10,10); e_10 <- matrix(rnorm(20000 * 10),ncol=10)
+d10_data <- rSim(a_10,e_10); ts.plot(d10_data)
+
+
 
 
 
@@ -137,7 +142,7 @@ makeH_all <- function(x, p, G, Phi, eps){
 }
 #H_all_bfts <- makeH_all(x=bf_ts, p=1, G=100, Phi=A_1, eps=eps)
 #H_all_nochange <- makeH_all(x=nochange, p=1, G=10, Phi=a_nochange, eps=eps_nochange)
-H_all_univ <- makeH_all(matrix(univData), 1, 100, t(matrix(a_univ)), matrix(eps_univ))
+#H_all_univ <- makeH_all(matrix(univData), 1, 100, t(matrix(a_univ)), matrix(eps_univ))
 
 get_DiagH_rootinv <- function(x, k, G, p, H_all){
   if(is.null(dim(x))) {x <- matrix(x)} #handle univariate case
@@ -155,15 +160,6 @@ get_DiagH_rootinv <- function(x, k, G, p, H_all){
       Hbar_l <- colMeans(H_l)
       H_l_centred <- (H_l - Hbar_l)
       H_out <- (H_l_centred) %*% t(H_l_centred) + (H_u_centred) %*% t(H_u_centred) #sum  } else Hbar_u <- matrix(mean(H_u))
-    # } else { #d=1
-    #   H_u <- H_all[,u]
-    #   H_l <- H_all[, l] 
-    #   Hbar_u <- mean(H_u)
-    #   H_u_centred <- (H_u - Hbar_u) 
-    #   Hbar_l <- mean(H_l)
-    #   H_l_centred <- (H_l - Hbar_l)
-    #   H_out <- t(H_l_centred) %*% (H_l_centred) + t(H_u_centred) %*% (H_u_centred)
-    # }
     ##eigen decomposition
     e <- eigen(H_out) #SVD of H_out
     V <- e$vectors
@@ -247,7 +243,29 @@ getsigma_dGlobal <- function(eps){
   return(sigma_d)
 }
 #bf_sigma_d <- getsigma_dGlobal(eps)
-#getsigma_dGlobal(eps_univ)
+
+##local estimate for sigma^2_i 
+getsigma_iLocal <- function(eps,i,k,G){
+  if(is.null(dim(eps))) {eps <- matrix(eps)} #handle univariate case
+  el <- var(eps[(k-G+1):(k),i], na.rm = TRUE); eu <- var(eps[(k+1):(k+G),i], na.rm = TRUE)
+  el + eu
+}
+#getsigma_iLocal(eps_univ,1,100,20)
+getsigma_dLocal <- function(eps,p,G){
+  n <- dim(eps)[1]
+  d <- dim(eps)[2]
+  K <- (G+p+1):(n-G)
+  if(is.null(dim(eps))) d<- 1 #handle univariate case
+  sigma_d <- matrix(0,n,d)
+  
+  for (t in K) { #sigma(i)
+    #wrap <- function(i)getsigma_iLocal(eps,i,t,G)
+    sigma_d[t,] <- apply(eps,2, getsigma_iLocal, k=t,G=G)
+  } 
+  return(sigma_d)
+}
+
+#getsigma_dLocal(p2_eps,2,100)
 
 
 ##inverse root of global variance as block-diag matrix, altenative to sigma_root_inv  ####NOT USED - SEE NEXT FN
@@ -292,29 +310,14 @@ get_DiagC_rootinv <- function(x, eps, p, sigma_d, k, G){
 #get_DiagC_rootinv(matrix(univData), matrix(eps_univ),p=1, getsigma_dGlobal(eps_univ), 400, 100)
 #get_DiagC_rootinv(p2_change, p2_eps, p=2, getsigma_dGlobal(p2_eps), 400, 100)
 
-## inverse sqrt of local uncentred covariance C_nk
-# get_inv_root_C_nk <- function(x, p, l, u){
-#   n <- dim(x)[1]
-#   d <- dim(x)[2]
-#   xk <- x[(l-1):(u-1),] #time sample
-#   c <- 1/(u-l) * t(xk) %*% (xk) #uncentred covariance of sample
-#   e <- eigen(c) #SVD of c
-#   V <- e$vectors
-#   c_ <- V %*% diag((e$values)^(-.5)) %*% t(V) #c^{1/2}
-#   c_list <- list(1:d)
-#   for (i in 1:d) {
-#     c_list[[i]] <- c_
-#   }
-#   C_ <-  Matrix::bdiag(c_list) #coerce into block diagonal form
-#   return(C_)
-# }
-#get_inv_root_C_nk(bf_ts, p=1, l= 10, u= 100)
-
 ##evaluate statistic at time k
-getTkn <- function(x, k, p, G, Phi, eps, H_all, sigma_d, estim = "DiagH"){ 
+getTkn <- function(x, k, p, G, Phi, eps, H_all, sigma_d, estim, var_estim){ 
   A <- getA(x, k, p, G, Phi, eps, H_all) #difference matrix
   ##Sigma estimator options------
-  if(estim == "DiagC") Sig_ <- get_DiagC_rootinv(x,eps,p,sigma_d,k,G)
+  if(estim == "DiagC") {
+    if(var_estim == "LOCAL"){sgd <- sigma_d[k,]} else {sgd<-sigma_d}
+    Sig_ <- get_DiagC_rootinv(x,eps,p,sgd,k,G)
+  }
   if(estim == "DiagH") Sig_ <- get_DiagH_rootinv(x,k,G,p,H_all) #DiagH estimator for Sigma
   if(estim == "FullH") Sig_ <- get_FullH_rootinv(x,k,G,H_all) #FullH estimator
   #------------------------------
@@ -325,17 +328,17 @@ getTkn <- function(x, k, p, G, Phi, eps, H_all, sigma_d, estim = "DiagH"){
 #getTkn(matrix(univData), k=200, p=1, G=100, Phi=a_univ, eps=eps_univ, H_all=)
 
 ##get statistic over all times K
-getT <- function(x, p, G, Phi, eps, estim){ 
+getT <- function(x, p, G, Phi, eps, estim,var_estim){ 
   if(is.null(dim(x))) {x <- matrix(x)} #handle univariate case
   n <- dim(x)[1]
   K <- (G+p+1):(n-G) #time indices to evaluate over
   H_all <- makeH_all(x, p, G, Phi, eps)
   Tkn <- rep(0,n)
-  sigma_d <- getsigma_dGlobal(eps)
+  if(var_estim == "LOCAL"){sigma_d <- getsigma_dLocal(eps,p,G)} else sigma_d <- getsigma_dGlobal(eps)
    #Inverse root long-run covariance
   #S_ <- get_S_(x,eps,p)
   for(k in K){
-    Tkn[k] <- getTkn(x,k,p,G,Phi,eps, H_all, sigma_d, estim = estim)#Sig_) 
+    Tkn[k] <- getTkn(x,k,p,G,Phi,eps, H_all, sigma_d, estim = estim,var_estim)#Sig_) 
   }
   return(Tkn)
   #return(Sig_)
@@ -368,7 +371,7 @@ get_cps <- function(Tn, D_n, G, nu = 1/4){
 #get_cps(Tn = Tn_example, D_n = 5, G= 100,nu = 1/4)
 
 ##Score-type test
-test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){ 
+test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH",var_estim = "LOCAL"){ 
   if(is.null(dim(x)) || dim(x)[2] == 1 ) {x <- matrix(x); Phi <- matrix(Phi); eps <- matrix(eps)} #handle univariate case
   n <- dim(x)[1] #dimensions
   d <- dim(x)[2] 
@@ -380,7 +383,7 @@ test_Score <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagH"){
   D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   Reject <- FALSE
   ##Run test-----------------------------
-  Tn <- ts(getT(x,p,G,Phi,eps,estim)) #evaluate statistic at each time k
+  Tn <- ts(getT(x,p,G,Phi,eps,estim,var_estim)) #evaluate statistic at each time k
   test_stat <- max(Tn)
   cps <- c() #empty changepoint vector
   if(test_stat > D_n){ #compare test stat with threshold
@@ -421,9 +424,9 @@ univ_test <- test_Score(x=matrix(univData), p=1, G= 300, Phi = matrix(a_univ), e
 univ_test
 
 ## p=2 change example
-p2_test <- test_Score(as.matrix(p2_change), p=2, G= 300, Phi = p2_a, eps = p2_eps, alpha=0.1, estim="DiagH")
+p2_test <- test_Score(as.matrix(p2_change), p=2, G= 300, Phi = p2_a, eps = p2_eps, alpha=0.1, estim="DiagC")
 
-## d=p=2
+  ## d=p=2
 dp2_test <- test_Score(as.matrix(dp2_change), p=2, G= 300, Phi = dp2_a, eps = dp2_eps, alpha=0.1, estim="DiagH")
 
 

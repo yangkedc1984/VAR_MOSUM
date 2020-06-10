@@ -195,15 +195,6 @@ get_DiagH_Wald <- function(x, G,p, H_l, H_u){
       Hbar_l <- rowMeans(H_l_i)
       H_l_centred <- (H_l_i - Hbar_l)
       H_out <- (H_l_centred) %*% t(H_l_centred) + (H_u_centred) %*% t(H_u_centred) #sum  } else Hbar_u <- matrix(mean(H_u))
-    #} else { #d=1
-      #H_u_i <- H_u[,u]
-      #H_l_i <- H_l[, l] 
-    #  Hbar_u <- mean(H_u)
-    #  H_u_centred <- (H_u - Hbar_u) 
-    #  Hbar_l <- mean(H_l)
-    #  H_l_centred <- (H_l - Hbar_l)
-    #  H_out <- (H_l_centred) %*% t(H_l_centred) + (H_u_centred) %*% t(H_u_centred)
-    #}
     ##eigen decomposition
     e <- eigen(H_out) #SVD of H_out
     V <- e$vectors
@@ -311,7 +302,6 @@ get_Wkn <- function(x, p, k, G, estim){
 get_W <- function(x, p, G, estim){
   n <- dim(x)[1]
   K <- (G+p):(n-G)
-  #H_all <- makeH_all(x, p, G, Phi, eps) ##WRONG - use local H
   out <- rep(0, n)
   for (k in K) {
     out[k] <- get_Wkn(x,p,k,G,estim)
@@ -360,42 +350,42 @@ test_Wald <- function(x, p, G, alpha = 0.05, estim="DiagH"){
 
 
 
-
-
-
-
-
-## examples-------------------------------------------------------------
-# bf
-bf_test_wald <- test_Wald(x= bf_ts_0, p=1, G=200, alpha= .1, estim = "DiagH")
-bf_test_wald_C <- test_Wald(x= bf_ts_0, p=1, G=200, alpha= .1, estim = "DiagC")
-bf_test_wald$plot
-# change
-change_test_wald <- test_Wald(x= var_change_0, p=1, G= 200, alpha = .1, estim = "DiagH")
-change_test_wald$plot
-change_test_wald_C <- test_Wald(x= var_change_0, p=1, G= 200, alpha = .1, estim = "DiagC")
-change_test_wald_C$plot
-# no change
-nochange_test_wald <- test_Wald(x=nochange_0, p=1, G=150, alpha = 0.1) 
-nochange_test_wald$plot
-nochange_test_wald_C <- test_Wald(x=nochange_0, p=1, G=150, alpha = 0.1,estim = "DiagC") 
-#univariate
-univ_test_wald <- test_Wald(univData_0, p=1, G= 300, alpha = .1, estim="DiagH")
-univ_test_wald$plot
-univ_test_wald_C <- test_Wald(univData_0, p=1, G= 300, alpha = .1, estim="DiagC")
-
-# p=2 change
-p2_test_wald <- test_Wald(p2_change, p=2, G= 300, alpha = .1, estim="DiagH")
-
-## d=p=2
-dp2_test_wald <- test_Wald(as.matrix(dp2_change), p=2, G= 300, alpha=0.1, estim="DiagH")
-
-  ## benchmark---------------------------
-library(microbenchmark)
-library(ggplot2)
-dcw <- function()test_Wald(x=var_change, p=1, G=200, alpha = 0.05, estim = "DiagC") 
-dhw <- function()test_Wald(x=var_change, p=1, G=200, alpha = 0.05, estim = "DiagH") 
-fhw <- function()test_Wald(x=var_change, p=1, G=200, alpha = 0.05, estim = "FullH") 
-        
-mbw <- microbenchmark(dcw(),dhw(),fhw(), times = 10)
-autoplot(mbw) + ggtitle("Wald Procedure Runtime, by Estimator") 
+# 
+# 
+# 
+# 
+# 
+# ## examples-------------------------------------------------------------
+# # bf
+# bf_test_wald <- test_Wald(x= bf_ts_0, p=1, G=200, alpha= .1, estim = "DiagH")
+# bf_test_wald_C <- test_Wald(x= bf_ts_0, p=1, G=200, alpha= .1, estim = "DiagC")
+# bf_test_wald$plot
+# # change
+# change_test_wald <- test_Wald(x= var_change_0, p=1, G= 200, alpha = .1, estim = "DiagH")
+# change_test_wald$plot
+# change_test_wald_C <- test_Wald(x= var_change_0, p=1, G= 200, alpha = .1, estim = "DiagC")
+# change_test_wald_C$plot
+# # no change
+# nochange_test_wald <- test_Wald(x=nochange_0, p=1, G=150, alpha = 0.1) 
+# nochange_test_wald$plot
+# nochange_test_wald_C <- test_Wald(x=nochange_0, p=1, G=150, alpha = 0.1,estim = "DiagC") 
+# #univariate
+# univ_test_wald <- test_Wald(univData_0, p=1, G= 300, alpha = .1, estim="DiagH")
+# univ_test_wald$plot
+# univ_test_wald_C <- test_Wald(univData_0, p=1, G= 300, alpha = .1, estim="DiagC")
+# 
+# # p=2 change
+# p2_test_wald <- test_Wald(p2_change, p=2, G= 300, alpha = .1, estim="DiagH")
+# 
+# ## d=p=2
+# dp2_test_wald <- test_Wald(as.matrix(dp2_change), p=2, G= 300, alpha=0.1, estim="DiagH")
+# 
+#   ## benchmark---------------------------
+# library(microbenchmark)
+# library(ggplot2)
+# dcw <- function()test_Wald(x=var_change, p=1, G=200, alpha = 0.05, estim = "DiagC") 
+# dhw <- function()test_Wald(x=var_change, p=1, G=200, alpha = 0.05, estim = "DiagH") 
+# fhw <- function()test_Wald(x=var_change, p=1, G=200, alpha = 0.05, estim = "FullH") 
+#         
+# mbw <- microbenchmark(dcw(),dhw(),fhw(), times = 10)
+# autoplot(mbw) + ggtitle("Wald Procedure Runtime, by Estimator") 

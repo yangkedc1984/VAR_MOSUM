@@ -51,3 +51,35 @@ tn <- get_T_RCPP(var_change,p=1,G=200,Phi=a_change, eps=eps_change)
 tn <- get_T_RCPP(var_change,p=1,G=200,Phi=a_change, eps=eps_change, estim = "DiagC", var_estim = "Global")
 tn <- get_T_RCPP(p2_change,p=2,G=200,Phi=p2_a, eps=p2_eps, estim = "DiagH", var_estim = "Global")
 ts.plot(tn)
+
+##Score-type test
+test_Score_new <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagC",var_estim = "Local"){ 
+  if(is.null(dim(x)) || dim(x)[2] == 1 ) {x <- matrix(x); Phi <- matrix(Phi); eps <- matrix(eps)} #handle univariate case
+  n <- dim(x)[1] #dimensions
+  d <- dim(x)[2] 
+  ##Test setup----------------------------
+  c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
+  a <- sqrt(2*log(n/G)) #test transform multipliers
+  b <- 2*log(n/G) + d*(d*p+1)/2 * log(log(n/G)) - log(2/3 * gamma(d*(d*p+1)/2)) ##CORRECTED
+  D_n <- (b+c_alpha)/a #threshold
+  D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
+  Reject <- FALSE
+  ##Run test-----------------------------
+  Tn <- ts(get_T_RCPP(x,p,G,Phi,eps,estim,var_estim)) #evaluate statistic at each time k
+  test_stat <- max(Tn)
+  cps <- c() #empty changepoint vector
+  if(test_stat > D_n){ #compare test stat with threshold
+    Reject <- TRUE
+    cps <- get_cps(Tn,D_n,G, nu=1/4)
+    if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
+  } 
+  ##Plot------------------------------------
+  plot(Tn) # plot test statistic
+  abline(h = D_n, col = "blue") #add threshold
+  if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
+  pl <- recordPlot()
+  #plot( a*Tn - b); abline(h=c_alpha, col="blue") #rescaled plot
+  ##Output------------------------------------
+  out <- list(Reject = Reject, Threshold = D_n, mosum = Tn, cps = cps, plot = pl, estim = estim)
+  return(out)
+}

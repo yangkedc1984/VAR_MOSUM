@@ -59,7 +59,7 @@ W_ex <- get_W_RCPP(x=p2_change,p=4,G=30, estim = "DiagC")
 
 ## TEST ----------------------------------------------------
 ##Wald-type test
-test_Wald_new <- function(x, p, G, alpha = 0.05, estim="DiagH", ncores =1){ 
+test_Wald_new <- function(x, p, G, alpha = 0.05, estim="DiagC", ncores =1){ 
   n <- dim(x)[1] #dimensions
   d <- dim(x)[2] 
   ##Test setup----------------------------

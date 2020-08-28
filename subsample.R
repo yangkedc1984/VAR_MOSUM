@@ -84,7 +84,8 @@ mosum_sub <- function(x, p, G, estim = "DiagC", varEstim = "Local", kap = 0.1,  
      } 
     #interval.sort <- sort( union(interval-p,interval))
     #stat[(min(tlist[[i]])):(max(tlist[[i]]))] <- get_T_RCPP( as.matrix(x[interval,]),p,G,Phi= as.matrix(mod_a), eps=as.matrix(eps),estim = estim) #overwrite statistic
-    stat[interval[(2*G):(length(interval)-2*G )]] <- get_T_RCPP( as.matrix(x[interval,]),p,G,Phi= as.matrix(mod_a), eps=as.matrix(eps),estim = estim)[(2*G):(length(interval)-2*G )] #overwrite statistic
+    stat[interval[(1*G):(length(interval)-1*G )]] <- get_T_RCPP( 
+      as.matrix(x[interval,]),p,G,Phi= as.matrix(mod_a), eps=as.matrix(eps),estim = estim)[(1*G):(length(interval)-1*G )] #overwrite statistic
     }
     
     sub_pairs <- get_sub_pairs(stat,D_n,G,kap=kap,nu=0.25) #get_sub_pairs
@@ -111,8 +112,11 @@ mosum_sub <- function(x, p, G, estim = "DiagC", varEstim = "Local", kap = 0.1,  
   out <- list(Reject = Reject, Threshold = D_n, mosum = stat, cps = cps, plot = pl, estim=estim)
   return(out)
 }
-msub <- mosum_sub(x=p2_change,p=2,G=200, estim = "DiagC", kap = 0.3)
-  test_Wald_new(x=p2_change,p=2,G=200, alpha = 0.05,  estim = "DiagC")
+
+msub <- mosum_sub(x=p2_change,p=2,G=200, estim = "DiagC", kap = 0.6)
+mmm <- mosum_sub(x=dp2_change,p=2,G=200, estim = "DiagC", kap = 1)
+  test_Wald_new(x=dp2_change,p=2,G=200, alpha = 0.05,  estim = "DiagC")
+  
 sourceCpp(file = "Score_Rcpp.cpp")
 test_Score_new(x= as.matrix(p2_change),p=2,G=200, Phi=p2_a, eps= as.matrix(p2_eps) )
 #plot(msub)

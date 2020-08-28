@@ -521,3 +521,31 @@ NumericVector var_sim(List pars, int reps =100, int p=2, int G=200, double alpha
 }
 
 
+
+
+// [[Rcpp::export(MFA_RCPP)]] 
+List MFA(mat x, int p, vec Gset, String estim = "DiagC", double alpha = 0.05){
+  Gset = sort(Gset); //into ascending order
+  int Glen = Gset.size();
+  NumericVector cps;
+  bool Reject = FALSE;
+  NumericVector v(Glen); List tests(Glen);
+  List t;
+  for(int ii =0; ii < Glen; ii++){
+    t =  test_Wald(x, p, Gset[ii], alpha, estim);
+    tests[ii] = t;
+    if(t["Reject"]){ Reject = TRUE;}
+  }
+  if(Reject){
+   cps = as<List>(tests[0])["ChangePoints"];
+   if(Glen > 1){
+     for(int ii=1;  ii<Glen; ii++){
+       NumericVector K = as<List>(tests[ii])["ChangePoints"];
+       for(int jj=0; jj < K.size(); jj++) {
+         if(min(abs(K[jj] - cps)) > Gset[ii]) {cps.push_back(K[jj]);}
+       }
+     }
+   }
+  } //list(Reject, cps, q= length(cps))
+  return(List::create(Named("Reject") = Reject, _["ChangePoints"]=cps, _["q"] = cps.size() ));
+}

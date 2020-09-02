@@ -42,7 +42,7 @@ getA_RCPP(var_change, k=300, G=200, p=1, eps_change, hall) ; getA(var_change, k=
 getsigma_iGlobal_RCPP(eps_change,1,1)
 getsigma_dGlobal_RCPP(eps_change,1)
 getsigma_iLocal_RCPP(eps_change,1,31,30)
-sdl <- getsigma_dLocal_RCPP(eps_change, 1, 200)
+sdl <- getsigma_dLocal_RCPP(eps_change, k=1000, 1, 200)
 
 get_DiagC_RCPP(var_change, p=1, sdl[300,], k=300, G=200 )
 
@@ -83,3 +83,4 @@ test_Score_new <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagC",var_es
   out <- list(Reject = Reject, Threshold = D_n, mosum = Tn, cps = cps, plot = pl, estim = estim)
   return(out)
 }
+test_Score_new(p2_change,p=2,G=200,Phi=p2_a, eps=p2_eps, estim = "DiagC", var_estim = "Local")

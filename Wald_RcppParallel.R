@@ -35,7 +35,7 @@ V <- get_V_nk_RCPP(p2_change, p=2, 10, 100); Vbase <- get_V_nk(p2_change, p=2, 1
 
 getsigma_i_kLOCAL1_RCPP(x = p2_change, i=1, k = 100, G= 30, p =2, 
                         a_upper = get_a_lu_i(p2_change, i=1, p=2, l= 100, u= 130), a_lower = get_a_lu_i(p2_change, i=1,p=2, l= 69, u= 99))
-sigma_d_ex_4 <- getsigma_d_kLOCAL1_RCPP(x = p2_change, k = 100, G= 30, p =4, 
+sigma_d_ex_4 <- getsigma_d_kLOCAL1_RCPP(x = p2_change, k = 35, G= 30, p =4, 
                         a_upper = make_a_lu(p2_change, p=4, l= 100, u= 130), a_lower = make_a_lu(p2_change, p=4, l= 69, u= 99))
 sigma_d_ex <- getsigma_d_kLOCAL1_RCPP(x = p2_change, k = 100, G= 30, p =2, 
                         a_upper = make_a_lu(p2_change, p=2, l= 100, u= 130), a_lower = make_a_lu(p2_change, p=2, l= 69, u= 99))
@@ -53,7 +53,7 @@ get_FullH_Wald_RCPP(p2_change, G=30, p=2, H_l_ex, H_u_ex); get_FullH_Wald_RCPP(p
 get_DiagC_Wald_RCPP(x=p2_change,p=2,sigma_d = sigma_d_ex,k=100,G=30); get_DiagC_Wald_RCPP(x=p2_change,p=4,sigma_d = sigma_d_ex_4,k=100,G=30)
 
 ## evaluate Wkn (test statistic) for time k
-get_Wkn_RCPP(x=p2_change,p=4,k=34,G=30, estim = "DiagC")
+get_Wkn_RCPP(x=p2_change,p=4,k=100,G=30, estim = "DiagC")
 
 W_ex <- get_W_RCPP(x=p2_change,p=4,G=30, estim = "DiagC")
 
@@ -99,7 +99,7 @@ t10 <- test_Wald_RCPP(x=d10_data,p=1,G=200, alpha = 0.05,  estim = "DiagC")  #BI
 ## Simulations ------
 sourceCpp(file = "Wald_RcppParallel.cpp")
 get_cps_RCPP(W_ex, 4.838521, 200)
-test_Wald_RCPP(x=p2_change,p=2,G=200, alpha = 0.05,  estim = "DiagC")
+test_Wald_new(x=p2_change,p=2,G=200, alpha = 0.05,  estim = "DiagC")
 
 pars <- list(a1,a2)
 series_ex <- sim_data_RCPP(pars); plot.ts(series_ex)

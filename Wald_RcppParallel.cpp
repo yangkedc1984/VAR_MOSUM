@@ -211,7 +211,7 @@ sp_mat V_nk(mat x, int p, int l, int u)
  }
 
 // [[Rcpp::export(getsigma_i_kLOCAL1_RCPP)]] //getsigma_i_kLOCAL1
-double sigma_i_k(mat x, int i,int k,int G,int p,vec a_upper,vec a_lower)
+double sigma_i_k(mat x, int i,int k,int G,int p,vec a_upper) //,vec a_lower)
 {
   mat x_upper; mat x_lower;
   mat O = ones(G,1) ;
@@ -224,29 +224,29 @@ double sigma_i_k(mat x, int i,int k,int G,int p,vec a_upper,vec a_lower)
   } ;
   rowvec res_upper =  x( span(k+1-1,k+G-1), i-1).t() - a_upper.t() * x_upper.t(); //upper residuals
     
-  if(p==1)x_lower = join_rows(O, x.rows( k-G-1,k-1-1) );
-  if(p==2)x_lower  = join_rows(O, x.rows( k-G-1,k-1-1), x.rows(k-G-2, k-2-1));
-  if(p==3)x_lower  = join_rows(O, x.rows( k-G-1,k-1-1), x.rows(k-G-2, k-2-1), x.rows(k-G-3, k-3-1));
-  if(p==4){
-    x_lower = join_rows(x.rows( k-G-1,k-1-1), x.rows(k-G-2, k-2-1), x.rows(k-G-3, k-3-1),x.rows(k-G-4, k-4-1) );
-    x_lower.insert_cols(0,1);
-  };
-  rowvec res_lower =  x( span(k-G+1-1,k-1), i-1).t() - a_lower.t() * x_lower.t(); //lower residuals
-  double sigma_i =  (sum(square(res_upper)) + sum(square(res_lower)) ) /(2*G);
+  // if(p==1)x_lower = join_rows(O, x.rows( k-G-1,k-1-1) );
+  // if(p==2)x_lower  = join_rows(O, x.rows( k-G-1,k-1-1), x.rows(k-G-2, k-2-1));
+  // if(p==3)x_lower  = join_rows(O, x.rows( k-G-1,k-1-1), x.rows(k-G-2, k-2-1), x.rows(k-G-3, k-3-1));
+  // if(p==4){
+  //   x_lower = join_rows(x.rows( k-G-1,k-1-1), x.rows(k-G-2, k-2-1), x.rows(k-G-3, k-3-1),x.rows(k-G-4, k-4-1) );
+  //   x_lower.insert_cols(0,1);
+  // };
+  // rowvec res_lower =  x( span(k-G+1-1,k-1), i-1).t() - a_lower.t() * x_lower.t(); //lower residuals
+  double sigma_i =  sum(square(res_upper))/G;  //+ sum(square(res_lower)) ) /(2*G);
   return sigma_i;
   
 }
 
 // [[Rcpp::export(getsigma_d_kLOCAL1_RCPP)]] //getsigma_d_kLOCAL1
-vec sigma_d_k(mat x, int k,int G,int p,vec a_upper,vec a_lower)
+mat sigma_d_k(mat x, int k,int G,int p,vec a_upper, vec a_lower)
 {
   int d = x.n_cols;
-  vec sigma_d = zeros(d);
+  vec sigma_u = zeros(d); vec sigma_l = zeros(d);
    for (int ii=1; ii< d+1; ii++) {
-       sigma_d(ii-1) = sigma_i_k(x,ii,k,G,p, a_upper( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)),
-               a_lower( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)) ) ;
+       sigma_u(ii-1) = sigma_i_k(x,ii,k,G,p, a_upper( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)) );
+       sigma_l(ii-1) = sigma_i_k(x,ii,k-G,G,p, a_lower( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)) );
    };
-    return sigma_d;
+    return sigma_u* sigma_u.t() + sigma_l* sigma_l.t();// cov(sigma_u)+cov(sigma_l);
 }
 
 
@@ -326,11 +326,11 @@ mat FullH(mat x, int G,mat H_l, mat H_u)
 
 
 // [[Rcpp::export(get_DiagC_Wald_RCPP)]] //get_DiagC_Wald
-sp_mat DiagC(mat x, int p, vec sigma_d, int k, int G)
+mat DiagC(mat x, int p, mat sigma_d, int k, int G)
 {
   int n = x.n_rows;
   int d = x.n_cols;
-  mat xk;vec evals; mat evecs;
+  mat xk;vec evals; mat evecs;vec evalS; mat evecS;
   mat O = ones(2*G,1) ;
   if(p==1) xk = join_rows(O, x.rows( k-G-1,k+G-1-1) );
   if(p==2) xk = join_rows(O, x.rows( k-G-1,k+G-1-1) , x.rows( k-G-1-1,k+G-2-1));
@@ -342,12 +342,14 @@ sp_mat DiagC(mat x, int p, vec sigma_d, int k, int G)
   mat C =  xk.t() * xk /(2*G);
   //eigen decomposition
   eig_sym(evals,evecs,C);
-  mat C_ = evecs * diagmat(sqrt(evals) )*  evecs.t();
-  field<mat> Clist(d);
-  for (int ii=0; ii< d; ii++) {
-    Clist(ii) =   C_ /sqrt(2*sigma_d(ii)); 
-  };
-  sp_mat out = blockDiag(Clist); //coerce into block diagonal form
+  mat C_ = evecs * diagmat(sqrt(evals) )*  evecs.t(); //sqrt
+  eig_sym(evalS,evecS,sigma_d);
+  mat S_ = evecS * diagmat(pow(2*evalS, -0.5) )*  evecS.t(); //inverse sqrt
+  // field<mat> Clist(d);
+  // for (int ii=0; ii< d; ii++) {
+  //   Clist(ii) =   C_ /sqrt(2*sigma_d(ii)); 
+  // };
+  mat out = kron(S_, C_);//blockDiag(Clist); //coerce into block diagonal form
   
   return out;
 }
@@ -365,8 +367,8 @@ double Wkn(mat x, int p, int k, int G, String estim = "DiagC")
   //double v;
 //Sigma estimator options------
     if(estim == "DiagC"){
-      vec sigma_d = sigma_d_k(x,k,G,p,a_upper,a_lower);
-      sp_mat Sig_ = DiagC(x,p,sigma_d,k,G) ;
+      mat sigma_d = sigma_d_k(x,k,G,p,a_upper, a_lower);
+      mat Sig_ = DiagC(x,p,sigma_d,k,G) ;
       W_mat = Sig_ * (a_upper-a_lower) ;
     } else{
        sp_mat V = V_nk(x, p, k-G+1, k); 

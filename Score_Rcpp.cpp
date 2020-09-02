@@ -262,45 +262,46 @@ double getsigma_iGlobal(mat eps, int p, int i){
 }
 // [[Rcpp::export(getsigma_dGlobal_RCPP)]] //getsigma_dGlobal
 mat getsigma_dGlobal(mat eps, int p){
-  int n = eps.n_rows;
-  int d = eps.n_cols;
-  vec out(d);
-  for(int i = 1; i<d+1; i++){
-    out(i-1) = getsigma_iGlobal(eps,p,i);
-  }
-  return conv_to<mat>::from(out);//mean(out);
+  // int n = eps.n_rows;
+  // int d = eps.n_cols;
+  // vec out(d);
+  // for(int i = 1; i<d+1; i++){
+  //   out(i-1) = getsigma_iGlobal(eps,p,i);
+  // }
+  // return conv_to<mat>::from(out);//mean(out);
+  return cov(eps);
 }
 
 
-// [[Rcpp::export(getsigma_iLocal_RCPP)]] //getsigma_iLocal
-double getsigma_iLocal(mat eps, int i, int k, int G){
-  double el = var( eps.rows( (k-G+1-1),(k-1)).col(i-1)) ; 
-  double eu = var( eps.rows( (k+1-1),(k+G-1)).col(i-1) );
-  return el + eu;
-}
+// // [[Rcpp::export(getsigma_iLocal_RCPP)]] //getsigma_iLocal
+// double getsigma_iLocal(mat eps, int i, int k, int G){
+//   double el = var( eps.rows( (k-G+1-1),(k-1)).col(i-1)) ; 
+//   double eu = var( eps.rows( (k+1-1),(k+G-1)).col(i-1) );
+//   return el + eu;
+// }
 // [[Rcpp::export(getsigma_dLocal_RCPP)]] //getsigma_dLocal
-mat getsigma_dLocal(mat eps, int p, int G){
+mat getsigma_dLocal(mat eps, int k, int p, int G){
   int n = eps.n_rows;
   int d = eps.n_cols;
-  mat sigma_d(n,d);
-  sigma_d.head_rows(p) = zeros(p,d); //fill NAs
-  
-    for(int t = (G+p+1); t<(n-G-1); t++) {
-      for(int i=1; i<d+1; i++){
-        sigma_d.row(t-1).col(i-1) = getsigma_iLocal(eps,i,t,G);
-      };
-    } ;
+  mat sigma_d = cov(eps.rows(k,k+G-1)) + cov(eps.rows(k-G,k-1));
+  // sigma_d.head_rows(p) = zeros(p,d); //fill NAs
+  // 
+  //   for(int t = (G+p+1); t<(n-G-1); t++) {
+  //     for(int i=1; i<d+1; i++){
+  //       sigma_d.row(t-1).col(i-1) = getsigma_iLocal(eps,i,t,G);
+  //     };
+  // } ;
     return sigma_d;
 }
 
 
 
 // [[Rcpp::export(get_DiagC_RCPP)]] //get_DiagC
-sp_mat DiagC(mat x, int p, vec sigma_d, int k, int G)
+mat DiagC(mat x, int p, mat sigma_d, int k, int G)
 {
   int n = x.n_rows;
   int d = x.n_cols;
-  mat xk;vec evals; mat evecs;
+  mat xk;vec evals; mat evecs; vec evalS; mat evecS;
   mat O = ones(2*G,1) ;
   if(p==1) xk = join_rows(O, x.rows( k-G-1,k+G-1-1) );
   if(p==2) xk = join_rows(O, x.rows( k-G-1,k+G-1-1) , x.rows( k-G-1-1,k+G-2-1));
@@ -313,18 +314,20 @@ sp_mat DiagC(mat x, int p, vec sigma_d, int k, int G)
   //eigen decomposition
   eig_sym(evals,evecs,C);
   mat C_ = evecs * diagmat( pow(evals, -0.5) )*  evecs.t();
-  field<mat> Clist(d);
-  for (int ii=0; ii< d; ii++) {
-    Clist(ii) =   C_ /sqrt(2*sigma_d(ii));
-  };
-  sp_mat out = blockDiag(Clist); //coerce into block diagonal form
-
+  eig_sym(evalS,evecS,sigma_d);
+  mat S_ = evecS * diagmat( pow(evalS, -0.5) )*  evecS.t();
+  //field<mat> Clist(d);
+  //for (int ii=0; ii< d; ii++) {
+  //  Clist(ii) =   C_ /sqrt(2*sigma_d(ii));
+  //};
+  //sp_mat out = blockDiag(Clist); //coerce into block diagonal form
+  mat out = kron(S_, C_);
   return out;
 }
 
 
 // [[Rcpp::export(get_Tkn_RCPP)]] //get_Tkn
-double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all, mat sigma_d, String estim, String var_estim)
+double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String estim, String var_estim)
 {
   int n = x.n_rows;
   int d = x.n_cols;
@@ -333,9 +336,11 @@ double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all, mat sigma_d
   //double v;
   //Sigma estimator options------
   if(estim == "DiagC"){
-    vec sgd;
-    if(var_estim == "Local"){sgd = conv_to<vec>::from(sigma_d.row(k));} else if (var_estim == "Global") {sgd = conv_to<vec>::from(sigma_d);}
-    sp_mat Sig_ = DiagC(x,p,sgd,k,G) ;
+    mat sgd;
+    if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
+    //if(var_estim == "Local"){sgd = conv_to<vec>::from(sigma_d.row(k));} else if (var_estim == "Global") {sgd = conv_to<vec>::from(sigma_d);}
+    if (var_estim == "Local") {sgd = getsigma_dLocal(eps, k, p, G);}
+    mat Sig_ = DiagC(x,p,sgd,k,G) ;
     out = pow(2*G, -0.5) * norm(Sig_ * A, "fro");
   } else{
     if(estim == "DiagH") {
@@ -364,15 +369,16 @@ vec T(mat x, int p, int G, mat Phi, mat eps, String estim = "DiagC",  String var
 {
   int n = x.n_rows;
   mat h_all = H_all(x, p, G, Phi, eps);
-  mat sigma_d; vec out(n, fill::zeros);
-  if(var_estim == "Local"){
-    sigma_d = getsigma_dLocal(eps,p,G);
-  } else if(var_estim == "Global"){ 
-      sigma_d = getsigma_dGlobal(eps,p);
-  }
+ // mat sigma_d;
+  vec out(n, fill::zeros);
+  // if(var_estim == "Local"){
+  //   sigma_d = getsigma_dLocal(eps,p,G);
+  // } else if(var_estim == "Global"){ 
+  //     sigma_d = getsigma_dGlobal(eps,p);
+  // }
 
   for (int k=G+ p+1; k< n-G-p; k++) {
-    out(k) = Tkn(x,k,p,G,Phi,eps,h_all,sigma_d,estim, var_estim);
+    out(k) = Tkn(x,k,p,G,Phi,eps,h_all ,estim, var_estim);
   }
   return out;
 }

@@ -211,7 +211,7 @@ sp_mat V_nk(mat x, int p, int l, int u)
  }
 
 // [[Rcpp::export(getsigma_i_kLOCAL1_RCPP)]] //getsigma_i_kLOCAL1
-double sigma_i_k(mat x, int i,int k,int G,int p,vec a_upper) //,vec a_lower)
+vec sigma_i_k(mat x, int i,int k,int G,int p,vec a_upper) //,vec a_lower)
 {
   mat x_upper; mat x_lower;
   mat O = ones(G,1) ;
@@ -232,8 +232,8 @@ double sigma_i_k(mat x, int i,int k,int G,int p,vec a_upper) //,vec a_lower)
   //   x_lower.insert_cols(0,1);
   // };
   // rowvec res_lower =  x( span(k-G+1-1,k-1), i-1).t() - a_lower.t() * x_lower.t(); //lower residuals
-  double sigma_i =  sum(square(res_upper))/G;  //+ sum(square(res_lower)) ) /(2*G);
-  return sigma_i;
+ // double sigma_i =  sum(square(res_upper))/G;  //+ sum(square(res_lower)) ) /(2*G);
+  return res_upper.t();
   
 }
 
@@ -241,12 +241,12 @@ double sigma_i_k(mat x, int i,int k,int G,int p,vec a_upper) //,vec a_lower)
 mat sigma_d_k(mat x, int k,int G,int p,vec a_upper, vec a_lower)
 {
   int d = x.n_cols;
-  vec sigma_u = zeros(d); vec sigma_l = zeros(d);
+  mat sigma_u = zeros(G,d); mat sigma_l = zeros(G,d);
    for (int ii=1; ii< d+1; ii++) {
-       sigma_u(ii-1) = sigma_i_k(x,ii,k,G,p, a_upper( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)) );
-       sigma_l(ii-1) = sigma_i_k(x,ii,k-G,G,p, a_lower( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)) );
+       sigma_u.col(ii-1) = sigma_i_k(x,ii,k,G,p, a_upper( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)) );
+       sigma_l.col(ii-1) = sigma_i_k(x,ii,k-G,G,p, a_lower( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)) );
    };
-    return sigma_u* sigma_u.t() + sigma_l* sigma_l.t();// cov(sigma_u)+cov(sigma_l);
+    return (sigma_u.t() *sigma_u + sigma_l.t()* sigma_l) /G;// cov(sigma_u)+cov(sigma_l);
 }
 
 

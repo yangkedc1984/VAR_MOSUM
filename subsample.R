@@ -44,7 +44,7 @@ get_sub_pairs(Tn = msub$mosum, D_n = 5, G= 200, kap = 0.3, nu = .25)
 
 ##get subsample change point estimates
 
-mosum_sub <- function(x, p, G, estim = "DiagC", varEstim = "Local", kap = 0.1,  alpha = 0.05){
+mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local", kap = 0.1,  alpha = 0.05){
   n <- dim(x)[1]
   d <- dim(x)[2] 
   #nu <- 0.25
@@ -59,7 +59,26 @@ mosum_sub <- function(x, p, G, estim = "DiagC", varEstim = "Local", kap = 0.1,  
   ##Run test-----------------------------
   ind <- index(n,G,p,kap) #fit grid
   stat <- rep(0, n) #initialise statistic vector
-  statW <- vapply(ind, get_Wkn_RCPP, FUN.VALUE = double(1), x=x,p=p,G=G, estim=estim)#get_W_RCPP(x[ind,],p,G,estim)
+  if(method == "Wald")statW <- vapply(ind, get_Wkn_RCPP, FUN.VALUE = double(1), x=x,p=p,G=G, estim=estim)#get_W_RCPP(x[ind,],p,G,estim)
+  if(method == "Score"){
+    statW <- rep(0, length(ind))
+    for (k in ind) {
+      s <- max(k-G, 0); e <- min(n,k+G) #start and end of intervals
+      subsample <- s:e #set subsample indices
+      mod <- ar.ols(x[subsample,],aic=F,order.max = p,demean = T)
+      ##build parameter matrix
+      if(p==1)a <- cbind(mod$x.intercept, matrix( mod$ar, nrow=d, ncol=d))
+      if(p>1) {
+        a <- mod$x.intercept 
+        for (pp in 1:p) {
+        a <- cbind(a,matrix( mod$ar[pp,,], nrow=d, ncol=d) ) ##append lagged parameters
+        }
+      }
+      eps <- mod$resid; eps[1:p,] <- 1e-4 ##solve NA
+      sub_vector <- get_T_RCPP(x[subsample,], p,G-p-1,a,eps,estim,var_estim = varEstim) ##calculate statistic on subsample
+      statW[which(ind==k)] <- max(sub_vector) ##collect into output vector
+    }
+  }
   stat[ind] <- statW
   #return(stat)
   test_stat <- max(stat)
@@ -74,14 +93,17 @@ mosum_sub <- function(x, p, G, estim = "DiagC", varEstim = "Local", kap = 0.1,  
     tlist <- split(times, cumsum(c(1, diff(times) != R))) #split into list of consecutive regions
     
     for (i in 1:length(tlist)) {
-    interval <- (min(tlist[[i]]) - 2*G):(max(tlist[[i]]) + 2*G)
+    interval <- (max(min(tlist[[i]]) - 2*G, 1)):( min(max(tlist[[i]]) + 2*G, n)) ##extend by +-2G
     #fit var model
-    mod <- ar(x[interval,], order.max = p, demean = T, method = "ols")
+    mod <- ar(x[interval,], order.max = p, demean = T, method = "ols", aic = F)
     mod_a <- mod$x.intercept
-    eps <- mod$resid
-     for (jj in 1:p){ #collect parameters into mat
+    eps <- mod$resid; eps[1:p,] <- 1e-4 ##solve NA
+    if(p==1) mod_a <- cbind(mod_a,  matrix( mod$ar, nrow=d, ncol=d))
+    if(p>1){ 
+      for (jj in 1:p){ #collect parameters into mat
        mod_a <- cbind(mod_a,  mod$ar[jj,,])
-     } 
+      } 
+    }  
     #interval.sort <- sort( union(interval-p,interval))
     #stat[(min(tlist[[i]])):(max(tlist[[i]]))] <- get_T_RCPP( as.matrix(x[interval,]),p,G,Phi= as.matrix(mod_a), eps=as.matrix(eps),estim = estim) #overwrite statistic
     stat[interval[(1*G):(length(interval)-1*G )]] <- get_T_RCPP( 
@@ -113,9 +135,13 @@ mosum_sub <- function(x, p, G, estim = "DiagC", varEstim = "Local", kap = 0.1,  
   return(out)
 }
 
-msub <- mosum_sub(x=p2_change,p=2,G=200, estim = "DiagC", kap = 0.6)
+msub <- mosum_sub(x=p2_change,p=2,G=200, method = "Wald", estim = "DiagC", kap = 0.6)
 mmm <- mosum_sub(x=dp2_change,p=2,G=200, estim = "DiagC", kap = 1)
   test_Wald_new(x=dp2_change,p=2,G=200, alpha = 0.05,  estim = "DiagC")
+  
+  
+msubScore <- mosum_sub(x=dp2_change,p=2,G=200, method = "Score", estim = "DiagC", kap = 0.6)
+  
   
 sourceCpp(file = "Score_Rcpp.cpp")
 test_Score_new(x= as.matrix(p2_change),p=2,G=200, Phi=p2_a, eps= as.matrix(p2_eps) )
@@ -124,4 +150,6 @@ test_Score_new(x= as.matrix(p2_change),p=2,G=200, Phi=p2_a, eps= as.matrix(p2_ep
 library(microbenchmark)
 library(ggplot2)
 mb <- microbenchmark( msub <- mosum_sub(x=p2_change,p=2,G=200, estim = "DiagC", kap = 0.3))
+mbScore <- microbenchmark( msubScore <-  mosum_sub(x=dp2_change,p=2,G=200, method="Score", estim = "DiagC", kap = 0.3))
 autoplot(mb)
+autoplot(mbScore)

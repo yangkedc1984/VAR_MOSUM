@@ -1,0 +1,391 @@
+---
+title: "fixed regression sims"
+author: "Dom Owens"
+date: "09/10/2020"
+output: html_document
+---
+
+We extend the simulation setting from Reckruhm 2019, section 4.1.2, to test the subsampling methodology in a simpler setting. This give us some idea of performance and hyperparameter tuning, while removing the difficulties presented by estimating the sigma matrix in the autoregression setting.
+
+Let $\mathbf{X}i = (1,X_{i1},X_{i2})^T$ with $X_{i1} \sim N(1, 1)$ and $X_{i2} \sim N(2, 1)$ and $\varepsilon_i \sim N(1, 1)$. We simulate a data sample of length $n = 2000$ and use $N=1000$ replications in the study. Under the null hypothesis, let $\beta_0 = (1, 2, 2)^T$ so that
+$$Yi = \mathbf{X}^T_i \beta_0 + \varepsilon_i \text{ for } i = 1, \dots , 2000.$$
+under alternative we include three change points, $q = 3$, at $k_1 = 400, k_2 = 1000$ and $k_3 = 1600$. Furthermore, with $\beta_1 = (1, 2, 2)^T$, $\beta_2 = (1, 1, 2)^T$, $\beta_3 = (2, 1, 2)^T$ and $\beta_4 = (2, 1, 1)^T$
+
+
+```{r}
+n <- 2000
+intercept <- rep(1,n)
+X1 <- rnorm(n,1,1)
+X2 <- rnorm(n,2,1)
+noise <- rnorm(n, 1,1) # centre 1?
+```
+
+
+Build data matrix under null
+```{r}
+beta0 <- c(1,2,2)
+X <- cbind(intercept,X1,X2)
+y0 <- X %*% beta0 + noise
+X0 <- cbind(y0,X)
+X0df <- data.frame(X0)
+colnames(X0df) <- c("y","intercept","X1","X2")
+```
+
+
+and under alternative
+```{r}
+beta1 <- c(1,2,2); beta2 <- c(1,1,2); beta3 <- c(2,1,2); beta4 <- c(2,1,1);  #time varying coefficients
+k1 <- 400; k2 <- 1000; k3 <- 1600 #change points
+y1 <- X[1:k1,] %*% beta1 + noise[1:k1]
+y2 <- X[(k1+1):k2,] %*% beta2 + noise[(k1+1):k2]
+y3 <- X[(k2+1):k3,] %*% beta3 + noise[(k2+1):k3]
+y4 <- X[(k3+1):n,] %*% beta4 + noise[(k3+1):n]
+yy <- rbind(y1,y2,y3,y4)
+X1 <- cbind(yy,X)
+X1df <- data.frame(X1)
+colnames(X1df) <- c("y","intercept","X1","X2")
+```
+
+
+estimate C and eigendecomposition
+```{r}
+C <- t(X) %*% (X) / n
+CC <- eigen(C)
+C12 <- (CC$vectors) %*% diag(CC$values^(-.5)) %*% t(CC$vectors)
+```
+
+
+```{r}
+mod0 <- lm(y ~ . - 1, X0df)
+```
+
+variance estimators - we only use LOCAL2 in simulation
+
+```{r}
+get_local2 <- function(mod,k,G){
+  eps <- mod$residuals
+  upper <- var(eps[(k+1):(k+G)])
+  lower <- var(eps[(k-G+1):(k)])
+  out <- (upper + lower)* (G-1)/(2*G)
+  return(out)
+}
+get_local2(mod0,500,100)
+get_global <- function(mod) var(mod$residuals)
+get_global(mod0)
+```
+
+
+```{r}
+get_local1 <- function(mod1,mod2, G){
+  out <- (sum(mod1$residuals^2) + sum(mod2$residuals^2))/(2*G) ##local1 variance estim
+  return(out)
+}
+get_local1(mod0,mod0,G)
+```
+
+### MOSUM Score subsample
+
+internal functions
+
+
+```{r}
+get_H_fixed <- function(mod, X){
+  return( -mod$residuals * X)
+}
+H<-get_H_fixed(mod0, X0[,2:4])
+
+get_A_fixed <- function(H, k,G){
+  return(colSums(H[(k+1):(k+G),])-colSums(H[(k-G+1):k,]))
+}
+A<-get_A_fixed(H,k=500,G=100)  
+
+get_Tk_fixed <- function(mod, k, G, H, C12 ){ 
+  A <- (get_A_fixed(H,k,G)) #difference matrix
+  sig <- get_local2(mod,k,G)
+  ##Sigma estimator ------
+  sgd <- sig^(-.5) * C12
+  #------------------------------
+  Tkn <-  norm(sgd %*% A,type="2") /sqrt(2*G)#(2*G)^(-.5) 
+  return(Tkn)
+}
+get_Tk_fixed(mod0,k=500, G=100, H=H, C12 )
+```
+
+
+### MOSUM Wald Method
+
+```{r}
+get_Wk_fixed <- function(x, k, G, d, C_root ){ 
+  mod1 <- lm(x[(k-G+1):k,1] ~ x[(k-G+1):k,2:d] -1 ) ##left model
+  mod2 <- lm(x[(k+1):(k+G),1] ~ x[(k+1):(k+G),2:d] - 1) ##right model
+  
+  A <- mod2$coefficients - mod1$coefficients
+  
+  sig <- get_local1(mod1,mod2,G)
+  ##Sigma estimator ------
+  sgd <- sig^(-.5) * C_root  ##not sqrt of C
+  #------------------------------
+  Wkn <- sqrt(G/2) *  norm(sgd %*% A,type = "2")#as.numeric( sqrt(t(A) %*% sgd %*% A) )#
+  return(Wkn)
+}
+get_Wk_fixed(X0, 400, 100, d = dim(X0)[2], C12%*% C12 )
+```
+
+
+### MOSUM Binary Segmenation
+
+```{r}
+    
+MOSUMBS_fixed <- function(x, s, e, D, G, d, C12, cps, iter=0){
+  if(e-s > 2*G & iter < 3){
+    iter <- iter + 1 #control recursion depth
+    mod <- lm(x[s:e,1] ~ x[s:e,2:d]-1)
+    ##eigen
+    H <- get_H_fixed(mod,x[s:e,2:d])
+    stat <-  vapply((1*G):(e-s-1*G +1), get_Tk_fixed, FUN.VALUE = 0, mod=mod, G=G,H=H,C12=C12 ) 
+    TT <- max(stat)
+    if(TT > D){ ##passes test
+      k <- which.max(stat)+G +s -1 #shift
+      cps <- append(cps, k)
+      cps1 <- MOSUMBS_fixed(x, s, k, D, G, d, C12, cps, iter)
+      cps2 <- MOSUMBS_fixed(x, k+1, e, D, G, d, C12, cps, iter)
+      cps <- union(cps, c(cps1,cps2) )
+    }
+  }
+  return( sort(cps) ) #return cps from current iter
+}
+
+
+MOSUMBS_fixed(X0, 1, dim(X0)[1], D=5, G=200, d=dim(X0)[2], C12, cps = c(), iter =0 )
+MOSUMBS_fixed(X1, 1, dim(X0)[1], D=5, G=200, d=dim(X0)[2], C12, cps = c(), iter =0 )
+```
+
+## MOSUM subsample
+
+```{r}
+mosum_sub_fixed <- function(X, G, method = "Score", kap = 0.1,  alpha = 0.05){
+  n <- dim(X)[1]
+  d <- dim(X)[2] 
+  #nu <- 0.25
+  R <- floor(kap*G)
+  ##Test setup----------------------------
+  c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
+  a <- sqrt(2*log(n/G)) #test transform multipliers
+  b <- 2*log(n/G) + (d-1)/2 * log(log(n/G)) - log(2/3 * gamma((d-1)/2)) ##CORRECTED
+  D_n <- (b+c_alpha)/a #threshold
+  D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
+  Reject <- FALSE
+  ##Run test-----------------------------
+  ind <- index(n,G,p=-1,kap) #fit grid
+  if(n - ind[length(ind)-1] < G) ind <- head(ind, -1)
+  stat <- rep(0, n) #initialise statistic vector
+  #if(method == "Wald")statW <- vapply(ind, get_Wkn_RCPP, FUN.VALUE = double(1), x=x,p=p,G=G, estim=estim)#get_W_RCPP(x[ind,],p,G,estim)
+  C <-t(X[,2:d]) %*% (X[,2:d]) / n
+  ev <- eigen(C)
+  ##t(ev$vectors) %*% diag( (ev$values)^(-.5) ) %*% (ev$vectors)
+  ##Score Subsample-------------------------------------
+  if(method == "Score" || method == "Wald" ){
+  stat <- rep(0, n)  
+  if(method == "Score"){  
+    C12 <- (ev$vectors) %*% diag( (ev$values)^(-.5) ) %*% t(ev$vectors)
+    
+    for (k in ind) {
+      window <- (k-G+1):(k+G)
+      mod <- lm(X[window,1] ~ X[window,2:d]-1)
+      H <- get_H_fixed(mod,X[window,2:d])
+      a <- get_Tk_fixed(mod,k=G,G,H,C12) ##calculate statistic on subsample
+      stat[k] <- a ##collect into output vector
+          if(a > D_n ){ ##if passes threshold locally
+          Reject <- TRUE
+          if(k>= 2*G & k <= n-2*G){ #not too close to ends
+          #ss <- max(G+1, k-2*G +1); ee <- min(n-G,k+2*G) ##bounds
+          newresids <- X[,1] -  as.vector( X[,2:d] %*% mod$coefficients )#predict(mod, as.data.frame(X[ss:ee,2:d]), se.fit=F) #rep(0,  ee-ss) #obtain extended residuals
+          mod$residuals <- newresids #overwrite residuals
+          newH <-  -1 * newresids *X[,2:d] ##new estimating function series
+          Tt <- rep(0,  2*G) #new statistic evaluation
+          for (t in  1:(2*G) ){
+            Tt[t] <- get_Tk_fixed(mod, k =window[t],G,newH, C12)
+          }
+          
+          stat[window] <- pmax(stat[window], Tt) ##select max at each value
+          }
+        }  
+      
+    }
+  }
+  if(method == "Wald"){  
+    statW <- rep(0, length(ind))
+    Croot <-  (ev$vectors) %*% diag( (ev$values)^(.5) ) %*% t(ev$vectors) ##matrix root
+    for (k in ind) {
+      sub_vector <- get_Wk_fixed(X,k,G,d,Croot) ##calculate statistic on subsample
+      statW[which(ind==k)] <- max(sub_vector) ##collect into output vector
+    }
+    stat[ind] <- statW
+    test_stat <- max(stat)
+    cps <- c() #empty changepoint vector
+    if(test_stat > D_n){ #compare test stat with threshold
+      Reject <- TRUE
+      C12 <- (ev$vectors) %*% diag( (ev$values)^(-.5) ) %*% t(ev$vectors) ##need C inverse root for Tk
+      times <- which(stat> D_n)#times <- sort(Reduce(union,tlist))
+      tlist <- split(times, cumsum(c(1, diff(times) != R))) #split into list of consecutive regions
+  
+      for (i in 1:length(tlist)) {
+      interval <- (max(min(tlist[[i]]) - 2*G, 1)):( min(max(tlist[[i]]) + 2*G, n)) ##extend by +-2G
+      #fit var model
+      mod <- lm(X[interval,1] ~ X[interval,2:d]-1)
+      H <- get_H_fixed(mod,X[interval,2:d])
+      
+      for (t in (G):(length(interval)-G )) {
+        stat[min(interval) -1 + t] <- get_Tk_fixed(mod, t, G, H, C12)
+      }
+      #stat[interval[(G):(length(interval)-G )]] <- 
+      #  vapply( (G):(length(interval)-G ), get_Tk_fixed, FUN.VALUE = 0, mod=mod, G=G,H=H,C12=C12 )  #overwrite statistic
+      }
+    }
+  } 
+    sub_pairs <- get_sub_pairs(stat,D_n,G,kap=kap,nu=0.25) #get_sub_pairs
+    q <- dim(sub_pairs)[1]
+    if(q==0) Reject <- FALSE
+    else if (q>0){ ## locate cps
+     for (ii in 1:q) {
+       interval <- sub_pairs[ii,1]:sub_pairs[ii,2]
+       kk <- which.max(stat[interval]) #internal cp location
+       cps[ii] <- kk + sub_pairs[ii,1] #- G-p
+       #stat[sub_pairs[ii,1]:sub_pairs[ii,2]] <- statT[(G+p):(sub_pairs[ii,2]-sub_pairs[ii,1] +G+p )]
+     }
+    }
+    #cps <- get_cps(Wn,D_n,G, nu=1/4)
+    #if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
+  }
+  
+  ##BinSeg----------------------------------------
+  if(method=="BinSeg"){
+    C12 <- (ev$vectors) %*% diag( (ev$values)^(-.5) ) %*% t(ev$vectors)
+    cps <- MOSUMBS_fixed(X,1,n,D=D_n,G,d,C12,cps=c(), iter=0)
+    if(length(cps)==0){ Reject <- F }else{ Reject <- T}
+    stat <- c()
+  }
+  
+  ##Plot------------------------------------
+  if(method=="Score"||method=="Wald"){
+    plot.ts(stat, ylab="Statistic") # plot test statistic
+    abline(h = D_n, col = "blue") #add threshold
+    if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
+  }
+  if(method=="BinSeg"){
+    plot.ts(X[,1], ylab="Y")
+    if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
+  }
+  pl <- recordPlot()
+  #plot( a*Tn - b); abline(h=c_alpha, col="blue") #rescaled plot
+  ##Output------------------------------------
+  out <- list(Reject = Reject, Threshold = D_n, mosum = stat, cps = cps, plot = pl, estim=0)
+  
+  return(out)
+}
+msf <- mosum_sub_fixed(X0,G= 140,method = "Score", kap = 0.5)
+msf1 <- mosum_sub_fixed(X1,G= 200,method = "Score", kap = 1)
+
+msfb <- mosum_sub_fixed(X0,G= 140,method = "BinSeg", kap = 1)
+msfb1 <- mosum_sub_fixed(X1,G= 140,method = "BinSeg", kap = 1)
+
+msfw <- mosum_sub_fixed(X0,G= 140,method = "Wald", kap = 0.5)
+msfw1 <- mosum_sub_fixed(X1,G= 200,method = "Wald", kap = 1)
+```
+
+
+
+
+
+## Simulations
+
+
+```{r}
+sim_fixed <- function(N,G,method="Score"){
+  outmat <- matrix(0, nrow = N, ncol = 6)
+  for(ii in 1:N){
+    X1 <- rnorm(n,1,1)
+    X2 <- rnorm(n,2,1)
+    noise <- rnorm(n, 1,1) # centre 1?
+    
+    X <- cbind(intercept,X1,X2)
+    y0 <- X %*% beta0 + noise
+    X0 <- cbind(y0,X)
+    X0df <- data.frame(X0)
+    colnames(X0df) <- c("y","intercept","X1","X2")
+    
+    y1 <- X[1:k1,] %*% beta1 + noise[1:k1]
+    y2 <- X[(k1+1):k2,] %*% beta2 + noise[(k1+1):k2]
+    y3 <- X[(k2+1):k3,] %*% beta3 + noise[(k2+1):k3]
+    y4 <- X[(k3+1):n,] %*% beta4 + noise[(k3+1):n]
+    yy <- rbind(y1,y2,y3,y4)
+    X1 <- cbind(yy,X)
+    X1df <- data.frame(X1)
+    colnames(X1df) <- c("y","intercept","X1","X2")
+    
+    C <- t(X) %*% (X) / n
+    CC <- eigen(C)
+    C12 <- t(CC$vectors) %*% diag(CC$values^(-.5)) %*% (CC$vectors)
+    
+    ms0 <- mosum_sub_fixed(X0,G= G, method , kap = 1)
+    ms1 <- mosum_sub_fixed(X1,G= G, method , kap = 1)
+    
+    outmat[ii,1] <- ms0$Reject #size
+    outmat[ii,2] <- ms1$Reject #power
+    outmat[ii,3] <- length(ms1$cps) #number
+    outmat[ii,4] <- any( abs(ms1$cps - k1) < 20 ) #locations
+    outmat[ii,5] <- any( abs(ms1$cps - k2) < 20 )
+    outmat[ii,6] <- any( abs(ms1$cps - k3) < 20 )
+  }
+  out <- rep(0,7)
+  out[1:3] <- colMeans(outmat[,1:3])
+  out[4] <- sd(outmat[,4])
+  out[5:7] <- colMeans(outmat[,4:6])
+  names(out) <- c("size", "power", "average #CPs", "sd #CPs", "location 1","location 2","location 3")
+  return(out)
+}
+sim_fixed(100,100)
+```
+
+Score sims
+```{r}
+N <- 1000
+sf50 <- sim_fixed(N,50)
+sf100 <- sim_fixed(N,100)
+sf200 <- sim_fixed(N,200)
+sf300 <- sim_fixed(N,300)
+```
+
+Binseg sims
+```{r}
+N <- 1000
+sfbs50 <- sim_fixed(N,50,method="BinSeg")
+sfbs100 <- sim_fixed(N,100,method="BinSeg")
+sfbs200 <- sim_fixed(N,200,method="BinSeg")
+sfbs300 <- sim_fixed(N,300,method="BinSeg")
+```
+
+
+Wald sims
+```{r}
+N <- 1000
+sfw50 <- sim_fixed(N,50,method = "Wald")
+sfw100 <- sim_fixed(N,100,method = "Wald")
+sfw200 <- sim_fixed(N,200,method = "Wald")
+sfw300 <- sim_fixed(N,300,method = "Wald")
+```
+
+results
+```{r}
+sf <- rbind(sf50, sf100, sf200, sf300)
+sfbs <- rbind(sfbs50, sfbs100, sfbs200, sfbs300)
+sfw <- rbind(sfw50, sfw100, sfw200, sfw300)
+sf
+sfbs
+sfw
+```
+
+All perform well in terms of power and location. Wald and Score behave similarly with respect to bandwidth. 
+The Score and Wald methods have less of a tendency to overestimate the number of changes. The Binary Segmentation method has reasonable size control, but compares badly to the Score and Wald methods. This may be because BS method doesn't use epsilon criterion. 
+
+Concerns about scalability of Wald, but not Score.

@@ -246,7 +246,7 @@ mat sigma_d_k(mat x, int k,int G,int p,vec a_upper, vec a_lower)
        sigma_u.col(ii-1) = sigma_i_k(x,ii,k,G,p, a_upper( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)) );
        sigma_l.col(ii-1) = sigma_i_k(x,ii,k-G,G,p, a_lower( span((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1)) );
    };
-    return (sigma_u.t() *sigma_u + sigma_l.t()* sigma_l) /G;// cov(sigma_u)+cov(sigma_l);
+    return (sigma_u.t() *sigma_u + sigma_l.t()* sigma_l)/(G);// cov(sigma_u)+cov(sigma_l);
 }
 
 

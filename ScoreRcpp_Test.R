@@ -35,7 +35,7 @@ hall <- makeH_all_RCPP(var_change, p=1, G=200, Phi=a_change, eps=eps_change)
 
 get_DiagH_RCPP(var_change, k=100,G=30, p=1, hall)
 
-get_FullH_RCPP(var_change, k=100,G=30, hall)
+get_FullH_RCPP(var_change, k=1000,G=200, hall)
 
 getA_RCPP(var_change, k=300, G=200, p=1, eps_change, hall) ; getA(var_change, k=300, G=200, p=1, a_change, eps_change, hall)
 
@@ -44,7 +44,7 @@ getsigma_dGlobal_RCPP(eps_change,1)
 getsigma_iLocal_RCPP(eps_change,1,31,30)
 sdl <- getsigma_dLocal_RCPP(eps_change, k=1000, 1, 200)
 
-get_DiagC_RCPP(var_change, p=1, sdl[300,], k=300, G=200 )
+get_DiagC_RCPP(var_change, p=1, sdl, k=300, G=200 )
 
 tkn <- get_Tkn_RCPP(var_change,  k=300,p=1,G=200,Phi=a_change, eps=eps_change,h_all=hall, as.matrix(sdl[300,]), estim = "DiagC", var_estim = "Global"  )
 tn <- get_T_RCPP(var_change,p=1,G=200,Phi=a_change, eps=eps_change)

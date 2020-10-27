@@ -1,0 +1,71 @@
+---
+title: "House Price Index"
+author: "Dom Owens"
+date: "23/10/2020"
+output: html_document
+---
+
+```{r}
+bristol_HPI <- read.csv("bristol_area_monthly_HPI_change.csv")
+HPI <- bristol_HPI[,c(1,4,7)]
+HPICity <- HPI[HPI$Name == "City of Bristol",]
+HPIBath <- HPI[HPI$Name == "Bath and North East Somerset",]
+HPINSom <- HPI[HPI$Name == "North Somerset",]
+HPISGlos <- HPI[HPI$Name == "South Gloucestershire",]
+
+cardiff_HPI <- read.csv("cardiff_HPI.csv")
+cHPI <- cardiff_HPI[,7]
+
+manchester_HPI <- read.csv("manchester.csv")
+mHPI <- manchester_HPI[,c(1,4,7)]
+HPIManc <- mHPI[mHPI$Name == "Manchester",]
+HPISalford <- mHPI[mHPI$Name == "Salford",]
+HPITrafford <- mHPI[mHPI$Name == "Trafford",]
+HPITameside <- mHPI[mHPI$Name == "Tameside",]
+
+
+
+HPI_series <- data.frame(Manchester = HPIManc$Percentage.change..monthly..All.property.types,
+                         Salford = HPISalford$Percentage.change..monthly..All.property.types,
+                         Trafford = HPITrafford$Percentage.change..monthly..All.property.types,
+                         #Tameside = HPITameside$Percentage.change..monthly..All.property.types,
+                         row.names = HPIManc$Period)
+  #Bristol =HPICity$Percentage.change..monthly..All.property.types,
+                         #Bath =HPIBath$Percentage.change..monthly..All.property.types,
+                         #Cardiff = cHPI,
+                         #NorthSom= HPINSom$Percentage.change..monthly..All.property.types,
+                         #SouthGlos = HPISGlos$Percentage.change..monthly..All.property.types,
+                         #row.names = HPISGlos$Period)
+
+
+HPI_series[is.na(HPI_series)] <- 0
+```
+
+```{r}
+plot.ts(HPI_series);axis(side = 1, at = 1:308, labels =HPIManc$Period)
+```
+
+```{r}
+HPIar <- ar.ols(HPI_series,demean = T)
+plot(HPIar$aic)
+```
+
+```{r}
+test_Wald_new(as.matrix(HPI_series), p=2, G=70);axis(side = 1, at = 1:308, labels =HPISGlos$Period)
+```
+
+
+```{r}
+test_Wald_new(as.matrix(HPI_series), p=4, G=100); axis(side = 1, at = 1:308, labels =HPISGlos$Period)
+```
+
+```{r}
+HPIar4 <- ar.ols(HPI_series, order.max = 2, demean = T)
+HPIparams <- cbind(HPIar4$x.intercept, as.matrix(HPIar4$ar[1,,]),
+                   as.matrix(HPIar4$ar[2,,]) ) 
+                   #as.matrix(HPIar4$ar[3,,]),as.matrix(HPIar4$ar[4,,]))
+HPIres <- HPIar4$resid; HPIres[1:2,] <- rnorm(3*2, 0 , 0.2)
+test_Score_new(as.matrix(HPI_series),2,36,HPIparams,HPIres); axis(side = 1, at = 1:308, labels =HPISGlos$Period)
+```
+
+https://www.theguardian.com/artanddesign/2019/oct/21/welcome-to-manc-hattan-how-the-city-sold-its-soul-for-luxury-skyscrapers cites change point at 2013

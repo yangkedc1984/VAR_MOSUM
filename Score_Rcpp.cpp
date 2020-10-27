@@ -281,17 +281,11 @@ mat getsigma_dGlobal(mat eps, int p){
 // }
 // [[Rcpp::export(getsigma_dLocal_RCPP)]] //getsigma_dLocal
 mat getsigma_dLocal(mat eps, int k, int p, int G){
-  int n = eps.n_rows;
-  int d = eps.n_cols;
-  mat sigma_d = cov(eps.rows(k,k+G-1)) + cov(eps.rows(k-G,k-1));
-  // sigma_d.head_rows(p) = zeros(p,d); //fill NAs
-  // 
-  //   for(int t = (G+p+1); t<(n-G-1); t++) {
-  //     for(int i=1; i<d+1; i++){
-  //       sigma_d.row(t-1).col(i-1) = getsigma_iLocal(eps,i,t,G);
-  //     };
-  // } ;
-    return sigma_d;
+ // mat sigma_d = (cov(eps.rows(k,k+G-1), 1) + cov(eps.rows(k-G,k-1),1)) /2 ; // should this be /(2)
+  mat upper = eps.rows(k,k+G-1); mat lower = eps.rows(k-G,k-1);
+  mat upper_c = upper - mean(upper,0); mat lower_c = lower- mean(lower,0);
+  mat sigma_d = (upper_c.t() * upper_c + lower_c.t() * lower_c) / (2*G);
+  return sigma_d;
 }
 
 
@@ -316,11 +310,12 @@ mat DiagC(mat x, int p, mat sigma_d, int k, int G)
   mat C_ = evecs * diagmat( pow(evals, -0.5) )*  evecs.t();
   eig_sym(evalS,evecS,sigma_d);
   mat S_ = evecS * diagmat( pow(evalS, -0.5) )*  evecS.t();
-  //field<mat> Clist(d);
-  //for (int ii=0; ii< d; ii++) {
-  //  Clist(ii) =   C_ /sqrt(2*sigma_d(ii));
-  //};
-  //sp_mat out = blockDiag(Clist); //coerce into block diagonal form
+
+  //mat evecKron = kron(evecs, evecS);
+  
+  //eig_sym(evals,evecs,kron(sigma_d,C));
+  //mat out = evecs * diagmat( pow(evals, -0.5) )*  evecs.t();
+  //mat out = evecKron * kron(diagmat( pow(evals, -0.5) ), diagmat( pow(evalS, -0.5) )) * evecKron.t();
   mat out = kron(S_, C_);
   return out;
 }
@@ -339,17 +334,18 @@ double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String est
     mat sgd;
     if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
     //if(var_estim == "Local"){sgd = conv_to<vec>::from(sigma_d.row(k));} else if (var_estim == "Global") {sgd = conv_to<vec>::from(sigma_d);}
-    if (var_estim == "Local") {sgd = getsigma_dLocal(eps, k, p, G);}
-    mat Sig_ = DiagC(x,p,sgd,k,G) ;
-    out = pow(2*G, -0.5) * norm(Sig_ * A, "fro");
-  } else{
-    if(estim == "DiagH") {
-      sp_mat Sig_ = DiagH(x,k,G,p,h_all); //DiagH estimator for Sigma
-      out = pow(2*G, -0.5) * norm(Sig_ * A, "fro");
-    }
+    if (var_estim == "Local") {
+      sgd = getsigma_dLocal(eps, k, p, G);}
+      mat Sig_ = DiagC(x,p,sgd,k,G) ;
+      out = norm(Sig_ * A) / sqrt(2*G);
+    } else{
+   // if(estim == "DiagH") {
+   //   sp_mat Sig_ = DiagH(x,k,G,p,h_all); //DiagH estimator for Sigma
+   //   out = pow(2*G, -0.5) * norm(Sig_ * A, "fro");
+   // }
     if(estim == "FullH") {
       mat Sig_ = FullH(x,k,G,h_all);  //FullH estimator
-      out = pow(2*G, -0.5) * norm(Sig_ * A, "fro");
+      out = norm(Sig_ * A) / sqrt(2*G);
     }
 
   }

@@ -1,0 +1,41 @@
+---
+title: "Runtime Benchmarks"
+author: "Dom Owens"
+date: "22/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(microbenchmark)
+library(ggplot2)
+```
+
+
+```{r}
+ScoreC <-function() test_Score_new(p2_change,p=2,G=200,Phi=p2_a, eps=p2_eps, estim = "DiagC", var_estim = "Local")
+ScoreH <- function()test_Score_new(p2_change,p=2,G=200,Phi=p2_a, eps=p2_eps, estim = "FullH", var_estim = "Local")
+
+ScoreMb <- microbenchmark(ScoreC, ScoreH)
+autoplot(ScoreMb)
+```
+
+```{r}
+WaldC <-function() test_Wald_new(p2_change,p=2,G=200, estim = "DiagC")
+WaldH <- function()test_Wald_new(p2_change,p=2,G=200, estim = "FullH")
+
+WaldMb <- microbenchmark(WaldC, WaldH)
+autoplot(WaldMb)
+```
+
+
+
+```{r}
+SubScoreC <-function() mosum_sub(p2_change,p=2,G=200, method="Score", estim = "DiagC", kap = 1)
+SubScoreH <- function() mosum_sub(p2_change,p=2,G=200, method="Score", estim = "FullH",  kap = 1) 
+SubWaldC <-function() mosum_sub(p2_change,p=2,G=200, method="Wald", estim = "DiagC", kap = 1)
+SubWaldH <- function() mosum_sub(p2_change,p=2,G=200, method="Wald",  estim = "FullH",  kap = 1) 
+
+
+SubMb <- microbenchmark(SubScoreC, SubScoreH, SubWaldC, SubWaldH)
+autoplot(SubMb)
+```

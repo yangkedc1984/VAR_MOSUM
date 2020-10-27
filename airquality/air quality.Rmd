@@ -1,0 +1,106 @@
+---
+title: "Air Quality"
+author: "Dom Owens"
+date: "26/10/2020"
+output: html_document
+---
+
+
+```{r}
+airqual <- read.csv("air-quality-parson-street.csv")
+traffic <- read.csv("fact-traffic-counts.csv")
+weather <- read.csv("met-data-bristol-lulsgate.csv")
+head(airqual)
+head(traffic)
+head(weather)
+```
+```{r}
+library("lubridate")
+library(dplyr)
+WeatherTimes <- lubridate::as_datetime(weather$Date.Time) + 10 *60 ##align
+weather$Date.Time <- WeatherTimes
+weather_trim <- weather %>%
+ filter(minute(Date.Time) == 0) ##select on the hour
+```
+
+```{r}
+traffic$Date.Time <- lubridate::as_datetime(traffic$Date.Time)
+airqual$Date.Time <- lubridate::as_datetime(airqual$Date.Time)
+unique(traffic$Count.Device.ID) ##some locations have two devices
+
+traffic16 <- traffic %>%
+ filter(Count.Device.ID == 16) %>% select(Date.Time, Hourly.Flow)
+traffic454 <- traffic %>%
+ filter(Count.Device.ID == 454)%>% select(Date.Time, Hourly.Flow)
+traffic494 <- traffic %>%
+ filter(Count.Device.ID == 494)%>% select(Date.Time, Hourly.Flow)
+traffic380 <- traffic %>%
+ filter(Count.Device.ID == 380)%>% select(Date.Time, Hourly.Flow)
+traffic566 <- traffic %>%
+ filter(Count.Device.ID == 566)%>% select(Date.Time, Hourly.Flow)
+devices <- list(traffic16,traffic454,traffic494,traffic380,traffic566)
+traffic_names <- c("traffic16","traffic454","traffic494","traffic380","traffic566")
+```
+
+```{r}
+df <- inner_join(weather_trim, airqual, by="Date.Time")
+for(i in 1:length(devices)){
+  df <- inner_join(df, devices[[i]], by = "Date.Time", copy=T)
+}
+colnames(df)[10:14] <- traffic_names
+head(df) ## these are in descending time order
+df <- df %>% arrange(Date.Time)
+head(df)
+```
+```{r}
+plot.ts(df[,2:5])
+plot.ts(df[,6:8])
+plot.ts(df[,10:14])
+```
+
+build regression model
+
+```{r}
+airqualmodel <- lm(NOx ~ ., df[,c(2:6,10:14)])
+summary(airqualmodel)
+## do some lasso-based model selection here?
+library(glmnet)
+df[is.na(df)] <- rnorm(sum(is.na(df)), 100, 10)
+
+airqual_lasso_cv <-cv.glmnet(y= df$NOx, x= as.matrix(df[,c(2:5,10:14)]) )
+airqual_lasso <- glmnet(y= df$NOx, x= as.matrix(df[,c(2:5,10:14)]), lambda = airqual_lasso_cv$lambda.1se)
+print(airqual_lasso)
+coef(airqual_lasso)
+```
+
+are traffic readings correlated
+```{r}
+cor(df[,10:14])
+```
+
+
+```{r}
+df_model <- df %>% select("NOx",rownames(coef(airqual_lasso))[c(2:5,8)] ) #select("NOx","Temperature", "Wind.Speed", "Atmospheric.Pressure","Relative.Humidity", "traffic16","traffic454","traffic494","traffic380")
+library(tidyr)
+#df_model <- coalesce(df_model, (0) )
+sum(is.na(df_model))
+#df_model[is.na(df_model)] <- 0
+#sum(is.na(df_model))
+
+```
+
+
+
+## change point analysis
+
+consider using larger significance level given frequent change points?
+24 (hours/day) * 28 (days/month) = 672 (hours/month)
+
+```{r}
+ms_airqual <-  mosum_sub_fixed(as.matrix(df_model),G= 672, method = "Score", kap=1, alpha = 0.01) ##month-long stationarity
+axis(side = 1, at = 1:nrow(df_model), labels = df$Date.Time)
+
+ms_airqual_wald <- mosum_sub_fixed(as.matrix(df_model) ,G= 672, method = "Wald", kap=1,  alpha = 0.01)
+axis(side = 1, at = 1:nrow(df_model), labels = df$Date.Time)
+```
+

@@ -119,6 +119,10 @@ get_Wk_fixed <- function(x, k, G, d, C_root ){
   mod1 <- lm(x[(k-G+1):k,1] ~ x[(k-G+1):k,2:d] -1 ) ##left model
   mod2 <- lm(x[(k+1):(k+G),1] ~ x[(k+1):(k+G),2:d] - 1) ##right model
   
+  mod1$coefficients[is.na(mod1$coefficients)] <- 0 #handle NAs
+  mod2$coefficients[is.na(mod2$coefficients)] <- 0
+  
+  
   A <- mod2$coefficients - mod1$coefficients
   
   sig <- get_local1(mod1,mod2,G)
@@ -160,9 +164,84 @@ MOSUMBS_fixed(X0, 1, dim(X0)[1], D=5, G=200, d=dim(X0)[2], C12, cps = c(), iter 
 MOSUMBS_fixed(X1, 1, dim(X0)[1], D=5, G=200, d=dim(X0)[2], C12, cps = c(), iter =0 )
 ```
 
+## MOSUM
+
+```{r}
+##
+mosum_lm <- function(X, G, method = "Score", estim = "DiagC", varestim = "Local", alpha = 0.05){
+  n <- dim(X)[1]
+  d <- dim(X)[2] 
+  #nu <- 0.25
+  ##Test setup----------------------------
+  c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
+  a <- sqrt(2*log(n/G)) #test transform multipliers
+  b <- 2*log(n/G) + (d-1)/2 * log(log(n/G)) - log(2/3 * gamma((d-1)/2)) ##CORRECTED
+  D_n <- (b+c_alpha)/a #threshold
+  D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
+  Reject <- FALSE
+  ##Run test-----------------------------
+  stat <- rep(0, n) #initialise statistic vector
+  C <-t(X[,2:d]) %*% (X[,2:d]) / n
+  ev <- eigen(C)
+  ##t(ev$vectors) %*% diag( (ev$values)^(-.5) ) %*% (ev$vectors)
+  
+    if(method == "Wald") { 
+    Croot <-  (ev$vectors) %*% diag( (ev$values)^(.5) ) %*% t(ev$vectors) 
+      for (t in (G+1):(n-G)) {
+        stat[t] <- get_Wk_fixed(X, k=t, G, d = dim(X0)[2], Croot ) 
+      }
+    } 
+    if(method == "Score"){  
+    C12 <- (ev$vectors) %*% diag( (ev$values)^(-.5) ) %*% t(ev$vectors)
+    mod <- lm(X[,1] ~ X[,2:d]-1)
+    H <- get_H_fixed(mod,X[,2:d])
+      for (t in (G+1):(n-G)) {
+        stat[t] <- get_Tk_fixed(mod,k=t,G,H,C12)
+      }
+    }
+  
+    sub_pairs <- get_sub_pairs(stat,D_n,G,kap=1,nu=0.25) #get_sub_pairs
+    q <- dim(sub_pairs)[1]
+    if(q==0) Reject <- FALSE
+    else if (q>0){ ## locate cps
+    Reject <- TRUE
+    cps <- c()
+     for (ii in 1:q) {
+       interval <- sub_pairs[ii,1]:sub_pairs[ii,2]
+       kk <- which.max(stat[interval]) #internal cp location
+       cps[ii] <- kk + sub_pairs[ii,1] #- G-p
+       #stat[sub_pairs[ii,1]:sub_pairs[ii,2]] <- statT[(G+p):(sub_pairs[ii,2]-sub_pairs[ii,1] +G+p )]
+     }
+    }
+    #cps <- get_cps(Wn,D_n,G, nu=1/4)
+    #if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
+  
+  
+  ##Plot------------------------------------
+    plot.ts(stat, ylab="Statistic") # plot test statistic
+    abline(h = D_n, col = "blue") #add threshold
+    if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
+  
+  pl <- recordPlot()
+  #plot( a*Tn - b); abline(h=c_alpha, col="blue") #rescaled plot
+  ##Output------------------------------------
+  out <- list(Reject = Reject, Threshold = D_n, mosum = stat, cps = cps, plot = pl, estim=0)
+  
+  return(out)
+}
+##
+mlmScore <- mosum_lm(X1, G=200, method = "Score")
+mosum_lm(X0, G=200, method = "Score")
+##get_sub_pairs(mlmScore$mosum, 5, G=200)
+mosum_lm(X1, G=200, method = "Wald")
+```
+
+
+
 ## MOSUM subsample
 
 ```{r}
+##
 mosum_sub_fixed <- function(X, G, method = "Score", kap = 0.1,  alpha = 0.05){
   n <- dim(X)[1]
   d <- dim(X)[2] 
@@ -176,8 +255,8 @@ mosum_sub_fixed <- function(X, G, method = "Score", kap = 0.1,  alpha = 0.05){
   D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   Reject <- FALSE
   ##Run test-----------------------------
-  ind <- index(n,G,p=-1,kap) #fit grid
-  if(n - ind[length(ind)-1] < G) ind <- head(ind, -1)
+  ind <- index(n,G,p=0,kap) #fit grid
+  if(n - ind[length(ind)] < G) ind <- head(ind, -1)
   stat <- rep(0, n) #initialise statistic vector
   #if(method == "Wald")statW <- vapply(ind, get_Wkn_RCPP, FUN.VALUE = double(1), x=x,p=p,G=G, estim=estim)#get_W_RCPP(x[ind,],p,G,estim)
   C <-t(X[,2:d]) %*% (X[,2:d]) / n
@@ -188,7 +267,6 @@ mosum_sub_fixed <- function(X, G, method = "Score", kap = 0.1,  alpha = 0.05){
   stat <- rep(0, n)  
   if(method == "Score"){  
     C12 <- (ev$vectors) %*% diag( (ev$values)^(-.5) ) %*% t(ev$vectors)
-    
     for (k in ind) {
       window <- (k-G+1):(k+G)
       mod <- lm(X[window,1] ~ X[window,2:d]-1)
@@ -197,17 +275,18 @@ mosum_sub_fixed <- function(X, G, method = "Score", kap = 0.1,  alpha = 0.05){
       stat[k] <- a ##collect into output vector
           if(a > D_n ){ ##if passes threshold locally
           Reject <- TRUE
-          if(k>= 2*G & k <= n-2*G){ #not too close to ends
+          if(k>= 2*G & k <= n-1*G){ #not too close to ends
           #ss <- max(G+1, k-2*G +1); ee <- min(n-G,k+2*G) ##bounds
           newresids <- X[,1] -  as.vector( X[,2:d] %*% mod$coefficients )#predict(mod, as.data.frame(X[ss:ee,2:d]), se.fit=F) #rep(0,  ee-ss) #obtain extended residuals
           mod$residuals <- newresids #overwrite residuals
           newH <-  -1 * newresids *X[,2:d] ##new estimating function series
-          Tt <- rep(0,  2*G) #new statistic evaluation
-          for (t in  1:(2*G) ){
+          max_fill <- min(n-k, 2*G) #for filling in ends
+          Tt <- rep(0,  max_fill) #new statistic evaluation
+          for (t in  1:max_fill ){
             Tt[t] <- get_Tk_fixed(mod, k =window[t],G,newH, C12)
           }
           
-          stat[window] <- pmax(stat[window], Tt) ##select max at each value
+          stat[window[1:max_fill]] <- pmax(stat[window[1:max_fill]], Tt) ##select max at each value
           }
         }  
       
@@ -217,8 +296,8 @@ mosum_sub_fixed <- function(X, G, method = "Score", kap = 0.1,  alpha = 0.05){
     statW <- rep(0, length(ind))
     Croot <-  (ev$vectors) %*% diag( (ev$values)^(.5) ) %*% t(ev$vectors) ##matrix root
     for (k in ind) {
-      sub_vector <- get_Wk_fixed(X,k,G,d,Croot) ##calculate statistic on subsample
-      statW[which(ind==k)] <- max(sub_vector) ##collect into output vector
+      a <- get_Wk_fixed(X,k,G,d,Croot) ##calculate statistic on subsample
+      statW[which(ind==k)] <-a ##collect into output vector
     }
     stat[ind] <- statW
     test_stat <- max(stat)
@@ -283,6 +362,7 @@ mosum_sub_fixed <- function(X, G, method = "Score", kap = 0.1,  alpha = 0.05){
   
   return(out)
 }
+##
 msf <- mosum_sub_fixed(X0,G= 140,method = "Score", kap = 0.5)
 msf1 <- mosum_sub_fixed(X1,G= 200,method = "Score", kap = 1)
 

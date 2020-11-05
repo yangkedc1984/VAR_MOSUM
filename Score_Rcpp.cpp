@@ -281,10 +281,10 @@ mat getsigma_dGlobal(mat eps, int p){
 // }
 // [[Rcpp::export(getsigma_dLocal_RCPP)]] //getsigma_dLocal
 mat getsigma_dLocal(mat eps, int k, int p, int G){
- // mat sigma_d = (cov(eps.rows(k,k+G-1), 1) + cov(eps.rows(k-G,k-1),1)) /2 ; // should this be /(2)
-  mat upper = eps.rows(k,k+G-1); mat lower = eps.rows(k-G,k-1);
-  mat upper_c = upper - mean(upper,0); mat lower_c = lower- mean(lower,0);
-  mat sigma_d = (upper_c.t() * upper_c + lower_c.t() * lower_c) / (2*G);
+  mat sigma_d = (cov(eps.rows(k,k+G-1), 1) + cov(eps.rows(k-G,k-1),1)) /2 ; // should this be /(2)
+  //mat upper = eps.rows(k,k+G-1); mat lower = eps.rows(k-G,k-1);
+  //mat upper_c = upper - mean(upper,0); mat lower_c = lower- mean(lower,0);
+ // mat sigma_d = (upper_c.t() * upper_c + lower_c.t() * lower_c) / (2*G);
   return sigma_d;
 }
 
@@ -337,7 +337,7 @@ double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String est
     if (var_estim == "Local") {
       sgd = getsigma_dLocal(eps, k, p, G);}
       mat Sig_ = DiagC(x,p,sgd,k,G) ;
-      out = norm(Sig_ * A) / sqrt(2*G);
+      out = norm(Sig_ * A) / (2*sqrt(2*G) );
     } else{
    // if(estim == "DiagH") {
    //   sp_mat Sig_ = DiagH(x,k,G,p,h_all); //DiagH estimator for Sigma
@@ -345,7 +345,7 @@ double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String est
    // }
     if(estim == "FullH") {
       mat Sig_ = FullH(x,k,G,h_all);  //FullH estimator
-      out = norm(Sig_ * A) / sqrt(2*G);
+      out = norm(Sig_ * A) / (2*sqrt(2*G));
     }
 
   }

@@ -74,7 +74,7 @@ test_Score_new <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagC",var_es
     if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
   } 
   ##Plot------------------------------------
-  plot(Tn) # plot test statistic
+  plot(Tn, ylab = "Tn") # plot test statistic
   abline(h = D_n, col = "blue") #add threshold
   if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
   pl <- recordPlot()

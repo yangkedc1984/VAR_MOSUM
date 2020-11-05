@@ -10,6 +10,7 @@ library(microbenchmark)
 library(ggplot2)
 ```
 
+## VAR methods
 
 ```{r}
 ScoreC <-function() test_Score_new(p2_change,p=2,G=200,Phi=p2_a, eps=p2_eps, estim = "DiagC", var_estim = "Local")
@@ -38,4 +39,24 @@ SubWaldH <- function() mosum_sub(p2_change,p=2,G=200, method="Wald",  estim = "F
 
 SubMb <- microbenchmark(SubScoreC, SubScoreH, SubWaldC, SubWaldH)
 autoplot(SubMb)
+```
+
+
+## Regression methods
+
+```{r}
+RegScore <-function() mosum_lm(X1,G=200, method = "Score")
+RegWald <- function()  mosum_lm(X1,G=200, method = "Wald")
+
+RegMb <- microbenchmark(RegScore, RegWald)
+autoplot(RegMb)
+```
+
+
+```{r}
+RegScoreSub <-function() mosum_sub_fixed(X1,G=200, method = "Score")
+RegWaldSub <- function()  mosum_sub_fixed(X1,G=200, method = "Wald")
+
+RegSubMb <- microbenchmark(RegScoreSub, RegWaldSub)
+autoplot(RegSubMb)
 ```

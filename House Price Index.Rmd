@@ -42,30 +42,47 @@ HPI_series[is.na(HPI_series)] <- 0
 ```
 
 ```{r}
-plot.ts(HPI_series);axis(side = 1, at = 1:308, labels =HPIManc$Period)
+plot.ts(HPI_series, main = "House Price Index, Monthly Change (%)", xaxt='n', xlab="Date");axis(side = 1, line = 1.1, at = 1:308, labels =HPIManc$Period); 
 ```
 
 ```{r}
 HPIar <- ar.ols(HPI_series,demean = T)
+bic <- HPIar$aic + 2 * (log(318) -(1:25) )
 plot(HPIar$aic)
+plot(bic)
 ```
 
 ```{r}
-test_Wald_new(as.matrix(HPI_series), p=2, G=70);axis(side = 1, at = 1:308, labels =HPISGlos$Period)
+test_Wald_new(as.matrix(HPI_series), p=1, G=12*4);#axis(side = 1, at = 1:308, labels =HPISGlos$Period)
+ axis(side = 1, at = 1:308, labels =HPISGlos$Period)
+HPISGlos$Period[86]
+```
+
+```{r}
+test_Wald_new(as.matrix(HPI_series), p=2, G=12*4);#axis(side = 1, at = 1:308, labels =HPISGlos$Period)
+ axis(side = 1, at = 1:308, labels =HPISGlos$Period)
 ```
 
 
 ```{r}
-test_Wald_new(as.matrix(HPI_series), p=4, G=100); axis(side = 1, at = 1:308, labels =HPISGlos$Period)
+HPIar4 <- ar.ols(HPI_series, order.max = 1, demean = T, aic = F)
+HPIparams <- cbind(HPIar4$x.intercept, as.matrix(HPIar4$ar[1,,]) )
+                   #as.matrix(HPIar4$ar[2,,]) )#, as.matrix(HPIar4$ar[3,,]),as.matrix(HPIar4$ar[4,,]))
+                   #
+HPIres <- HPIar4$resid; HPIres[1,] <- rnorm(3*1, 0 , 0.2)
+test_Score_new(as.matrix(HPI_series),1,4*12,HPIparams,HPIres); #axis(side = 1, at = 1:308, labels =HPISGlos$Period)
 ```
-
 ```{r}
-HPIar4 <- ar.ols(HPI_series, order.max = 2, demean = T)
-HPIparams <- cbind(HPIar4$x.intercept, as.matrix(HPIar4$ar[1,,]),
-                   as.matrix(HPIar4$ar[2,,]) ) 
-                   #as.matrix(HPIar4$ar[3,,]),as.matrix(HPIar4$ar[4,,]))
-HPIres <- HPIar4$resid; HPIres[1:2,] <- rnorm(3*2, 0 , 0.2)
-test_Score_new(as.matrix(HPI_series),2,36,HPIparams,HPIres); axis(side = 1, at = 1:308, labels =HPISGlos$Period)
+HPIar2 <- ar.ols(HPI_series, order.max = 2, demean = T, aic = F)
+HPIparams2 <- cbind(HPIar2$x.intercept, as.matrix(HPIar2$ar[1,,]),as.matrix(HPIar2$ar[2,,]) )
+                   #as.matrix(HPIar4$ar[2,,]) )#, as.matrix(HPIar4$ar[3,,]),as.matrix(HPIar4$ar[4,,]))
+                   #
+HPIres2 <- HPIar2$resid; HPIres2[1:2,] <- rnorm(3*2, 0 , 0.2)
+test_Score_new(as.matrix(HPI_series),p=2,4*12,HPIparams2,HPIres2); #axis(side = 1, at = 1:308, labels =HPISGlos$Period)
 ```
 
 https://www.theguardian.com/artanddesign/2019/oct/21/welcome-to-manc-hattan-how-the-city-sold-its-soul-for-luxury-skyscrapers cites change point at 2013
+```{r}
+HPISGlos$Period[c(123,225)]
+```
+

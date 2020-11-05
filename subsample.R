@@ -19,32 +19,32 @@ index <- function(n, G, p, kap){ #define grid
 get_sub_pairs <- function(Tn, D_n, G, kap, nu = 1/4){
   n <- length(Tn)
   R <- 1#floor(kap*G)
-  rshift <- c(Tn[-(1:R)],rep(0,R)); lshift <- c(rep(0,R),Tn[- ((n-R+1):n)]); 
-  over <- (Tn >D_n) #indices are greater than D_n?
-  v <- which(over & lshift < D_n )#& lshift >0 ) #lowers
-  #v <- which(v) #append 0
-  w <- which(over & rshift < D_n )#& rshift >0) #uppers
-  #w <- which(w) #append n
-  nu_remove <- which(w-v >= nu*R*G) #nu(epsilon) test for distance between 
-  v_nu <- v[nu_remove]; w_nu <-w[nu_remove] #c(w[nu_remove],n)
-  # q <- length(v_nu) #number of CPs
-  # if(q>0){
-  #   cps <- rep(0, q)
-  #   for (i in 1:q) {
-  #     cps[i] <- v_nu[i] + which.max(Tn[ (v_nu[i]):(w_nu[i]) ] )
-  #   }
-  # } else {
-  #   cps <- NULL #if fails nu-gap
-  # }  
-  sub_pairs <- cbind(v_nu,w_nu)  
+    rshift <- c(Tn[-(1:R)],rep(0,R)); lshift <- c(rep(0,R),Tn[- ((n-R+1):n)]); 
+    over <- (Tn >D_n) #indices are greater than D_n?
+    v <- which(over & lshift < D_n )#& lshift >0 ) #lowers
+    w <- which(over & rshift < D_n )#& rshift >0) #uppers
+    nu_remove <- which(w-v >= nu*R*G) #nu(epsilon) test for distance between 
+    v_nu <- v[nu_remove]; w_nu <-w[nu_remove] #c(w[nu_remove],n)
+    sub_pairs <- cbind(v_nu,w_nu) 
   return(sub_pairs)
   #plot(lshift); lines(Tn)
 }
 get_sub_pairs(Tn = msub$mosum, D_n = 5, G= 200, kap = 0.3, nu = .25)
 
+get_local_maxima <- function(Tn, D_n, G, nu = 1/4) {
+  n <- length(Tn)
+  cps <- c()
+  window <- floor(nu*G)
+  for(t in (G+1):(n-G)){
+    if( all(Tn[(t - window):(t+window)]  > D_n) & Tn[t] == max(Tn[(t - window):(t+window)]) ){cps <- append(cps,t)} ##add to list
+  }
+  return(cps)
+}
+get_local_maxima(Tn = msub$mosum, D_n = 3, G= 200,  nu = .25)
+
 ##get subsample change point estimates
 
-mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local", kap = 1,  alpha = 0.05){
+mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local", kap = 1,  alpha = 0.05, criterion="eps", nu=.25){
   n <- dim(x)[1]
   d <- dim(x)[2] 
   #nu <- 0.25
@@ -109,8 +109,8 @@ mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Loc
         stat[k] <- max(Tk) ##collect into output vector
           if(stat[k] > D_n ){ ##if passes threshold locally
             Reject <- TRUE
-            if(k> 2*G & k <= n-2*G){ #not too close to ends
-            ss <- max(G+p+1, s-G+1-p); ee <- min(n-G,e+G) ##bounds
+            if(k> 2*G & k <= n-1*G){ #not too close to ends
+            ss <- max(G+p+1, s-G+1-p); ee <- min(n,e+G) ##bounds
             newresids <- matrix(0, nrow = ee-ss, ncol = d) #obtain extended residuals
               for(t in 1:(ee-ss) ){
                 newresids[t,] <- predict(mod,x[ss - 1 + (t-p):t,], se.fit=F)
@@ -122,20 +122,25 @@ mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Loc
       }
     }
     
-    
-    sub_pairs <- get_sub_pairs(stat,D_n,G,kap=kap,nu=0.25) #get_sub_pairs
+    cps1 <- cps2 <- c() ##assign empty cps
+    if(criterion %in% c("eps","union") ){
+    sub_pairs <- get_sub_pairs(stat,D_n,G,kap=kap,nu=nu) #get_sub_pairs
     q <- dim(sub_pairs)[1]
     if(q==0) Reject <- FALSE
     else if (q>0){ ## locate cps
      for (ii in 1:q) {
        interval <- sub_pairs[ii,1]:sub_pairs[ii,2]
        kk <- which.max(stat[interval]) #internal cp location
-       cps[ii] <- kk + sub_pairs[ii,1] #- G-p
-       #stat[sub_pairs[ii,1]:sub_pairs[ii,2]] <- statT[(G+p):(sub_pairs[ii,2]-sub_pairs[ii,1] +G+p )]
-     }
+       cps1[ii] <- kk + sub_pairs[ii,1] #- G-p
+       }
+      }
     }
-    #cps <- get_cps(Wn,D_n,G, nu=1/4)
-    #if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
+    if(criterion %in% c("eta","union") ){
+      cps2 <- get_local_maxima(stat,D_n,G,nu=2*nu)
+      q <- length(cps2)
+      if(q==0) Reject <- FALSE
+    }
+    cps <- union(cps1,cps2) ##output union
    
   ##Plot------------------------------------
   plot.ts(stat, ylab="Statistic") # plot test statistic

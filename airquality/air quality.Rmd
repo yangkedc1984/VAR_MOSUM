@@ -8,9 +8,11 @@ output: html_document
 
 ```{r}
 airqual <- read.csv("air-quality-parson-street.csv")
+stpauls <- read.csv("air-quality-stpauls.csv")
 traffic <- read.csv("fact-traffic-counts.csv")
 weather <- read.csv("met-data-bristol-lulsgate.csv")
 head(airqual)
+head(stpauls)
 head(traffic)
 head(weather)
 ```
@@ -26,6 +28,7 @@ weather_trim <- weather %>%
 ```{r}
 traffic$Date.Time <- lubridate::as_datetime(traffic$Date.Time)
 airqual$Date.Time <- lubridate::as_datetime(airqual$Date.Time)
+stpauls$Date.Time <- lubridate::as_datetime(stpauls$Date.Time)
 unique(traffic$Count.Device.ID) ##some locations have two devices
 
 traffic16 <- traffic %>%
@@ -44,31 +47,45 @@ traffic_names <- c("traffic16","traffic454","traffic494","traffic380","traffic56
 
 ```{r}
 df <- inner_join(weather_trim, airqual, by="Date.Time")
+df <- inner_join(df, stpauls, by = "Date.Time")
 for(i in 1:length(devices)){
   df <- inner_join(df, devices[[i]], by = "Date.Time", copy=T)
 }
-colnames(df)[10:14] <- traffic_names
+colnames(df)[11:15] <- traffic_names
 head(df) ## these are in descending time order
 df <- df %>% arrange(Date.Time)
 head(df)
 ```
 ```{r}
 plot.ts(df[,2:5])
-plot.ts(df[,6:8])
+plot.ts(df[,c(6:8,10)])
 plot.ts(df[,10:14])
 ```
+
+```{r}
+df_na <- na.omit(df)
+## some NOx, PM10 readings are <0
+df_na$NOx[which(df_na$NOx <= 0)] <- 1
+df_na$PM10[which(df_na$PM10 <= 0)] <- 1
+dim(df_na)
+sum(is.na.data.frame(df_na))
+df_na[is.na.data.frame(df_na)] <- 1
+df_na$NOx <- log(df_na$NOx)##get log transforms
+df_na$PM10 <- log(df_na$PM10)
+```
+
 
 build regression model
 
 ```{r}
-airqualmodel <- lm(NOx ~ ., df[,c(2:6,10:14)])
+airqualmodel <- lm(NOx ~ ., df_na[,c(2:6,10:15)])
 summary(airqualmodel)
 ## do some lasso-based model selection here?
 library(glmnet)
-df[is.na(df)] <- rnorm(sum(is.na(df)), 100, 10)
 
-airqual_lasso_cv <-cv.glmnet(y= df$NOx, x= as.matrix(df[,c(2:5,10:14)]) )
-airqual_lasso <- glmnet(y= df$NOx, x= as.matrix(df[,c(2:5,10:14)]), lambda = airqual_lasso_cv$lambda.1se)
+
+airqual_lasso_cv <-cv.glmnet(y= df_na$NOx, x= as.matrix(df_na[,c(2:5,10:15)]) )
+airqual_lasso <- glmnet(y= df_na$NOx, x= as.matrix(df_na[,c(2:5,10:15)]), lambda = airqual_lasso_cv$lambda.1se)
 print(airqual_lasso)
 coef(airqual_lasso)
 ```
@@ -80,12 +97,14 @@ cor(df[,10:14])
 
 
 ```{r}
-df_model <- df %>% select("NOx",rownames(coef(airqual_lasso))[c(2:5,8)] ) #select("NOx","Temperature", "Wind.Speed", "Atmospheric.Pressure","Relative.Humidity", "traffic16","traffic454","traffic494","traffic380")
+
+df_model <- df_na %>% select("NOx",rownames(coef(airqual_lasso))[c(2:11)] ) #select("NOx","Temperature", "Wind.Speed", "Atmospheric.Pressure","Relative.Humidity", "traffic16","traffic454","traffic494","traffic380")
 library(tidyr)
 #df_model <- coalesce(df_model, (0) )
 sum(is.na(df_model))
 #df_model[is.na(df_model)] <- 0
 #sum(is.na(df_model))
+plot.ts(df_model, main = "Air Quality")
 
 ```
 
@@ -93,14 +112,72 @@ sum(is.na(df_model))
 
 ## change point analysis
 
-consider using larger significance level given frequent change points?
-24 (hours/day) * 28 (days/month) = 672 (hours/month)
+use `alpha=0.01` significance level given frequent change points
+
+24 (hours/day) * 28 (days/month) = 672 (hours/month) as G
 
 ```{r}
-ms_airqual <-  mosum_sub_fixed(as.matrix(df_model),G= 672, method = "Score", kap=1, alpha = 0.01) ##month-long stationarity
-axis(side = 1, at = 1:nrow(df_model), labels = df$Date.Time)
+ms_airqual <-  mosum_sub_fixed(as.matrix(df_model),G= 2*672, method = "Score", kap=1, alpha = 0.01) ##month-long stationarity
+axis(side = 1, at = 1:nrow(df_model), labels = lubridate::as_date( df_na$Date.Time))
 
-ms_airqual_wald <- mosum_sub_fixed(as.matrix(df_model) ,G= 672, method = "Wald", kap=1,  alpha = 0.01)
-axis(side = 1, at = 1:nrow(df_model), labels = df$Date.Time)
+ms_airqual_wald <- mosum_sub_fixed(as.matrix(df_model) ,G= 2*672, method = "Wald", kap=1,  alpha = 0.01)
+axis(side = 1, at = 1:nrow(df_model), labels = lubridate::as_date( df_na$Date.Time))
+```
+## VAR
+
+```{r}
+airqualmap <- read.csv("air-quality-around-bristol.csv")
+head(airqualmap)
+airqualmap$Date.Time <- lubridate::as_datetime(airqualmap$Date.Time)
+unique(airqualmap$SiteID)
+library("lubridate")
+library(dplyr)
+airqualmap203 <- airqualmap %>%
+ filter(SiteID == 203) %>% select(Date.Time, NOx)
+airqualmap215 <- airqualmap %>%
+ filter(SiteID == 215) %>% select(Date.Time, NOx)
+airqualmap270 <- airqualmap %>%
+ filter(SiteID == 270) %>% select(Date.Time, NOx)
+airqualmap452 <- airqualmap %>%
+ filter(SiteID == 452) %>% select(Date.Time, NOx)
+airqualmap501 <- airqualmap %>%
+ filter(SiteID == 501) %>% select(Date.Time, NOx)
+dfmap <-airqualmap203
+for(i in list(airqualmap215,airqualmap270,airqualmap452,airqualmap501)){
+  dfmap <- inner_join(dfmap, i, by = "Date.Time", copy=T)
+}
+dfmap <- dfmap %>% arrange(Date.Time) # in order
+## first 156 readings are missing
+dfmap <- dfmap[157:nrow(dfmap),]
+colnames(dfmap)[2:6] <- c("NOx215","NOx270","NOx452","NOx501","NOx203") 
+dfmap <- na.omit(dfmap)
+head(dfmap)
+logdfmap <- cbind(dfmap$Date.Time, log(dfmap[,2:6]) )
+head(logdfmap)
+```
+
+```{r}
+plot.ts(logdfmap[,2:6], main =" " ) #"Hourly NOx Meter Readings (μg/m3), October 2019 - October 2020, Bristol"
+sum(is.na(logdfmap))
+logdfmap$NOx501[which(is.na(logdfmap$NOx501))] <- 0
+```
+
+
+```{r}
+ardfmap <- ar.ols(logdfmap[,2:6], AIC=T, intercept = T)
+plot(ardfmap$aic) ##choose p=3?
+```
+24 hrs * 7 days * 6 weeks =  1008
+
+```{r}
+airqual_mosum_wald <-  mosum_sub(as.matrix(logdfmap[,2:6]), p=3, G= 1008, method = "Wald", criterion = "eta")
+airqual_mosum_wald
+logdfmap$`dfmap$Date.Time`[airqual_mosum_wald$cps]
+```
+
+```{r}
+airqual_mosum_score <- mosum_sub(as.matrix(logdfmap[,2:6]), p=3, G= 1008, method = "Score", criterion = "eta", nu = 0.25)
+airqual_mosum_score
+logdfmap$`dfmap$Date.Time`[airqual_mosum_score$cps]
 ```
 

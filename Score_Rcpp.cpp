@@ -279,8 +279,8 @@ mat getsigma_dGlobal(mat eps, int p){
 //   double eu = var( eps.rows( (k+1-1),(k+G-1)).col(i-1) );
 //   return el + eu;
 // }
-// [[Rcpp::export(getsigma_dLocal_RCPP)]] //getsigma_dLocal
-mat getsigma_dLocal(mat eps, int k, int p, int G){
+// [[Rcpp::export(getsigma_dLocal_RCPP)]] //getsigma_dLocal 
+mat getsigma_dLocal(mat eps, int k, int p, int G){ //CURRENTLY WORKS getsigma_dLocal_RCPP( as.matrix(cbind(rnorm(1000),rnorm(1000,0,2),rnorm(1000,0,2), rnorm(1000))), 500, 1, 450 )
   mat sigma_d = (cov(eps.rows(k,k+G-1), 1) + cov(eps.rows(k-G,k-1),1)) /2 ; // should this be /(2)
   //mat upper = eps.rows(k,k+G-1); mat lower = eps.rows(k-G,k-1);
   //mat upper_c = upper - mean(upper,0); mat lower_c = lower- mean(lower,0);
@@ -304,12 +304,12 @@ mat DiagC(mat x, int p, mat sigma_d, int k, int G)
     xk = join_rows(x.rows( k-G-1,k+G-1-1) , x.rows( k-G-1-1,k+G-2-1),x.rows( k-G-2-1,k+G-3-1), x.rows( k-G-3-1,k+G-4-1));
     xk.insert_cols(0,1);
   };
-  mat C =  xk.t() * xk /(2*G);
+  mat C =  xk.t() * xk /(2*G -1); //works as intended
   //eigen decomposition
   eig_sym(evals,evecs,C);
-  mat C_ = evecs * diagmat( pow(evals, -0.5) )*  evecs.t();
+  mat C_ = evecs * diagmat( 1/(evals) )*  evecs.t(); //now returns inverse Sigma
   eig_sym(evalS,evecS,sigma_d);
-  mat S_ = evecS * diagmat( pow(evalS, -0.5) )*  evecS.t();
+  mat S_ = evecS * diagmat( 1/(evalS) )*  evecS.t();
 
   //mat evecKron = kron(evecs, evecS);
   
@@ -337,7 +337,8 @@ double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String est
     if (var_estim == "Local") {
       sgd = getsigma_dLocal(eps, k, p, G);}
       mat Sig_ = DiagC(x,p,sgd,k,G) ;
-      out = norm(Sig_ * A) / (2*sqrt(2*G) );
+      mat prod = A.t() * Sig_ * A;
+      out = sqrt( prod(0,0) ) /sqrt(16*G) ;//out = norm(Sig_ * A)  / sqrt(8*G);// (sqrt(2*G) ); //2*
     } else{
    // if(estim == "DiagH") {
    //   sp_mat Sig_ = DiagH(x,k,G,p,h_all); //DiagH estimator for Sigma
@@ -345,7 +346,7 @@ double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String est
    // }
     if(estim == "FullH") {
       mat Sig_ = FullH(x,k,G,h_all);  //FullH estimator
-      out = norm(Sig_ * A) / (2*sqrt(2*G));
+      out = norm(Sig_ * A) / (sqrt(8*G)); //2*
     }
 
   }

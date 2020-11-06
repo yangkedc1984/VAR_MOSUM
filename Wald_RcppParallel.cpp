@@ -342,7 +342,7 @@ mat DiagC(mat x, int p, mat sigma_d, int k, int G)
   mat C =  xk.t() * xk /(2*G);
   //eigen decomposition
   eig_sym(evals,evecs,C);
-  mat C_ = evecs * diagmat(sqrt(evals) )*  evecs.t(); //sqrt
+  mat C_ = evecs * diagmat(1/sqrt(evals) )*  evecs.t(); //sqrt
   eig_sym(evalS,evecS,sigma_d);
   mat S_ = evecS * diagmat(pow(2*evalS, -0.5) )*  evecS.t(); //inverse sqrt
   // field<mat> Clist(d);
@@ -366,12 +366,12 @@ double Wkn(mat x, int p, int k, int G, String estim = "DiagC")
   vec W_mat;
   //double v;
 //Sigma estimator options------
+  sp_mat V = V_nk(x, p, k-G+1, k); 
     if(estim == "DiagC"){
       mat sigma_d = sigma_d_k(x,k,G,p,a_upper, a_lower);
       mat Sig_ = DiagC(x,p,sigma_d,k,G) ;
-      W_mat = Sig_ * (a_upper-a_lower) ;
+      W_mat = Sig_ * V * (a_upper-a_lower) ;
     } else{
-       sp_mat V = V_nk(x, p, k-G+1, k); 
        mat H_l = H_l_u(x, p, k-G+1, k , a_lower); 
        mat H_u = H_l_u(x, p, k+1, k+G , a_upper);//v= H_u(0,0);
        if(estim == "DiagH") {

@@ -40,11 +40,7 @@ sigma_d_ex_4 <- getsigma_d_kLOCAL1_RCPP(x = p2_change, k = 35, G= 30, p =4,
 sigma_d_ex <- getsigma_d_kLOCAL1_RCPP(x = p2_change, k = 100, G= 30, p =2, 
                         a_upper = make_a_lu(p2_change, p=2, l= 100, u= 130), a_lower = make_a_lu(p2_change, p=2, l= 69, u= 99))
 
-#for (ii in 1:5) {
-  d <- 5; p <-2
-  print( (ii-1)*(d*p+1)+1-1)
-  print((ii-1)*(d*p+1)+ d*p +1-1)
-}
+
 
 get_DiagH_Wald_RCPP(p2_change, G=30, p=2, H_l_ex, H_u_ex)
 
@@ -57,11 +53,58 @@ get_Wkn_RCPP(x=p2_change,p=4,k=100,G=30, estim = "DiagC")
 
 W_ex <- get_W_RCPP(x=p2_change,p=4,G=30, estim = "DiagC")
 
+
+# get_cps <- function(Tn, D_n, G, nu = 1/4){
+#   n <- length(Tn)
+#   rshift <- c(Tn[-1],0); lshift <- c(0,Tn[-n]); 
+#   over <- (Tn >D_n) #indices are greater than D_n?
+#   v <- which(over & lshift < D_n) #lowers
+#   #v <- which(v) #append 0
+#   w <- which(over & rshift < D_n) #uppers
+#   #w <- which(w) #append n
+#   nu_remove <- which(w-v >= nu*G) #nu(epsilon) test for distance between 
+#   v_nu <- v[nu_remove]; w_nu <- c(w[nu_remove],n)
+#   q <- length(v_nu) #number of CPs
+#   if(q>0){
+#     cps <- rep(0, q)
+#     for (i in 1:q) {
+#       cps[i] <- v_nu[i] + which.max(Tn[ (v_nu[i]):(w_nu[i]) ] )
+#     }
+#   } else {
+#     cps <- NULL #if fails nu-gap
+#   }  
+#   return(cps)
+# }
+
+get_cps <- function(stat, D_n, G, nu = 1/4, criterion = c("eps","eta","union") ){
+  cps1 <- cps2 <- c() ##assign empty cps
+  if(criterion =="eps" | criterion == "union"){
+    sub_pairs <- get_sub_pairs(stat,D_n,G,kap=1,nu=nu) #get_sub_pairs
+    q <- dim(sub_pairs)[1]
+    if(q==0) Reject <- FALSE
+    else if (q>0){ ## locate cps
+      for (ii in 1:q) {
+        interval <- sub_pairs[ii,1]:sub_pairs[ii,2]
+        kk <- which.max(stat[interval]) #internal cp location
+        cps1[ii] <- kk + sub_pairs[ii,1] #- G-p
+      }
+    }
+  }
+  if(criterion =="eta" | criterion == "union"){
+    cps2 <- get_local_maxima(stat,D_n,G,nu=2*nu)
+    q <- length(cps2)
+    if(q==0) Reject <- FALSE
+  }
+  cps <- union(cps1,cps2) ##output union
+  return(cps)
+}
+
 ## TEST ----------------------------------------------------
 ##Wald-type test
-test_Wald_new <- function(x, p, G, alpha = 0.05, estim="DiagC", ncores =1){ 
+test_Wald_new <- function(x, p, G, alpha = 0.05, estim="DiagC", criterion = "eps",nu=1/4){ 
   n <- dim(x)[1] #dimensions
   d <- dim(x)[2] 
+  dim_warning(n,G,d,p,"Wald")
   ##Test setup----------------------------
   c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
   a <- sqrt(2*log(n/G)) #test transform multipliers
@@ -70,16 +113,16 @@ test_Wald_new <- function(x, p, G, alpha = 0.05, estim="DiagC", ncores =1){
   D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   Reject <- FALSE
   ##Run test-----------------------------
-  Wn <- ts(get_W_RCPP(x,p,G,estim) ) #evaluate statistic at each time k
+  Wn <- (get_W_RCPP(x,p,G,estim) ) #evaluate statistic at each time k
   test_stat <- max(Wn)
   cps <- c() #empty changepoint vector
   if(test_stat > D_n){ #compare test stat with threshold
     Reject <- TRUE
-    cps <- get_cps(Wn,D_n,G, nu=1/4)
+    cps <- get_cps(Wn,D_n,G, nu=nu, criterion)
     if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
   } 
   ##Plot------------------------------------
-  plot(Wn, ylab="Wn") # plot test statistic
+  plot.ts(Wn, ylab="Wn") # plot test statistic
   abline(h = D_n, col = "blue") #add threshold
   if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
   pl <- recordPlot()
@@ -88,10 +131,9 @@ test_Wald_new <- function(x, p, G, alpha = 0.05, estim="DiagC", ncores =1){
   out <- list(Reject = Reject, Threshold = D_n, mosum = Wn, cps = cps, plot = pl, estim=estim)
   return(out)
 }
-tW_RCPP <- test_Wald_RCPP(x=p2_change,p=2,G=200, alpha = 0.05,  estim = "DiagC") #ncores = 1,)
+tW_RCPP <- test_Wald_new(x=p2_change,p=2,G=200, alpha = 0.05,  estim = "DiagC") #ncores = 1,)
 test_Wald_RCPP(x=p2_change,p=2,G=200, alpha = 0.05,  estim = "DiagH")
 t10 <- test_Wald_RCPP(x=d10_data,p=1,G=200, alpha = 0.05,  estim = "DiagC")  #BIG
-
 
 
 

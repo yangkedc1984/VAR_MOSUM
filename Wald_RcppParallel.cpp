@@ -145,7 +145,17 @@ vec a_lu_i(mat& x, int i, int p, int l, int u)
        List L = List::create(x.rows( l-1-1,u-1-1).t(), x.rows( l-2-1,u-2-1).t(),x.rows( l-3-1,u-3-1).t(),x.rows( l-4-1,u-4-1).t() ); //construct data list
        X = join_rows(O, write_rows2(L,d,y.n_elem ).t() ) ;
        y_soln = sum(Y * X);
-     }  
+     } 
+     if(p==5){
+       List L = List::create(x.rows( l-1-1,u-1-1).t(), x.rows( l-2-1,u-2-1).t(),x.rows( l-3-1,u-3-1).t(),x.rows( l-4-1,u-4-1).t(),x.rows( l-5-1,u-5-1).t() ); //construct data list
+       X = join_rows(O, write_rows2(L,d,y.n_elem ).t() ) ;
+       y_soln = sum(Y * X);
+     }
+     if(p==6){
+       List L = List::create(x.rows( l-1-1,u-1-1).t(), x.rows( l-2-1,u-2-1).t(),x.rows( l-3-1,u-3-1).t(),x.rows( l-4-1,u-4-1).t(),x.rows( l-5-1,u-5-1).t(),x.rows( l-6-1,u-6-1).t() ); //construct data list
+       X = join_rows(O, write_rows2(L,d,y.n_elem ).t() ) ;
+       y_soln = sum(Y * X);
+     }        
     mat X_soln = (X.t() * X ).i();
     vec a_out = (y_soln * X_soln).t(); 
     return a_out;
@@ -199,8 +209,16 @@ sp_mat V_nk(mat x, int p, int l, int u)
   if(p==3) xk = join_rows(O, x.rows( l-1-1,u-1-1) , x.rows( l-2-1,u-2-1), x.rows( l-3-1,u-3-1));
   if(p==4) {
     xk = join_rows(x.rows( l-1-1,u-1-1) , x.rows( l-2-1,u-2-1), x.rows( l-3-1,u-3-1), x.rows( l-4-1,u-4-1));
-    xk.insert_cols(0,1);
+    xk.insert_cols(0,O);
   };
+  if(p==5) {
+    xk = join_rows( x.rows( l-2-1,u-2-1), x.rows( l-3-1,u-3-1), x.rows( l-4-1,u-4-1), x.rows( l-5-1,u-5-1));
+    xk.insert_cols(0, join_rows(O,x.rows( l-1-1,u-1-1)  ));
+  };
+  if(p==6) {
+    xk = join_rows(  x.rows( l-3-1,u-3-1), x.rows( l-4-1,u-4-1), x.rows( l-5-1,u-5-1), x.rows( l-6-1,u-6-1));
+    xk.insert_cols(0, join_rows(O,x.rows( l-1-1,u-1-1),x.rows( l-2-1,u-2-1)  ));
+  };  
   mat C =  xk.t() * xk /(u-l);
   field<mat> Vlist(d);
   for (int ii=0; ii< d; ii++) {
@@ -220,8 +238,16 @@ vec sigma_i_k(mat x, int i,int k,int G,int p,vec a_upper) //,vec a_lower)
   if(p==3) x_upper = join_rows(O, x.rows( k-1,k+G-1-1), x.rows(k-1-1, k+G-2-1 ), x.rows(k-2-1, k+G-3-1 ) ); 
   if(p==4){
     x_upper = join_rows(x.rows( k-1,k+G-1-1), x.rows(k-1-1, k+G-2-1 ), x.rows(k-2-1, k+G-3-1 ),x.rows(k-3-1, k+G-4-1 ) );
-    x_upper.insert_cols(0,1); 
+    x_upper.insert_cols(0,O); 
   } ;
+  if(p==5){
+    x_upper = join_rows( x.rows(k-1-1, k+G-2-1 ), x.rows(k-2-1, k+G-3-1 ),x.rows(k-3-1, k+G-4-1 ),x.rows(k-4-1, k+G-5-1 ) );
+    x_upper.insert_cols(0, join_rows(O,x.rows( k-1,k+G-1-1)) ); 
+  } ;
+  if(p==6){
+    x_upper = join_rows(  x.rows(k-2-1, k+G-3-1 ),x.rows(k-3-1, k+G-4-1 ),x.rows(k-4-1, k+G-5-1 ),x.rows(k-5-1, k+G-6-1 ) );
+    x_upper.insert_cols(0, join_rows(O,x.rows( k-1,k+G-1-1),x.rows(k-1-1, k+G-2-1 )   )); 
+  } ;  
   rowvec res_upper =  x( span(k+1-1,k+G-1), i-1).t() - a_upper.t() * x_upper.t(); //upper residuals
     
   // if(p==1)x_lower = join_rows(O, x.rows( k-G-1,k-1-1) );
@@ -337,8 +363,17 @@ mat DiagC(mat x, int p, mat sigma_d, int k, int G)
   if(p==3) xk = join_rows(O, x.rows( k-G-1,k+G-1-1) , x.rows( k-G-1-1,k+G-2-1),x.rows( k-G-2-1,k+G-3-1));
   if(p==4) {
     xk = join_rows(x.rows( k-G-1,k+G-1-1) , x.rows( k-G-1-1,k+G-2-1),x.rows( k-G-2-1,k+G-3-1), x.rows( k-G-3-1,k+G-4-1));
-    xk.insert_cols(0,1);
+    xk.insert_cols(0,O);
   };
+  if(p==5) {
+    xk = join_rows(x.rows( k-G-1-1,k+G-2-1),x.rows( k-G-2-1,k+G-3-1), x.rows( k-G-3-1,k+G-4-1),x.rows( k-G-4-1,k+G-5-1));
+    xk.insert_cols(0, join_rows(O,x.rows( k-G-1,k+G-1-1)));
+  };
+  if(p==6) {
+    xk = join_rows(x.rows( k-G-2-1,k+G-3-1), x.rows( k-G-3-1,k+G-4-1),x.rows( k-G-4-1,k+G-5-1),x.rows( k-G-5-1,k+G-6-1));
+    xk.insert_cols(0, join_rows(O,x.rows( k-G-1,k+G-1-1), x.rows( k-G-1-1,k+G-2-1) ));
+  };
+  
   mat C =  xk.t() * xk /(2*G);
   //eigen decomposition
   eig_sym(evals,evecs,C);
@@ -525,7 +560,7 @@ NumericVector var_sim(List pars, int reps =100, int p=2, int G=200, double alpha
 
 
 
-// [[Rcpp::export(MFA_RCPP)]] 
+// [[Rcpp::export(MFA_Wald)]] 
 List MFA(mat x, int p, vec Gset, String estim = "DiagC", double alpha = 0.05){
   Gset = sort(Gset); //into ascending order
   int Glen = Gset.size();

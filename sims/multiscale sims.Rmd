@@ -1,0 +1,101 @@
+---
+title: "multiscale sims"
+author: "Dom Owens"
+date: "18/11/2020"
+output: html_document
+---
+
+```{r}
+P4 <-  matrix(c(-0.5, 0.2,
+               0.2,-0.5), 2,2)
+
+simMultiscale <- function(iterations = 1000, Gset = c(100,150,200,250,300), test = "Score", estim = "DiagC", A1,A2,A3,A4, lag = 1, criterion = "eps", nu=0.25){
+  coeff_list1 <-coeff_list2 <-coeff_list3 <- coeff_list4 <-  list(1:lag) #empty AR param lists
+  for (i in 1:lag) {
+    coeff_list1[[i]] <- A1 ^i#%^% i ##element-wise powers? division?
+    coeff_list2[[i]] <- A2 ^i#%^% i
+    coeff_list3[[i]] <- A3 ^i#%^% i
+    coeff_list4[[i]] <- A4 ^i#%^% i
+  }
+  out <- matrix(NA,iterations,5)
+  cps <- as.list(1:iterations)
+  d <- nrow(A1)
+  for (ii in 1:iterations) {
+    
+  e1 <- matrix(rnorm(d* 400, 0, .5),ncol=d)
+  e2 <- matrix(rnorm(d * 800, 0, .5),ncol=d)
+  e3 <- matrix(rnorm(d * 105, 0, .5),ncol=d)
+  e4 <- matrix(rnorm(d * 695, 0, .5),ncol=d)
+  ##null
+  sim_n41 <- rbind(rSim_p(coeff_list1,e1),rSim_p(coeff_list2,e2),rSim_p(coeff_list3,e3),rSim_p(coeff_list4,e4)) #H0 or H1
+  t_n41 <- MFA(x=sim_n41, p= lag ,Gset=Gset, test = test, estim = "DiagC")
+  int400 <- t_n41$ChangePoints[t_n41$ChangePoints <= 440 & t_n41$ChangePoints >= 360]
+  int1200 <- t_n41$ChangePoints[t_n41$ChangePoints <= 1240 & t_n41$ChangePoints >= 1160]
+  int1305 <- t_n41$ChangePoints[t_n41$ChangePoints <= 1345 & t_n41$ChangePoints >= 1265]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$ChangePoints), length(int400), length(int1200), length(int1305) )
+  cps[[ii]] <- t_n41$ChangePoints
+  }
+  return(list(out=out, cps=cps) )
+}
+```
+
+```{r}
+Gset <-  c(100,150,200,250,300)
+simMultiscale(iterations = 1,Gset = Gset, test = "Score", estim = "DiagC", P1,P2,P3,P4, lag=1, criterion = "eta")
+```
+
+```{r}
+MFA_sim_Wald <- simMultiscale(iterations = 1000,Gset = Gset, test = "Wald", estim = "DiagC", P1,P2,P3,P4, lag=1, criterion = "eta")
+MFA_sim_Score <- simMultiscale(iterations = 1000,Gset = Gset, test = "Score", estim = "DiagC", P1,P2,P3,P4, lag=1, criterion = "eta")
+```
+
+
+```{r}
+MFAout <- matrix(0, nrow = 1000, ncol = 3)
+for(ii in 1:1000){
+  for (jj in 1:length(MFA_sim_Wald$cps[[ii]])) {
+    MFAout[ii,jj] <- sort(MFA_sim_Wald$cps[[ii]])[jj]
+  }
+}
+
+report(MFA_sim_Wald$out)
+which(is.na(MFAout[,1]))
+sum(MFAout[,1]<= 440 & MFAout[,1] >= 360, na.rm = T)
+
+sum(MFAout[,2]<= 1240 & MFAout[,2] >= 1160, na.rm = T)
+sum(MFAout[,2]<= 1345 & MFAout[,2] >= 1265, na.rm = T)
+
+MFAoutBool <- MFAout>0
+MFAoutBool[is.na(MFAoutBool)] <- 0
+mean(rowSums(MFAoutBool))
+sd(rowSums(MFAoutBool))
+```
+```{r}
+MFAoutScore <- matrix(0, nrow = 1000, ncol = 3)
+for(ii in 1:1000){
+  for (jj in 1:length(MFA_sim_Score$cps[[ii]])) {
+    MFAoutScore[ii,jj] <- sort(MFA_sim_Score$cps[[ii]])[jj]
+  }
+}
+
+which(is.na(MFAoutScore[,1]))
+sum(MFAoutScore[,1:2]<= 440 & MFAoutScore[,1:2] >= 360, na.rm = T)
+
+sum(MFAoutScore<= 1240 & MFAoutScore >= 1160, na.rm = T)
+sum(MFAoutScore<= 1345 & MFAoutScore >= 1265, na.rm = T)
+
+MFAoutScoreBool <- MFAoutScore>0
+MFAoutScoreBool[is.na(MFAoutScoreBool)] <- 0
+mean(rowSums(MFAoutScoreBool))
+sd(rowSums(MFAoutScoreBool))
+```
+
+
+
+```{r}
+par(mfrow = c(1,2))
+hist(unlist(MFA_sim_Wald$cps), breaks =  10 * 1:200, xlim = c(0,2000), main = "Wald", xlab = ""); abline(v = c(400,1200,1305), col="red")
+hist(unlist(MFA_sim_Score$cps), breaks =  10 * 1:200, xlim = c(0,2000), main = "Score", xlab = ""); abline(v = c(400,1200,1305), col="red")
+```
+

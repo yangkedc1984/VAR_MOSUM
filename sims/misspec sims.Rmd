@@ -1,0 +1,343 @@
+---
+title: "misspec sims"
+author: "Dom Owens"
+date: "26/11/2020"
+output: html_document
+---
+
+```{r}
+getMS <- function(rho, d){
+  MS <- matrix(0, d, d)
+  for (i in 1:d) {
+    for (j in 1:d) {
+      MS[i,j] <- rho^(2 + 2*abs(i-j) ) 
+    }
+  }
+  return(MS)
+}
+getMS(rho= -0.8, 10)
+misspectest <- rSim_p(list(getMS(rho= -0.6, 10), getMS(rho= -0.6, 10)^2, getMS(rho= -0.6, 10)^3) , matrix(rnorm(10 * 500), 500,10) )
+plot.ts(misspectest)
+
+misspectest2 <- rSim_p(list(getMS(rho= 0.5, 10), getMS(rho= 0.5, 10)^2, getMS(rho= 0.5, 10)^3) , matrix(rnorm(10 * 500), 500,10) )
+plot.ts(misspectest2)
+
+misspectest3 <- rSim_p(list(getMS(rho= -0.4, 10), getMS(rho= -0.4, 10)^2, getMS(rho= -0.4, 10)^3) , matrix(rnorm(10 * 500), 500,10) )
+plot.ts(misspectest3)
+```
+
+```{r}
+MS1 <- getMS(-0.6, 10)
+MS2 <- getMS(0.5, 10)
+MS3 <- getMS(-0.4, 10)
+```
+
+
+
+
+```{r}
+simMisspec <- function(iterations = 1000, G, p, test = "Score", estim = "DiagC", A1,A2,A3, truelag = 1, criterion = "eta", nu=0.5, option = "truncate", rm_cross_terms =F){ #conservative nu
+  coeff_list1 <-coeff_list2 <-coeff_list3 <- as.list(1:truelag) #empty AR param lists
+  for (i in 1:truelag) {
+    coeff_list1[[i]] <- A1 ^i#%^% i ##element-wise powers? division?
+    coeff_list2[[i]] <- A2 ^i#%^% i
+    coeff_list3[[i]] <- A3 ^i#%^% i
+  }
+  out <- matrix(NA,iterations,4)
+  d <- nrow(A1)
+  for (ii in 1:iterations) {
+    
+  e1 <- matrix(rnorm(d* 1000, 0, .5),ncol=d) #n = 3000 here
+  e2 <- matrix(rnorm(d * 1000, 0, .5),ncol=d)
+  e3 <- matrix(rnorm(d * 1000, 0, .5),ncol=d)
+  ##null
+  sim_n41 <- rbind(rSim_p(coeff_list1,e1),rSim_p(coeff_list2,e2),rSim_p(coeff_list3,e3)) #H0 or H1
+  if(option == "truncate"){  
+    
+      m_n41 <- ar(sim_n41, order.max = p, aic = F, demean = T, method = "ols")
+      m_n41_a <- m_n41$x.intercept#cbind(m_n41$x.intercept, as.matrix(m_n41$ar[1,,]))
+      for (i in 1:p) {
+        m_n41_a <- cbind(m_n41_a, as.matrix(m_n41$ar[i,,]))
+      }
+      m_n41_res <- m_n41$resid; m_n41_res[1:d,] <- 0.0001
+      t_n41 <- test_Score_new(x=sim_n41, p=p, G, Phi = as.matrix(m_n41_a), eps = as.matrix(m_n41_res), alpha = 0.05, estim, var_estim = "Local", criterion, nu)
+    
+    if(test =="Wald") t_n41 <- test_Wald_new(x=sim_n41, p=p, G, alpha = 0.05, estim, criterion, nu)
+  }
+  if(option == "ar1")   t_n41 <- mosum_univ(sim_n41,p,G,method = test, criterion = criterion, nu = nu,rm_cross_terms =rm_cross_terms)
+  
+  # if(test=="BS") {
+  #   tt <- MOSUMBS(x=sim_n41, p=lag, G)
+  #   cps <- tt$cps
+  #   if(is.null(cps)) cps <- c()
+  #   t_n41 <- list(cps = cps, Reject = length(cps)>0)
+  # }  
+  int1000 <- t_n41$cps[t_n41$cps <= 1060 & t_n41$cps >= 940]
+  int2000 <- t_n41$cps[t_n41$cps <= 2060 & t_n41$cps >= 1940]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$cps), length(int1000), length(int2000) )
+  }
+  return(out)
+}
+```
+
+```{r}
+simMisspec(1, G=250,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 1)
+simMisspec(1, G=250,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 1)
+
+simMisspec(1, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 1)
+simMisspec(1, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 1)
+
+```
+```{r}
+simMisspec(1, G=250,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 3)
+simMisspec(1, G=250,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 3)
+
+simMisspec(1, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 3)
+simMisspec(1, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 3)
+
+```
+```{r}
+simMisspec(1, G=250,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 1, option = "ar1")
+simMisspec(1, G=250,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 1, option = "ar1")
+
+simMisspec(1, G=400,p=3, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 3, option = "ar1")
+simMisspec(1, G=400,p=3, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 3, option = "ar1")
+
+```
+
+```{r}
+simMisspec(1, G=250,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 1, option = "ar1", rm_cross_terms = T)
+simMisspec(1, G=250,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 1, option = "ar1", rm_cross_terms = T)
+
+simMisspec(1, G=400,p=3, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 3, option = "ar1", rm_cross_terms = T)
+simMisspec(1, G=400,p=3, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 3, option = "ar1", rm_cross_terms = T)
+
+simMisspec(10, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 1, option = "ar1", rm_cross_terms = T)
+simMisspec(1, G=400,p=3, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 3, option = "ar1", rm_cross_terms = T)
+
+simMisspec(1, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 1, option = "ar1", rm_cross_terms = T)
+
+simMisspec(1, G=400,p=1, test = "Wald", estim = "DiagC", getMS(0.5,5),getMS(0.5,5),getMS(0.5,5), truelag = 1, option = "ar1", rm_cross_terms = T)
+```
+
+## ar1
+n = 3000, k1 = 1000, k2 = 2000
+G= 200,400,600
+increase true lags = 1,2,3,4
+
+### Wald
+
+```{r}
+AR1MSWaldL1G200 <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 1, option = "ar1")
+AR1MSWaldL1G400 <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 1, option = "ar1")
+AR1MSWaldL1G600 <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 1, option = "ar1")
+```
+
+```{r}
+AR1MSWaldL2G200 <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 2, option = "ar1")
+AR1MSWaldL2G400 <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 2, option = "ar1")
+AR1MSWaldL2G600 <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 2, option = "ar1")
+```
+
+```{r}
+AR1MSWaldL3G200 <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 3, option = "ar1")
+AR1MSWaldL3G400 <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 3, option = "ar1")
+AR1MSWaldL3G600 <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 3, option = "ar1")
+```
+
+```{r}
+AR1MSWaldL4G200 <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 4, option = "ar1")
+AR1MSWaldL4G400 <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 4, option = "ar1")
+AR1MSWaldL4G600 <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 4, option = "ar1")
+```
+
+
+```{r}
+report(AR1MSWaldL1G200)
+report(AR1MSWaldL1G400)
+report(AR1MSWaldL1G600)
+report(AR1MSWaldL2G200)
+report(AR1MSWaldL2G400)
+report(AR1MSWaldL2G600)
+report(AR1MSWaldL3G200)
+report(AR1MSWaldL3G400)
+report(AR1MSWaldL3G600)
+report(AR1MSWaldL4G200)
+report(AR1MSWaldL4G400)
+report(AR1MSWaldL4G600)
+```
+
+
+
+
+```{r}
+AR1MSWaldL1G200Null <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 1, option = "ar1")
+AR1MSWaldL1G400Null <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 1, option = "ar1")
+AR1MSWaldL1G600Null <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 1, option = "ar1")
+
+AR1MSWaldL2G200Null <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 2, option = "ar1")
+AR1MSWaldL2G400Null <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 2, option = "ar1")
+AR1MSWaldL2G600Null <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 2, option = "ar1")
+
+AR1MSWaldL3G200Null <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 3, option = "ar1")
+AR1MSWaldL3G400Null <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 3, option = "ar1")
+AR1MSWaldL3G600Null <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 3, option = "ar1")
+
+AR1MSWaldL4G200Null <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 4, option = "ar1")
+AR1MSWaldL4G400Null <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 4, option = "ar1")
+AR1MSWaldL4G600Null <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS1,MS1, truelag = 4, option = "ar1")
+```
+
+
+```{r}
+mean(AR1MSWaldL1G200Null[,1])
+mean(AR1MSWaldL1G400Null[,1])
+mean(AR1MSWaldL1G600Null[,1])
+mean(AR1MSWaldL2G200Null[,1])
+mean(AR1MSWaldL2G400Null[,1])
+mean(AR1MSWaldL2G600Null[,1])
+mean(AR1MSWaldL3G200Null[,1])
+mean(AR1MSWaldL3G400Null[,1])
+mean(AR1MSWaldL3G600Null[,1])
+mean(AR1MSWaldL4G200Null[,1])
+mean(AR1MSWaldL4G400Null[,1])
+mean(AR1MSWaldL4G600Null[,1])
+```
+### Score
+
+```{r}
+AR1MSScoreL1G200 <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 1, option = "ar1")
+AR1MSScoreL1G400 <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 1, option = "ar1")
+AR1MSScoreL1G600 <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 1, option = "ar1")
+
+AR1MSScoreL2G200 <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 2, option = "ar1")
+AR1MSScoreL2G400 <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 2, option = "ar1")
+AR1MSScoreL2G600 <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 2, option = "ar1")
+
+AR1MSScoreL3G200 <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 3, option = "ar1")
+AR1MSScoreL3G400 <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 3, option = "ar1")
+AR1MSScoreL3G600 <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 3, option = "ar1")
+
+AR1MSScoreL4G200 <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 4, option = "ar1")
+AR1MSScoreL4G400 <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 4, option = "ar1")
+AR1MSScoreL4G600 <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 4, option = "ar1")
+```
+
+
+```{r}
+report(AR1MSScoreL1G200)
+report(AR1MSScoreL1G400)
+report(AR1MSScoreL1G600)
+report(AR1MSScoreL2G200)
+report(AR1MSScoreL2G400)
+report(AR1MSScoreL2G600)
+report(AR1MSScoreL3G200)
+report(AR1MSScoreL3G400)
+report(AR1MSScoreL3G600)
+report(AR1MSScoreL4G200)
+report(AR1MSScoreL4G400)
+report(AR1MSScoreL4G600)
+```
+
+
+
+
+```{r}
+AR1MSScoreL1G200Null <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 1, option = "ar1")
+AR1MSScoreL1G400Null <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 1, option = "ar1")
+AR1MSScoreL1G600Null <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 1, option = "ar1")
+
+AR1MSScoreL2G200Null <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 2, option = "ar1")
+AR1MSScoreL2G400Null <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 2, option = "ar1")
+AR1MSScoreL2G600Null <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 2, option = "ar1")
+
+AR1MSScoreL3G200Null <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 3, option = "ar1")
+AR1MSScoreL3G400Null <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 3, option = "ar1")
+AR1MSScoreL3G600Null <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 3, option = "ar1")
+
+AR1MSScoreL4G200Null <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 4, option = "ar1")
+AR1MSScoreL4G400Null <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 4, option = "ar1")
+AR1MSScoreL4G600Null <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS1,MS1, truelag = 4, option = "ar1")
+```
+
+
+```{r}
+mean(AR1MSScoreL1G200Null[,1])
+mean(AR1MSScoreL1G400Null[,1])
+mean(AR1MSScoreL1G600Null[,1])
+mean(AR1MSScoreL2G200Null[,1])
+mean(AR1MSScoreL2G400Null[,1])
+mean(AR1MSScoreL2G600Null[,1])
+mean(AR1MSScoreL3G200Null[,1])
+mean(AR1MSScoreL3G400Null[,1])
+mean(AR1MSScoreL3G600Null[,1])
+mean(AR1MSScoreL4G200Null[,1])
+mean(AR1MSScoreL4G400Null[,1])
+mean(AR1MSScoreL4G600Null[,1])
+```
+
+
+## truncated lag
+
+
+
+### Wald
+
+```{r}
+MSWaldL1G200 <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 1)
+MSWaldL1G400 <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 1)
+MSWaldL1G600 <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 1)
+```
+
+```{r}
+MSWaldL2G200 <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 2)
+MSWaldL2G400 <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 2)
+MSWaldL2G600 <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 2)
+```
+
+```{r}
+MSWaldL3G200 <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 3)
+MSWaldL3G400 <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 3)
+MSWaldL3G600 <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 3)
+```
+
+```{r}
+MSWaldL4G200 <-  simMisspec(1000, G=200,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 4)
+MSWaldL4G400 <-  simMisspec(1000, G=400,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 4)
+MSWaldL4G600 <-  simMisspec(1000, G=600,p=1, test = "Wald", estim = "DiagC", MS1,MS2,MS3, truelag = 4)
+```
+
+### Score
+
+```{r}
+MSScoreL1G200 <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 1)
+MSScoreL1G400 <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 1)
+MSScoreL1G600 <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 1)
+
+MSScoreL2G200 <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 2)
+MSScoreL2G400 <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 2)
+MSScoreL2G600 <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 2)
+
+MSScoreL3G200 <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 3)
+MSScoreL3G400 <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 3)
+MSScoreL3G600 <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 3)
+
+MSScoreL4G200 <-  simMisspec(1000, G=200,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 4)
+MSScoreL4G400 <-  simMisspec(1000, G=400,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 4)
+MSScoreL4G600 <-  simMisspec(1000, G=600,p=1, test = "Score", estim = "DiagC", MS1,MS2,MS3, truelag = 4)
+```
+```{r}
+report(MSScoreL1G200)
+report(MSScoreL1G400)
+report(MSScoreL1G600)
+report(MSScoreL2G200)
+report(MSScoreL2G400)
+report(MSScoreL2G600)
+report(MSScoreL3G200)
+report(MSScoreL3G400)
+report(MSScoreL3G600)
+report(MSScoreL4G200)
+report(MSScoreL4G400)
+report(MSScoreL4G600)
+```

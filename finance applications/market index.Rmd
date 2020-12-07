@@ -1,0 +1,181 @@
+---
+title: "market index analysis"
+author: "Dom Owens"
+date: "10/11/2020"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+ftse <- read_csv("^FTSE.csv")
+dax <- read_csv("^GDAXI.csv", na = "null")#col_types = "Ddddddd"); #dax[,2:7] <- as.double(dax[,2:7])
+sp <- read_csv("^GSPC.csv")
+nikkei <- read_csv("^N225.csv", na = "null")
+head(nikkei)
+```
+
+## Close returns
+
+```{r}
+MarketIndex <- inner_join(sp[,1:2],dax[,1:2], by = "Date")
+#MarketIndex <- inner_join(MarketIndex, sp[,1:2], by = "Date")
+MarketIndex <- inner_join(MarketIndex, nikkei[,1:2], by = "Date")
+colnames(MarketIndex)[2:4] <- c("DAX.close","S&P.close","Nikkei.close")
+MarketIndex <- MarketIndex %>% mutate_at(2:4, as.double)
+MarketIndex <- na.omit(MarketIndex)
+head(MarketIndex)
+```
+log returns
+```{r}
+LogReturns <- log(lag(MarketIndex[,2:4])) - log(MarketIndex[,2:4])
+LogReturns <- na.omit(LogReturns)
+head(LogReturns)
+LogReturnsDates <- MarketIndex$Date[1:(nrow(MarketIndex)-1)]
+plot.ts(LogReturns, axes = T, main=" ",xlab = "Date", xaxt = "n"); axis(side = 1, line = 1, lwd=0.1, at = 1:nrow(LogReturns), labels =LogReturnsDates); 
+```
+
+```{r}
+test_Score_new(LogReturns, p=1, G=400)
+```
+```{r}
+MarketWald <-  test_Wald_new(as.matrix(LogReturns), p=1, G=400)
+```
+
+```{r}
+MarketWaldSub <- mosum_sub(as.matrix(LogReturns), p=1, G=400, method = "Wald",kap = 0.75, criterion = "eta", nu=0.2);#axis(side = 1, line = 1, lwd=0.1, at = 1:nrow(LogReturns), labels =LogReturnsDates);
+MarketWaldSub
+LogReturnsDates[MarketWaldSub$cps]
+```
+
+```{r}
+MarketScore <- mosum_sub(as.matrix(LogReturns), p=1, G=400, method = "Score", kap = 0.75, criterion = "eta", nu=0.2)
+
+LogReturnsDates[MarketScore$cps]
+```
+
+```{r}
+MOSUMBS(as.matrix(LogReturns), p=1, G=400)
+```
+
+
+## Volatility proxy
+
+```{r}
+library(tidyverse)
+XLK <- read_csv("XLK.csv")
+IBM <- read_csv("IBM.csv", na = "null")#col_types = "Ddddddd"); #dax[,2:7] <- as.double(dax[,2:7])
+AAPL <- read_csv("AAPL.csv", na = "null")
+INTC <- read_csv("INTC.csv", na = "null")
+MSFT <- read_csv("MSFT.csv", na = "null")
+ORCL <-  read_csv("ORCL.csv", na = "null")
+
+head(XLK)
+```
+
+
+
+```{r}
+proxy <- function(x){
+  out <- (log(x$High) - log(x$Low))^2 * 0.361
+  return(log(out))  
+}
+ftse.vol <- proxy(ftse)
+plot.ts(ftse.vol)
+```
+```{r}
+closedata <- sp[,c("Date","Close")] %>%
+  inner_join(XLK[,c("Date","Close")], by = "Date") %>%
+  inner_join(IBM[,c("Date","Close")], by = "Date") %>%
+  inner_join(AAPL[,c("Date","Close")], by = "Date") %>%
+  inner_join(INTC[,c("Date","Close")], by = "Date") %>%
+  inner_join(MSFT[,c("Date","Close")], by = "Date") %>%
+  inner_join(ORCL[,c("Date","Close")], by = "Date") 
+plot.ts(closedata)
+```
+
+
+```{r}
+sp <- sp %>% mutate(vol.SP = proxy(sp))
+XLK <- XLK %>% mutate(vol.XLK = proxy(XLK))
+
+IBM <- IBM %>% mutate(vol.IBM = proxy(IBM))
+AAPL <- AAPL %>% mutate(vol.AAPL = proxy(AAPL))
+INTC <- INTC %>% mutate(vol.INTC = proxy(INTC))
+MSFT <- MSFT %>% mutate(vol.MSFT = proxy(MSFT))
+ORCL <-  ORCL %>% mutate(vol.ORCL = proxy(ORCL))
+
+
+
+voldata <- sp[,c("Date","vol.SP")] %>%
+  inner_join(XLK[,c("Date","vol.XLK")], by = "Date") %>%
+  inner_join(IBM[,c("Date","vol.IBM")], by = "Date") %>%
+  inner_join(AAPL[,c("Date","vol.AAPL")], by = "Date") %>%
+  inner_join(INTC[,c("Date","vol.INTC")], by = "Date") %>%
+  inner_join(MSFT[,c("Date","vol.MSFT")], by = "Date") %>%
+  inner_join(ORCL[,c("Date","vol.ORCL")], by = "Date") 
+  
+head(voldata)  
+
+#voldata <- na.omit(voldata)
+#voldata <- voldata[ which(voldata$Nikkei.vol != -Inf & voldata$`S&P.vol` != -Inf), ]
+#voldata <- voldata %>% mutate(market.vol =  proxy(rowMeansexp(voldata[,2:4]))  )
+#head(voldata)
+plot.ts(voldata[,2:6], main = "")
+plot.ts(voldata[,2:8])
+```
+
+obtain residuals after controlling for market and sector volatility
+```{r}
+marketmodel <- lm(cbind(vol.AAPL,vol.IBM,vol.INTC,vol.MSFT,vol.ORCL) ~vol.SP + vol.XLK, data = voldata)
+summary(marketmodel)
+```
+```{r}
+plot.ts(marketmodel$residuals, main = " ", nc=1, xaxt = "n"); axis(side = 1, line = 1.1, lwd=0.1, at = 1:nrow(marketmodel$residuals), labels = lubridate::year(voldata$Date) )
+```
+
+
+
+
+```{r}
+vol.ar <- ar.ols(marketmodel$residuals)
+plot(vol.ar$aic)
+acf(marketmodel$residuals)
+```
+
+
+
+```{r}
+VolWald <-  test_Wald_new(marketmodel$residuals, p=1, G=200, criterion = "eps", nu=0.2)
+```
+
+```{r}
+MarketWaldSub <- mosum_sub(marketmodel$residuals, p=1, G=200, method = "Wald",kap = 1, criterion = "eta", nu=1);#axis(side = 1, line = 1, lwd=0.1, at = 1:nrow(LogReturns), labels =LogReturnsDates);
+MarketWaldSub$plot
+voldata$Date[MarketWaldSub$cps]
+```
+
+```{r}
+test_Score_new(marketmodel$residuals, p=1, G=200, criterion = "eta", nu=0.4)
+```
+
+
+```{r}
+MarketScore <- mosum_sub(marketmodel$residuals, p=1, G=200, method = "Score", kap = 1, criterion = "eta", nu=1)
+MarketScore$plot
+voldata$Date[MarketScore$cps]
+```
+### diagnostics
+
+```{r}
+MarketScore$cps
+norm( ar.ols(marketmodel$residuals, order.max = 1, aic = F)$var.pred, "F" )
+norm( ar.ols(marketmodel$residuals[1:375,], order.max = 1, aic = F)$var.pred, "F" )
+norm(  ar.ols(marketmodel$residuals[376:603,], order.max = 1, aic = F)$var.pred, "F" )
+norm(  ar.ols(marketmodel$residuals[604:1578,], order.max = 1, aic = F)$var.pred, "F" )
+norm(  ar.ols(marketmodel$residuals[1579:2336,], order.max = 1, aic = F)$var.pred, "F" )
+norm(  ar.ols(marketmodel$residuals[2337:3004,], order.max = 1, aic = F)$var.pred, "F" )
+norm(  ar.ols(marketmodel$residuals[3005:3302,], order.max = 1, aic = F)$var.pred, "F" )
+norm(  ar.ols(marketmodel$residuals[3303:4414,], order.max = 1, aic = F)$var.pred, "F" )
+norm(  ar.ols(marketmodel$residuals[4415:5507,], order.max = 1, aic = F)$var.pred, "F" )
+```
+

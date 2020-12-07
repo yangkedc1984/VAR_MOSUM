@@ -304,6 +304,14 @@ mat DiagC(mat x, int p, mat sigma_d, int k, int G)
     xk = join_rows(x.rows( k-G-1,k+G-1-1) , x.rows( k-G-1-1,k+G-2-1),x.rows( k-G-2-1,k+G-3-1), x.rows( k-G-3-1,k+G-4-1));
     xk.insert_cols(0,1);
   };
+  if(p==5) {
+    xk = join_rows(x.rows( k-G-1-1,k+G-2-1),x.rows( k-G-2-1,k+G-3-1), x.rows( k-G-3-1,k+G-4-1),x.rows( k-G-4-1,k+G-5-1));
+    xk.insert_cols(0, join_rows(O,x.rows( k-G-1,k+G-1-1)));
+  };
+  if(p==6) {
+    xk = join_rows(x.rows( k-G-2-1,k+G-3-1), x.rows( k-G-3-1,k+G-4-1),x.rows( k-G-4-1,k+G-5-1),x.rows( k-G-5-1,k+G-6-1));
+    xk.insert_cols(0, join_rows(O,x.rows( k-G-1,k+G-1-1), x.rows( k-G-1-1,k+G-2-1) ));
+  };
   mat C =  xk.t() * xk /(2*G -1); //works as intended
   //eigen decomposition
   eig_sym(evals,evecs,C);
@@ -338,7 +346,7 @@ double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String est
       sgd = getsigma_dLocal(eps, k, p, G);}
       mat Sig_ = DiagC(x,p,sgd,k,G) ;
       mat prod = A.t() * Sig_ * A;
-      out = sqrt( prod(0,0) ) /sqrt(16*G) ;//out = norm(Sig_ * A)  / sqrt(8*G);// (sqrt(2*G) ); //2*
+      out = sqrt( prod(0,0) ) /sqrt(16*G) ;//out = norm(Sig_ * A)  WHY is it scaling like this? undoing estimator scaling?
     } else{
    // if(estim == "DiagH") {
    //   sp_mat Sig_ = DiagH(x,k,G,p,h_all); //DiagH estimator for Sigma
@@ -381,106 +389,89 @@ vec T(mat x, int p, int G, mat Phi, mat eps, String estim = "DiagC",  String var
 }
 
 
-// 
-// //SIMULATION -------------------------------------
-// 
-// 
-// // [[Rcpp::export(get_cps_RCPP)]] //get_cps
-// vec cps(vec Wn, double D_n, int G, double nu = 0.25)
-// {
-//   int n = Wn.size(); vec out;
-//   //rshift <- c(Tn[-1],0); lshift <- c(0,Tn[-n]); 
-//   vec rshift = shift(Wn,-1); vec lshift = shift(Wn,1); 
-//   uvec over = find(Wn >D_n); //indices are greater than D_n?
-//   uvec lunder = find(lshift < D_n);
-//   uvec v = intersect(over, lunder); //lowers
-//   
-//   uvec runder = find(rshift < D_n);
-//   uvec w = intersect(over, runder); //uppers
-//   uvec nu_remove = find(w-v >= nu*G); //(epsilon) test for distance between 
-//   uvec v_nu = v.elem(nu_remove); uvec w_nu = w.elem(nu_remove); //w_nu.insert_rows(w_nu.size(),1); w_nu(w_nu.size()-1)=n;
-//   int q = nu_remove.size(); //number of CPs
-//   if(q>0){
-//     out = zeros(q);
-//     for (int ii=0; ii< q; ii++) {
-//       out(ii) = v_nu(ii) + Wn( span(v_nu(ii)-1,w_nu(ii)-1)).index_max() ;
-//     };
-//   };   
-//   return out;
-// }
-// 
-// // [[Rcpp::export(test_Wald_RCPP)]] //test_Wald
-// List test_Wald(mat x, int p, int G, double alpha =0.05, String estim = "DiagC"){
-//   int n = x.n_rows;
-//   int d = x.n_cols;
-//   vec cp; //double nu=1/4;
-//   //Test setup----------------------------
-//   double c_alpha = -log(log( pow((1-alpha),-0.5)) ); //critical value
-//   double a = sqrt(2*log(n/G)); //test transform multipliers
-//   double g = lgamma(d*(d*p+1)/2); double l23 = log(2)-log(3);
-//   double b = 2*log(n/G) + (d*(d*p+1)/2) * log(log(n/G)) -g - l23   ;
-//   // D_n =  ;//threshold
-//   double D_n = max((b + c_alpha)/a, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) ); //##ASYMPTOTIC correction
-//   int Reject = 0; //
-//   //Run test-----------------------------
-//   vec Wn = W(x,p,G,estim); //evaluate statistic at each time k
-//   double test_stat = Wn.max();
-//   if(test_stat > D_n){ //compare test stat with threshold
-//     Reject = 1; //test true
-//     cp = cps(Wn,D_n,G);
-//     if( cp.size()==0 ) Reject = 0 ;//doesn't pass eps-test
-//   } ; 
-//   //Plot------------------------------------
-//   //       plot(Wn) # plot test statistic
-//   //         abline(h = D_n, col = "blue") #add threshold
-//   //         if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
-//   //           pl <- recordPlot()
-//   // #plot( a*Tn - b); abline(h=c_alpha, col="blue") #rescaled plot
-//   //Output------------------------------------
-//   List out = List::create(Named("Reject") = Reject,  _["ChangePoints"] = cp);//, _["D_n"]=D_n, _["Wn"] = Wn,);
-//   return out ;
-// }
-// 
-// 
-// // [[Rcpp::export(sim_data_RCPP)]] 
-// mat sim_data(List pars, int n=1000, int d=5, double sd = 0.2){
-//   mat errors = randn(n,d)*sd;
-//   mat simdata = errors;
-//   int p = pars.length();
-//   //simdata.rows(0,p-1) = errors.rows(0,p-1);
-//   for(int r =p; r < n; r++){
-//     //simdata.row(r)   errors[row,]
-//     for (int ii=0; ii<p;  ii++) {
-//       mat mp = pars[ii];
-//       vec pp = mp * simdata.row(r-ii).t();
-//       simdata.row(r) = simdata.row(r) +  pp.t() ; 
-//     };
-//   };
-//   return simdata;
-// }
-// 
-// 
-// 
-// // [[Rcpp::export(var_simulate_RCPP)]] 
-// NumericVector var_sim(List pars, int reps =100, int p=2, int G=200, double alpha =0.05, String estim = "DiagC",int ncores =1){
-//   vec cp={500,1000,1500};
-//   NumericVector out(reps) ;
-//   RcppParallel::RVector<double> wo(out);
-//   //RcppParallel::RVector<double> wx(x);
-//   
-// #if defined(_OPENMP)
-// #pragma omp parallel for num_threads(ncores)
-// #endif
-//   for(int repl = 0; repl < reps; repl++ ){
-//     List p1 = List::create(pars[0], pars[1]);List p2 = List::create(pars[2], pars[3]);List p3 = List::create(pars[4], pars[5]);
-//     mat r1 = sim_data(p1, cp(0), 5);mat r2 = sim_data(p2, cp(1)-cp(0), 5);mat r3 = sim_data(p3, cp(2)-cp(1), 5); //in-regime data
-//     mat r = join_cols(r1,r2,r3); //full data
-//     List t = test_Wald(r, p, G, alpha,estim);
-//     wo[repl] = t[0];
-//   };
-//   //Output------------------------------------
-//   // List out = List::create(Named("Reject") = Reject, _["Wn"] = Wn, _["ChangePoints"] = cp, _["D_n"]=D_n);
-//   return out ;
-// }
+
+vec cps(vec Wn, double D_n, int G, double nu = 0.25)
+{
+  int n = Wn.size(); vec out;
+  //rshift <- c(Tn[-1],0); lshift <- c(0,Tn[-n]); 
+  vec rshift = shift(Wn,-1); vec lshift = shift(Wn,1); 
+  uvec over = find(Wn >D_n); //indices are greater than D_n?
+  uvec lunder = find(lshift < D_n);
+  uvec v = intersect(over, lunder); //lowers
+  
+  uvec runder = find(rshift < D_n);
+  uvec w = intersect(over, runder); //uppers
+  uvec nu_remove = find(w-v >= nu*G); //(epsilon) test for distance between 
+  uvec v_nu = v.elem(nu_remove); uvec w_nu = w.elem(nu_remove); //w_nu.insert_rows(w_nu.size(),1); w_nu(w_nu.size()-1)=n;
+  int q = nu_remove.size(); //number of CPs
+  if(q>0){
+    out = zeros(q);
+    for (int ii=0; ii< q; ii++) {
+      out(ii) = v_nu(ii) + Wn( span(v_nu(ii)-1,w_nu(ii)-1)).index_max() ;
+    };
+  };   
+  return out;
+}
+
+// [[Rcpp::export(test_Score_RCPP)]] //Score
+List test_Score(mat x, int p, int G, mat Phi, mat eps, double alpha =0.05, String estim = "DiagC"){
+  int n = x.n_rows;
+  int d = x.n_cols;
+  vec cp; //double nu=1/4;
+  //Test setup----------------------------
+  double c_alpha = -log(log( pow((1-alpha),-0.5)) ); //critical value
+  double a = sqrt(2*log(n/G)); //test transform multipliers
+  double g = lgamma(d*(d*p+1)/2); double l23 = log(2)-log(3);
+  double b = 2*log(n/G) + (d*(d*p+1)/2) * log(log(n/G)) -g - l23   ;
+  // D_n =  ;//threshold
+  double D_n = max((b + c_alpha)/a, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) ); //##ASYMPTOTIC correction
+  int Reject = 0; //
+  //Run test-----------------------------
+  vec Tn = T(x,p,G, Phi, eps, estim); //evaluate statistic at each time k
+  double test_stat = Tn.max();
+  if(test_stat > D_n){ //compare test stat with threshold
+    Reject = 1; //test true
+    cp = cps(Tn,D_n,G);
+    if( cp.size()==0 ) Reject = 0 ;//doesn't pass eps-test
+  } ; 
+  //Plot------------------------------------
+  //       plot(Wn) # plot test statistic
+  //         abline(h = D_n, col = "blue") #add threshold
+  //         if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
+  //           pl <- recordPlot()
+  // #plot( a*Tn - b); abline(h=c_alpha, col="blue") #rescaled plot
+  //Output------------------------------------
+  List out = List::create(Named("Reject") = Reject,  _["ChangePoints"] = cp);//, _["D_n"]=D_n, _["Wn"] = Wn,);
+  return out ;
+}
+
+// [[Rcpp::export(MFA_Score)]] 
+List MFA(mat x, int p, vec Gset, mat Phi, mat eps, String estim = "DiagC", double alpha = 0.05){
+  Gset = sort(Gset); //into ascending order
+  int Glen = Gset.size();
+  NumericVector cps;
+  bool Reject = FALSE;
+  NumericVector v(Glen); List tests(Glen);
+  List t;
+  for(int ii =0; ii < Glen; ii++){
+    t =  test_Score(x, p, Gset[ii], Phi, eps, alpha, estim);
+    tests[ii] = t;
+    if(t["Reject"]){ Reject = TRUE;}
+  }
+  if(Reject){
+    cps = as<List>(tests[0])["ChangePoints"];
+    if(Glen > 1){
+      for(int ii=1;  ii<Glen; ii++){
+        NumericVector K = as<List>(tests[ii])["ChangePoints"];
+        for(int jj=0; jj < K.size(); jj++) {
+          if(min(abs(K[jj] - cps)) > Gset[ii]) {cps.push_back(K[jj]);}
+        }
+      }
+    }
+  } //list(Reject, cps, q= length(cps))
+  return(List::create(Named("Reject") = Reject, _["ChangePoints"]=cps, _["q"] = cps.size() ));
+}
+
+
 
 

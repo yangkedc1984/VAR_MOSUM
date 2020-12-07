@@ -1,0 +1,53 @@
+---
+title: "tech stocks"
+author: "Dom Owens"
+date: "08/09/2020"
+output: html_document
+---
+
+```{r}
+load("sims.Rdata")
+tstocks <- read.csv("stocks.csv")
+head(tstocks)
+stocks.ts <- ts(tstocks[,2:5])
+plot.ts(stocks.ts)
+n <- dim(stocks.ts)[1]
+lret <- log(stocks.ts[-1,]/stocks.ts[-n,]) 
+plot.ts(lret)
+```
+
+
+```{r}
+smod <- ar(lret, method = "ols", demean=T)
+plot(smod$aic[1:4]) 
+acf(lret)
+```
+
+```{r}
+library(Rcpp)
+library(RcppParallel)
+library(RcppArmadillo)
+library(Matrix)
+sourceCpp(file = "Wald_RcppParallel.cpp")
+sourceCpp(file = "Score_Rcpp.cpp")
+```
+```{r}
+test_Wald_new(lret,1,150)
+```
+
+```{r}
+smdl <- ar.ols(lret, order.max = 1, aic = F)
+smdl_params <- cbind(smdl$x.intercept, (smdl$ar[1,,]))# matrix( smdl$ar[1,,], nrow=4, ncol=4),matrix( smdl$ar[2,,], nrow=4, ncol=4))
+sres <- smdl$resid; sres[1,] <- 0.001
+test_Score_new(lret,1,150,Phi = smdl_params, eps = sres, estim = "FullH")
+```
+
+```{r}
+mosum_sub(x=lret,p=2,G=200, estim = "FullH", kap = 0.7)
+```
+
+```{r}
+smfa <- MFA2(x=lret, p=1,Gset=c(75,150,300), estim = "FullH")
+smfa$pl
+```
+

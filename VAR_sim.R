@@ -50,3 +50,27 @@ rSim_p <- function(coeff_list,  errors) {
   return(ts(simdata))
 }
 
+
+Alist <- list( matrix( c(0.7,-.1,.7,-.1), nrow = 2, ncol = 2),  matrix( -c(0.1,.1,.1,.1), nrow = 2, ncol = 2) )
+library(Rcpp)
+library(RcppParallel)
+library(RcppArmadillo)
+library(Matrix)
+sourceCpp(file = "VAR_sim.cpp")
+##
+
+plot.ts(
+  VAR_sim(n=1000, mu = c(0,0), Sigma = diag(1,2,2), coeffs = list( diag(0.9,2,2) ), error_dist = "normal", P1= diag(1), Q1 = diag(1) ) )
+
+plot.ts(
+  VAR_sim(n=1000, mu = c(0,0), Sigma = diag(0.5,2,2), coeffs = list( diag(0.9,2,2) ), error_dist = "t", df = 100 ) )
+
+plot.ts(
+  VAR_sim(n=1000, mu = c(0,0), Sigma = diag(0.5,2,2), coeffs = list( diag(0.9,2,2) ), error_dist = "garch", df = 100,
+          P1= diag(0.5, 2,2), Q1 = diag(0.5, 2,2) ) )
+
+### mb
+
+
+#library(microbenchmark)
+#microbenchmark()

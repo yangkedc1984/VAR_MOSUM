@@ -1,0 +1,209 @@
+---
+title: "simsSubsample"
+author: "Dom Owens"
+date: "02/11/2020"
+output: html_document
+---
+```{r}
+simSubsample <- function(iterations = 1000, n, test = "Score", estim = "DiagC", A1,A2,A3){
+  out <- matrix(NA,iterations,4)
+  d <- nrow(A1)
+  k1 <- floor(n*3/8)
+  k2 <- floor(n*5/8)
+  G <- floor(1.33 * n^.66) #scale bandwidth
+  for (ii in 1:iterations) {
+  e1 <- matrix(rnorm(d* k1, 0, .5),ncol=d)
+  e2 <- matrix(rnorm(d * (k2-k1), 0, .5),ncol=d)
+  e3 <- matrix(rnorm(d * (n-k2), 0, .5),ncol=d)
+  sim_n41 <- rbind(rSim(A1,e1),rSim(A2,e2),rSim(A3,e3)) #H0 or H1
+  if(test =="Score"){ 
+    t_n41 <- mosum_sub(x=sim_n41, p=1, G, method="Score", alpha = 0.05, estim)
+  }
+  if(test =="Wald") t_n41 <- mosum_sub(x=sim_n41, p=1, G, method="Wald", estim)
+  CI <- 0.02*n
+  int750 <- t_n41$cps[t_n41$cps <= k1+CI & t_n41$cps >= k1-CI]
+  int1250 <- t_n41$cps[t_n41$cps <= k2+CI & t_n41$cps >= k2-CI]
+  #int1500 <- t_n41$cps[t_n41$cps <= 1540 & t_n41$cps >= 1460]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$cps), length(int750), length(int1250) )
+  }
+  return(out)
+}
+simSubsampleNull <- function(iterations = 1000, n, test = "Score", estim = "DiagC", A1){
+  out <- matrix(NA,iterations,4)
+  d <- nrow(A1)
+  G <- floor(1.33 * n^.66) #scale bandwidth
+  for (ii in 1:iterations) {
+  e1 <- matrix(rnorm(d* n, 0, .5),ncol=d)
+  sim_n41 <- rSim(A1,e1) #H0 or H1
+  if(test =="Score"){ 
+    t_n41 <- mosum_sub(x=sim_n41, p=1, G, method="Score", alpha = 0.05, estim)
+  }
+  if(test =="Wald") t_n41 <- mosum_sub(x=sim_n41, p=1, G, method="Wald", estim)
+  CI <- 0.02*n
+  int750 <- t_n41$cps[t_n41$cps <= k1+CI & t_n41$cps >= k1-CI]
+  int1250 <- t_n41$cps[t_n41$cps <= k2+CI & t_n41$cps >= k2-CI]
+  #int1500 <- t_n41$cps[t_n41$cps <= 1540 & t_n41$cps >= 1460]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$cps), length(int750), length(int1250) )
+  }
+  return(out)
+}
+```
+
+
+
+## Alternative
+
+
+Wald
+
+H1 d3
+```{r, fig.keep=`none`}
+SubsampleWald_d3n2000 <- simSubsample(iterations = 1000,n=2000, test = "Wald", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+SubsampleWald_d3n5000 <- simSubsample(iterations = 1000,n=5000, test = "Wald", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+SubsampleWald_d3n10000 <- simSubsample(iterations = 1000,n=10000, test = "Wald", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+```
+d4
+```{r, fig.keep=`none`}
+SubsampleWald_d4n2000 <- simSubsample(iterations = 1000,n=2000, test = "Wald", estim = "DiagC", A1_d4,A2_d4,A3_d4)
+SubsampleWald_d4n5000 <- simSubsample(iterations = 1000,n=5000, test = "Wald", estim = "DiagC", A1_d4,A2_d4,A3_d4)
+SubsampleWald_d4n10000 <- simSubsample(iterations = 1000,n=10000, test = "Wald", estim = "DiagC", A1_d4,A2_d4,A3_d4)
+```
+d5
+```{r, fig.keep=`none`}
+SubsampleWald_d5n2000 <- simSubsample(iterations = 1000,n=2000, test = "Wald", estim = "DiagC", A1_d5,A2_d5,A3_d5)
+SubsampleWald_d5n5000 <- simSubsample(iterations = 1000,n=5000, test = "Wald", estim = "DiagC", A1_d5,A2_d5,A3_d5)
+SubsampleWald_d5n10000 <- simSubsample(iterations = 1000,n=10000, test = "Wald", estim = "DiagC", A1_d5,A2_d5,A3_d5)
+```
+
+```{r}
+simSubsample(iterations = 10,n=10000, test = "Wald", estim = "DiagC", A1_d5,A2_d5,A3_d5)
+```
+
+
+
+Score
+
+H1 d3
+```{r, fig.keep=`none`}
+SubsampleScore_d3n2000 <- simSubsample(iterations = 1000,n=2000, test = "Score", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+SubsampleScore_d3n5000 <- simSubsample(iterations = 1000,n=5000, test = "Score", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+SubsampleScore_d3n10000 <- simSubsample(iterations = 1000,n=10000, test = "Score", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+```
+d4
+```{r, fig.keep=`none`} 
+## 6th Nov rerun
+SubsampleScore_d4n2000 <- simSubsample(iterations = 1000,n=2000, test = "Score", estim = "DiagC", A1_d4,A2_d4,A3_d4)
+SubsampleScore_d4n5000 <- simSubsample(iterations = 1000,n=5000, test = "Score", estim = "DiagC", A1_d4,A2_d4,A3_d4) ##3rd Nov
+SubsampleScore_d4n10000 <- simSubsample(iterations = 1000,n=10000, test = "Score", estim = "DiagC", A1_d4,A2_d4,A3_d4) 
+```
+d5
+```{r, fig.keep=`none`}
+SubsampleScore_d5n2000 <- simSubsample(iterations = 1000,n=2000, test = "Score", estim = "DiagC", A1_d5,A2_d5,A3_d5)
+SubsampleScore_d5n5000 <- simSubsample(iterations = 1000,n=5000, test = "Score", estim = "DiagC", A1_d5,A2_d5,A3_d5)
+SubsampleScore_d5n10000 <- simSubsample(iterations = 1000,n=10000, test = "Score", estim = "DiagC", A1_d5,A2_d5,A3_d5)
+```
+
+
+
+
+```{r}
+report(SubsampleScore_d3n2000)
+report(SubsampleScore_d3n5000)
+report(SubsampleScore_d3n10000)
+
+report(SubsampleWald_d3n2000)
+report(SubsampleWald_d3n5000)
+report(SubsampleWald_d3n10000) 
+
+report(SubsampleScore_d4n2000)
+report(SubsampleScore_d4n5000)
+report(SubsampleScore_d4n10000)
+
+report(SubsampleWald_d4n2000)
+report(SubsampleWald_d4n5000)
+report(SubsampleWald_d4n10000)
+
+report(SubsampleScore_d5n2000)
+report(SubsampleScore_d5n5000)
+report(SubsampleScore_d5n10000)
+
+report(SubsampleWald_d5n2000)
+report(SubsampleWald_d5n5000)
+report(SubsampleWald_d5n10000)
+```
+
+9th nov
+
+
+## Null
+
+Wald
+
+H0 d3
+```{r, fig.keep=`none`}
+SubsampleWald_d3n2000Null <- simSubsampleNull(iterations = 1000,n=2000, test = "Wald", estim = "DiagC", A1_d3)
+SubsampleWald_d3n5000Null <- simSubsampleNull(iterations = 1000,n=5000, test = "Wald", estim = "DiagC", A1_d3)
+SubsampleWald_d3n10000Null <- simSubsampleNull(iterations = 1000,n=10000, test = "Wald", estim = "DiagC", A1_d3)
+```
+d4
+```{r, fig.keep=`none`}
+SubsampleWald_d4n2000Null <- simSubsampleNull(iterations = 1000,n=2000, test = "Wald", estim = "DiagC", A1_d4)
+SubsampleWald_d4n5000Null <- simSubsampleNull(iterations = 1000,n=5000, test = "Wald", estim = "DiagC", A1_d4)
+SubsampleWald_d4n10000Null <- simSubsampleNull(iterations = 1000,n=10000, test = "Wald", estim = "DiagC")
+```
+d5
+```{r, fig.keep=`none`}
+SubsampleWald_d5n2000Null <- simSubsampleNull(iterations = 1000,n=2000, test = "Wald", estim = "DiagC", A1_d5)
+SubsampleWald_d5n5000Null <- simSubsampleNull(iterations = 1000,n=5000, test = "Wald", estim = "DiagC", A1_d5)
+SubsampleWald_d5n10000Null <- simSubsampleNull(iterations = 1000,n=10000, test = "Wald", estim = "DiagC", A1_d5)
+```
+
+Score
+
+H0 d3
+```{r, fig.keep=`none`}
+SubsampleScore_d3n2000Null <- simSubsampleNull(iterations = 1000,n=2000, test = "Score", estim = "DiagC", A1_d3)
+SubsampleScore_d3n5000Null <- simSubsampleNull(iterations = 1000,n=5000, test = "Score", estim = "DiagC", A1_d3)
+SubsampleScore_d3n10000Null <- simSubsampleNull(iterations = 1000,n=10000, test = "Score", estim = "DiagC", A1_d3)
+```
+d4
+```{r, fig.keep=`none`}
+SubsampleScore_d4n2000Null <- simSubsampleNull(iterations = 1000,n=2000, test = "Score", estim = "DiagC", A1_d4)
+SubsampleScore_d4n5000Null <- simSubsampleNull(iterations = 1000,n=5000, test = "Score", estim = "DiagC", A1_d4) ##4th nov
+SubsampleScore_d4n10000Null <- simSubsampleNull(iterations = 1000,n=10000, test = "Score", estim = "DiagC", A1_d4)
+```
+d5
+```{r, fig.keep=`none`}
+SubsampleScore_d5n2000Null <- simSubsampleNull(iterations = 1000,n=2000, test = "Score", estim = "DiagC", A1_d5)
+SubsampleScore_d5n5000Null <- simSubsampleNull(iterations = 1000,n=5000, test = "Score", estim = "DiagC", A1_d5)
+SubsampleScore_d5n10000Null <- simSubsampleNull(iterations = 1000,n=10000, test = "Score", estim = "DiagC", A1_d5)
+```
+
+```{r}
+mean(SubsampleScore_d3n2000Null[,1])
+mean(SubsampleScore_d3n5000Null[,1])
+mean(SubsampleScore_d3n10000Null[,1])
+
+mean(SubsampleWald_d3n2000Null[,1])
+mean(SubsampleWald_d3n5000Null[,1])
+mean(SubsampleWald_d3n10000Null[,1]) 
+
+mean(SubsampleScore_d4n2000Null[,1])
+mean(SubsampleScore_d4n5000Null[,1])
+mean(SubsampleScore_d4n10000Null[,1])
+
+mean(SubsampleWald_d4n2000Null[,1])
+mean(SubsampleWald_d4n5000Null[,1])
+mean(SubsampleWald_d4n10000Null[,1])
+
+mean(SubsampleScore_d5n2000Null[,1])
+mean(SubsampleScore_d5n5000Null[,1])
+mean(SubsampleScore_d5n10000Null[,1])
+
+mean(SubsampleWald_d5n2000Null[,1])
+mean(SubsampleWald_d5n5000Null[,1])
+mean(SubsampleWald_d5n10000Null[,1])
+```
+

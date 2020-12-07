@@ -1,0 +1,690 @@
+---
+title: "Sims"
+author: "Dom Owens"
+date: "09/09/2020"
+output: html_document
+---
+```{r}
+library(Rcpp)
+library(RcppParallel)
+library(RcppArmadillo)
+library(Matrix)
+sourceCpp(file = "Wald_RcppParallel.cpp")
+sourceCpp(file = "Score_Rcpp.cpp")
+```
+
+
+## Standard Simulations
+
+	n=2000, varying G = 50, 100, 200, 400, $d=3,4,5, p=1$, N=1000 iterations
+```{r}
+report <- function(x){
+  out <- c(colMeans(x[,1:2]),  sd(x[2,]),  colMeans(x[,3:4]) )
+  names(out) <- c("Power", "Average #CPs", "SD of #CPs", "k1", "k2")
+  return(out)
+}
+  #function(x){ cat("Power ", colMeans(x)[1],"Average #CPs", colMeans(x)[2], "SD of #CPs", sd(x[2,]), "Location Estimates", colMeans(x)[3:4] ,sep=" ") }
+
+
+A1_d3 <- diag(0.8, 3) - 0.1; A2_d3 <- diag(0.3, 3) + 0.1; A3_d3 <- diag(0.4, 3) - 0.2; 
+A1_d4 <- diag(0.8, 4) - 0.1; A2_d4 <- diag(0.3, 4) + 0.1; A3_d4 <- diag(0.4, 4) - 0.2; 
+A1_d5 <- diag(0.8, 5) - 0.1; A2_d5 <- diag(0.3, 5) + 0.1; A3_d5 <- diag(0.4, 5) - 0.2; 
+```
+
+### Alternative
+
+```{r}
+simBandwidth <- function(iterations = 1000, G, test = "Score", estim = "DiagC", A1,A2,A3, criterion = "eps", nu=0.25){
+  out <- matrix(NA,iterations,4)
+  d <- nrow(A1)
+  for (ii in 1:iterations) {
+    
+  e1 <- matrix(rnorm(d* 750, 0, .5),ncol=d)
+  e2 <- matrix(rnorm(d * 500, 0, .5),ncol=d)
+  e3 <- matrix(rnorm(d * 750, 0, .5),ncol=d)
+#  e4 <- matrix(rnorm(5 * 500, 0, .5),ncol=5)
+  ##null
+  sim_n41 <- rbind(rSim(A1,e1),rSim(A2,e2),rSim(A3,e3)) #H0 or H1
+  if(test =="Score"){ 
+    m_n41 <- ar(sim_n41, order.max = 1, aic = F, demean = T, method = "ols")
+    m_n41_a <- cbind(m_n41$x.intercept, as.matrix(m_n41$ar[1,,]))
+    m_n41_res <- m_n41$resid; m_n41_res[1:d,] <- 0.0001
+    t_n41 <- test_Score_new(x=sim_n41, p=1, G, Phi = as.matrix(m_n41_a), eps = as.matrix(m_n41_res), alpha = 0.05, estim, var_estim = "Local", criterion, nu)
+  }
+  if(test =="Wald") t_n41 <- test_Wald_new(x=sim_n41, p=1, G, alpha = 0.05, estim, criterion, nu)
+  int750 <- t_n41$cps[t_n41$cps <= 790 & t_n41$cps >= 710]
+  int1250 <- t_n41$cps[t_n41$cps <= 1290 & t_n41$cps >= 1210]
+  #int1500 <- t_n41$cps[t_n41$cps <= 1540 & t_n41$cps >= 1460]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$cps), length(int750), length(int1250) )
+  }
+  return(out)
+}
+```
+
+
+Wald
+
+H1 d3
+```{r, fig.keep=`none`}
+BandwidthWald_d3G50 <- simBandwidth(iterations = 1000,G=50, test = "Wald", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+BandwidthWald_d3G100 <- simBandwidth(iterations = 1000,G=100, test = "Wald", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+BandwidthWald_d3G200 <- simBandwidth(iterations = 1000,G=200, test = "Wald", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+BandwidthWald_d3G400 <- simBandwidth(iterations = 1000,G=400, test = "Wald", estim = "DiagC", A1_d3,A2_d3,A3_d3, criterion = "eta") ##
+```
+```{r}
+report(BandwidthWald_d3G50)
+report(BandwidthWald_d3G100)
+report(BandwidthWald_d3G200)
+report(BandwidthWald_d3G400)
+```
+
+
+H1 d4
+```{r, fig.keep=`none`}
+BandwidthWald_d4G50 <- simBandwidth(iterations = 1000,G=50, test = "Wald", estim = "DiagC", A1_d4,A2_d4,A3_d4)
+BandwidthWald_d4G100 <- simBandwidth(iterations = 1000,G=100, test = "Wald", estim = "DiagC", A1_d4,A2_d4,A3_d4)
+BandwidthWald_d4G200 <- simBandwidth(iterations = 1000,G=200, test = "Wald", estim = "DiagC", A1_d4,A2_d4,A3_d4)
+BandwidthWald_d4G400 <- simBandwidth(iterations = 1000,G=400, test = "Wald", estim = "DiagC", A1_d4,A2_d4,A3_d4, criterion = "eta") ##
+```
+```{r}
+report(BandwidthWald_d4G50)
+report(BandwidthWald_d4G100)
+report(BandwidthWald_d4G200)
+report(BandwidthWald_d4G400)
+```
+
+```{r}
+#set.seed(111)
+simBandwidth(iterations = 1,G=200, test = "Wald", estim = "DiagC", A1_d4,A2_d4,A3_d4, criterion = "eta", nu= 0.25)
+```
+
+
+H1 d5
+```{r, fig.keep=`none`}
+BandwidthWald_d5G50 <- simBandwidth(iterations = 1000,G=50, test = "Wald", estim = "DiagC", A1_d5,A2_d5,A3_d5)
+BandwidthWald_d5G100 <- simBandwidth(iterations = 1000,G=100, test = "Wald", estim = "DiagC",  A1_d5,A2_d5,A3_d5)
+BandwidthWald_d5G200 <- simBandwidth(iterations = 1000,G=200, test = "Wald", estim = "DiagC",  A1_d5,A2_d5,A3_d5)
+BandwidthWald_d5G400 <- simBandwidth(iterations = 1000,G=400, test = "Wald", estim = "DiagC",  A1_d5,A2_d5,A3_d5, criterion = "eta")
+```
+```{r}
+report(BandwidthWald_d5G50)
+report(BandwidthWald_d5G100)
+report(BandwidthWald_d5G200)
+report(BandwidthWald_d5G400) ##rerun with union
+```
+
+```{r}
+simBandwidth(iterations = 2,G=400, test = "Wald", estim = "DiagC",  A1_d5,A2_d5,A3_d5, criterion = "eta")
+simBandwidth(iterations = 2,G=400, test = "Score", estim = "DiagC",  A1_d5,A2_d5,A3_d5, criterion = "eta")
+```
+
+
+
+Score
+
+H1 d3
+```{r, fig.keep=`none`}
+BandwidthScore_d3G50 <- simBandwidth(iterations = 1000,G=50, test = "Score", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+BandwidthScore_d3G100 <- simBandwidth(iterations = 1000,G=100, test = "Score", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+BandwidthScore_d3G200 <- simBandwidth(iterations = 1000,G=200, test = "Score", estim = "DiagC", A1_d3,A2_d3,A3_d3)
+BandwidthScore_d3G400 <- simBandwidth(iterations = 1000,G=400, test = "Score", estim = "DiagC", A1_d3,A2_d3,A3_d3, criterion = "eta")
+```
+```{r}
+report(BandwidthScore_d3G50)
+report(BandwidthScore_d3G100)
+report(BandwidthScore_d3G200)
+report(BandwidthScore_d3G400) ##union
+```
+
+
+H1 d4
+```{r, fig.keep=`none`}
+BandwidthScore_d4G50 <- simBandwidth(iterations = 1000,G=50, test = "Score", estim = "DiagC", A1_d4,A2_d4,A3_d4)
+BandwidthScore_d4G100 <- simBandwidth(iterations = 1000,G=100, test = "Score", estim = "DiagC", A1_d4,A2_d4,A3_d4)
+BandwidthScore_d4G200 <- simBandwidth(iterations = 1000,G=200, test = "Score", estim = "DiagC", A1_d4,A2_d4,A3_d4)
+BandwidthScore_d4G400 <- simBandwidth(iterations = 1000,G=400, test = "Score", estim = "DiagC", A1_d4,A2_d4,A3_d4, criterion = "eta")
+```
+```{r}
+report(BandwidthScore_d4G50)
+report(BandwidthScore_d4G100)
+report(BandwidthScore_d4G200)
+report(BandwidthScore_d4G400) ##union
+```
+
+H1 d5
+```{r, fig.keep=`none`}
+BandwidthScore_d5G50 <- simBandwidth(iterations = 1000,G=50, test = "Score", estim = "DiagC", A1_d5,A2_d5,A3_d5)
+BandwidthScore_d5G100 <- simBandwidth(iterations = 1000,G=100, test = "Score", estim = "DiagC",  A1_d5,A2_d5,A3_d5)
+BandwidthScore_d5G200 <- simBandwidth(iterations = 1000,G=200, test = "Score", estim = "DiagC",  A1_d5,A2_d5,A3_d5)
+BandwidthScore_d5G400 <- simBandwidth(iterations = 1000,G=400, test = "Score", estim = "DiagC",  A1_d5,A2_d5,A3_d5, criterion = "eta")
+```
+```{r}
+report(BandwidthScore_d5G50)
+report(BandwidthScore_d5G100)
+report(BandwidthScore_d5G200)
+report(BandwidthScore_d5G400)
+```
+
+
+```{r}
+report(BandwidthWald50)
+report(BandwidthWald100)
+report(BandwidthWald200)
+report(BandwidthWald400)
+```
+
+```{r, fig.keep=`none`}
+BandwidthScore50 <- simBandwidth(iterations = 1000,G=50, test = "Score")
+BandwidthScore100 <- simBandwidth(iterations = 1000,G=100, test = "Score")
+BandwidthScore200 <- simBandwidth(iterations = 1000,G=200, test = "Score")
+BandwidthScore400 <- simBandwidth(iterations = 1000,G=400, test = "Score")
+```
+
+```{r}
+report(BandwidthScore50)
+report(BandwidthScore100)
+report(BandwidthScore200)
+report(BandwidthScore400)
+```
+
+### Null
+
+ Null simulations 
+```{r}
+simBandwidthNull <- function(iterations = 1000, G, test = "Score", estim = "DiagC",A1){
+  out <- matrix(NA,iterations,4)
+  d <- nrow(A1)
+  for (ii in 1:iterations) {
+  e1 <- matrix(rnorm(d * 2000, 0, .5),ncol=d)
+  ##null
+  sim_n41 <- rSim(A1,e1)#rbind(rSim(A,e1),rSim(B,e2),rSim(C,e3)) #H0 or H1
+  if(test =="Score"){ 
+    #plot.ts(sim_n41)
+    m_n41 <- ar(sim_n41, order.max = 1, aic = F, demean = T, method = "ols") #remove mean for E[Y]=0
+    #var_change_0 <- as.matrix(t( t(var_change) - (change_model$x.mean))) #centre
+    m_n41_a <- cbind(m_n41$x.intercept, as.matrix(m_n41$ar[1,,]))
+    m_n41_res <- m_n41$resid; m_n41_res[1:d,] <- 0.0001
+    t_n41 <- test_Score_new(x=sim_n41, p=1, G, Phi = m_n41_a, eps = m_n41_res, alpha = 0.05, estim)
+  }
+  if(test =="Wald") t_n41 <- test_Wald_new(x=sim_n41, p=1, G, alpha = 0.05, estim)
+  int750 <- t_n41$cps[t_n41$cps <= 790 & t_n41$cps >= 710]
+  int1250 <- t_n41$cps[t_n41$cps <= 1290 & t_n41$cps >= 1210]
+  #int1500 <- t_n41$cps[t_n41$cps <= 1540 & t_n41$cps >= 1460]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$cps), length(int750), length(int1250) )
+  }
+  return(out)
+}
+```
+
+Wald
+
+H0 d3
+```{r, fig.keep=`none`}
+BandwidthWaldNull_d3G50 <- simBandwidthNull(iterations = 1000,G=50, test = "Wald", estim = "DiagC", A1_d3)
+BandwidthWaldNull_d3G100 <- simBandwidthNull(iterations = 1000,G=100, test = "Wald", estim = "DiagC", A1_d3)
+BandwidthWaldNull_d3G200 <- simBandwidthNull(iterations = 1000,G=200, test = "Wald", estim = "DiagC", A1_d3)
+BandwidthWaldNull_d3G400 <- simBandwidthNull(iterations = 1000,G=400, test = "Wald", estim = "DiagC", A1_d3)
+```
+```{r}
+mean(BandwidthWaldNull_d3G50[,1])
+mean(BandwidthWaldNull_d3G100[,1])
+mean(BandwidthWaldNull_d3G200[,1])
+mean(BandwidthWaldNull_d3G400[,1])
+```
+
+H0 d4
+```{r, fig.keep=`none`}
+BandwidthWaldNull_d4G50 <- simBandwidthNull(iterations = 1000,G=50, test = "Wald", estim = "DiagC", A1_d4)
+BandwidthWaldNull_d4G100 <- simBandwidthNull(iterations = 1000,G=100, test = "Wald", estim = "DiagC", A1_d4)
+BandwidthWaldNull_d4G200 <- simBandwidthNull(iterations = 1000,G=200, test = "Wald", estim = "DiagC", A1_d4)
+BandwidthWaldNull_d4G400 <- simBandwidthNull(iterations = 1000,G=400, test = "Wald", estim = "DiagC", A1_d4)
+```
+```{r}
+mean(BandwidthWaldNull_d4G50[,1])
+mean(BandwidthWaldNull_d4G100[,1])
+mean(BandwidthWaldNull_d4G200[,1])
+mean(BandwidthWaldNull_d4G400[,1])
+```
+
+```{r}
+simBandwidth(iterations = 1,G=200, test = "Score", estim = "DiagC", A1_d4, A2_d4,A3_d4)
+simBandwidth(iterations = 1,G=200, test = "Wald", estim = "DiagC", A1_d4, A2_d4,A3_d4)
+simBandwidthNull(iterations = 1,G=100, test = "Score", estim = "DiagC", A1_d4)
+```
+
+H0 d5
+```{r, fig.keep=`none`}
+BandwidthWaldNull_d5G50 <- simBandwidthNull(iterations = 1000,G=50, test = "Wald", estim = "DiagC", A1_d5)
+BandwidthWaldNull_d5G100 <- simBandwidthNull(iterations = 1000,G=100, test = "Wald", estim = "DiagC", A1_d5)
+BandwidthWaldNull_d5G200 <- simBandwidthNull(iterations = 1000,G=200, test = "Wald", estim = "DiagC", A1_d5)
+BandwidthWaldNull_d5G400 <- simBandwidthNull(iterations = 1000,G=400, test = "Wald", estim = "DiagC", A1_d5)
+```
+```{r}
+mean(BandwidthWaldNull_d5G50[,1])
+mean(BandwidthWaldNull_d5G100[,1])
+mean(BandwidthWaldNull_d5G200[,1])
+mean(BandwidthWaldNull_d5G400[,1])
+```
+
+ -- Ended here Nov 2nd
+
+Score
+
+H0 d3
+```{r, fig.keep=`none`}
+BandwidthScoreNull_d3G50 <- simBandwidthNull(iterations = 1000,G=50, test = "Score", estim = "DiagC", A1_d3)
+BandwidthScoreNull_d3G100 <- simBandwidthNull(iterations = 1000,G=100, test = "Score", estim = "DiagC", A1_d3)
+BandwidthScoreNull_d3G200 <- simBandwidthNull(iterations = 1000,G=200, test = "Score", estim = "DiagC", A1_d3)
+BandwidthScoreNull_d3G400 <- simBandwidthNull(iterations = 1000,G=400, test = "Score", estim = "DiagC", A1_d3)
+```
+
+```{r}
+mean(BandwidthScoreNull_d3G50[,1])
+mean(BandwidthScoreNull_d3G100[,1])
+mean(BandwidthScoreNull_d3G200[,1])
+mean(BandwidthScoreNull_d3G400[,1])
+```
+
+
+H0 d4
+```{r, fig.keep=`none`}
+BandwidthScoreNull_d4G50 <- simBandwidthNull(iterations = 1000,G=50, test = "Score", estim = "DiagC", A1_d4)
+BandwidthScoreNull_d4G100 <- simBandwidthNull(iterations = 1000,G=100, test = "Score", estim = "DiagC", A1_d4)
+BandwidthScoreNull_d4G200 <- simBandwidthNull(iterations = 1000,G=200, test = "Score", estim = "DiagC", A1_d4)
+BandwidthScoreNull_d4G400 <- simBandwidthNull(iterations = 1000,G=400, test = "Score", estim = "DiagC", A1_d4)
+```
+```{r}
+mean(BandwidthScoreNull_d4G50[,1])
+mean(BandwidthScoreNull_d4G100[,1])
+mean(BandwidthScoreNull_d4G200[,1])
+mean(BandwidthScoreNull_d4G400[,1])
+```
+
+H0 d5
+```{r, fig.keep=`none`}
+BandwidthScoreNull_d5G50 <- simBandwidthNull(iterations = 1000,G=50, test = "Score", estim = "DiagC", A1_d5)
+BandwidthScoreNull_d5G100 <- simBandwidthNull(iterations = 1000,G=100, test = "Score", estim = "DiagC", A1_d5)
+BandwidthScoreNull_d5G200 <- simBandwidthNull(iterations = 1000,G=200, test = "Score", estim = "DiagC", A1_d5)
+BandwidthScoreNull_d5G400 <- simBandwidthNull(iterations = 1000,G=400, test = "Score", estim = "DiagC", A1_d5)
+```
+```{r}
+mean(BandwidthScoreNull_d5G50[,1])
+mean(BandwidthScoreNull_d5G100[,1])
+mean(BandwidthScoreNull_d5G200[,1])
+mean(BandwidthScoreNull_d5G400[,1])
+```
+
+
+```{r}
+simBandwidthNull(iterations = 10,G=200, test = "Score", estim = "DiagC", A1_d5)
+```
+
+
+```{r}
+mean(BandwidthWaldNull50[,1])
+mean(BandwidthWaldNull100[,1])
+mean(BandwidthWaldNull200[,1])
+mean(BandwidthWaldNull400[,1])
+```
+
+
+```{r, fig.keep=`none`}
+BandwidthScoreNull50 <- simBandwidthNull(iterations = 1000,G=50, test = "Score")
+BandwidthScoreNull100 <- simBandwidthNull(iterations = 1000,G=100, test = "Score")
+BandwidthScoreNull200 <- simBandwidthNull(iterations = 1000,G=200, test = "Score")
+BandwidthScoreNull400 <- simBandwidthNull(iterations = 1000,G=400, test = "Score")
+```
+
+```{r}
+mean(BandwidthScoreNull50[,1])
+mean(BandwidthScoreNull100[,1])
+mean(BandwidthScoreNull200[,1])
+mean(BandwidthScoreNull400[,1])
+```
+
+
+
+
+```{r}
+simBandwidth(iterations = 10,G=200, test = "Wald")
+```
+
+	
+
+	
+```{r}
+a11 <- 0.6; a12 <- -0.2; b11 <- 0.8; b12 <- -0.4; c11 <- 0.4; c12 <- -0.4;
+pars1 <- list(a11,a12,b11,b12,c11,c12)
+
+a21 <- diag(0.6, 2); a22 <- diag(-0.2,2);
+b21 <- diag(0.8,2); b22 <- diag(-0.4,2);
+c21 <- diag(0.4,2); c22 <- diag(-0.4,2);
+pars2 <- list(a21,a22,b21,b22,c21,c22)
+
+a31 <- diag(0.6, 3); a32 <- diag(-0.2,3);
+b31 <- diag(0.8,3); b32 <- diag(-0.4,3);
+c31 <- diag(0.4,3); c32 <- diag(-0.4,3);
+pars3 <- list(a31,a32,b31,b32,c31,c32)
+
+a41 <- diag(0.6,4); a42 <- diag(-0.2,4);
+b41 <- diag(0.8,4); b42 <- diag(-0.4,4);
+c41 <- diag(0.4,4); c42 <- diag(-0.4,4);
+pars4 <- list(a41,a42,b41,b42,c41,c42)
+```
+
+```{r}
+simDimension <- function(pars, d, iterations = 1000, G, test = "Score", estim = "DiagC"){
+  out <- matrix(NA,iterations,4)
+  #d <- dim(pars[[1]])[1]
+  for (ii in 1:iterations) {
+    
+  e1 <- matrix(rnorm(d * 750, 0, .5),ncol=d)
+  e2 <- matrix(rnorm(d * 500, 0, .5),ncol=d)
+  e3 <- matrix(rnorm(d * 750, 0, .5),ncol=d)
+#  e4 <- matrix(rnorm(5 * 500, 0, .5),ncol=5)
+  ##null
+  sim_n41 <- rbind(rSim_p2(pars[[1]],pars[[2]],e1),
+                   rSim_p2(pars[[3]],pars[[4]],e2),#
+                   rSim_p2(pars[[5]],pars[[6]],e3)) #H0 or H1
+  if(test =="Score"){ 
+    #plot.ts(sim_n41)
+    m_n41 <- ar(sim_n41, order.max = 2, aic = F, demean = T, method = "ols")
+    m_n41_a <- cbind(m_n41$x.intercept, matrix(m_n41$ar[1,,]),matrix(m_n41$ar[2,,]) )
+    m_n41_res <- m_n41$resid; #m_n41_res[1,] <- 0.0001
+    t_n41 <- test_Score_new(x=sim_n41, p=2, G, Phi = m_n41_a, eps = m_n41_res, alpha = 0.05, estim)
+  }
+  if(test =="Wald") t_n41 <- test_Wald_new(x=sim_n41, p=2, G, alpha = 0.05, estim)
+  int750 <- t_n41$cps[t_n41$cps <= 790 & t_n41$cps >= 710]
+  int1250 <- t_n41$cps[t_n41$cps <= 1290 & t_n41$cps >= 1210]
+  #int1500 <- t_n41$cps[t_n41$cps <= 1540 & t_n41$cps >= 1460]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$cps), length(int750), length(int1250) )
+  }
+  return(out)
+}
+```
+	
+
+```{r}
+simDimensionNull <- function(pars, d, iterations = 1000, G, test = "Score", estim = "DiagC"){
+  out <- matrix(NA,iterations,4)
+  #d <- dim(pars[[1]])[1]
+  for (ii in 1:iterations) {
+    
+  e1 <- matrix(rnorm(d * 2000, 0, .5),ncol=d)
+ # e2 <- matrix(rnorm(d * 500, 0, .5),ncol=d)
+  #e3 <- matrix(rnorm(d * 750, 0, .5),ncol=d)
+#  e4 <- matrix(rnorm(5 * 500, 0, .5),ncol=5)
+  ##null
+  sim_n41 <- rSim_p2(pars[[1]],pars[[2]],e1)#rbind(rSim_p2(pars[[1]],pars[[2]],e1),
+            #       rSim_p2(pars[[3]],pars[[4]],e2),#
+            #       rSim_p2(pars[[5]],pars[[6]],e3)) #H0 or H1
+  if(test =="Score"){ 
+    #plot.ts(sim_n41)
+    m_n41 <- ar(sim_n41, order.max = 2, aic = F, demean = T, method = "ols")
+    m_n41_a <- cbind(m_n41$x.intercept, matrix(m_n41$ar[1,,]),matrix(m_n41$ar[2,,]) )
+    m_n41_res <- m_n41$resid; #m_n41_res[1,] <- 0.0001
+    t_n41 <- test_Score_new(x=sim_n41, p=2, G, Phi = m_n41_a, eps = m_n41_res, alpha = 0.05, estim)
+  }
+  if(test =="Wald") t_n41 <- test_Wald_new(x=sim_n41, p=2, G, alpha = 0.05, estim)
+  int750 <- t_n41$cps[t_n41$cps <= 790 & t_n41$cps >= 710]
+  int1250 <- t_n41$cps[t_n41$cps <= 1290 & t_n41$cps >= 1210]
+  #int1500 <- t_n41$cps[t_n41$cps <= 1540 & t_n41$cps >= 1460]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$cps), length(int750), length(int1250) )
+  }
+  return(out)
+}
+```
+
+		
+```{r}
+A1 <- diag(0.9,5); B1 <- diag(0.8,5); C1 <- diag(0.7,5);
+PARS1 <- list(A1,B1,C1)
+
+A2 <- diag(0.9,5); B2 <- diag(0.7,5); C2 <- diag(0.5,5);
+PARS2 <- list(A2,B2,C2)
+
+A3 <- diag(0.9,5); B3 <- diag(0.6,5); C3 <- diag(0.3,5);
+PARS3 <- list(A3,B3,C3)
+
+A4 <- diag(0.9,5); B4 <- diag(0.5,5); C4 <- diag(0.1,5);
+PARS4 <- list(A4,B4,C4)
+
+simSize <- function(pars, iterations = 1000, G, test = "Score", estim = "DiagC"){
+  out <- matrix(NA,iterations,4)
+  d <- 5#dim(pars[[1]])[1]
+  for (ii in 1:iterations) {
+    
+  e1 <- matrix(rnorm(d * 750, 0, .5),ncol=d)
+  e2 <- matrix(rnorm(d * 500, 0, .5),ncol=d)
+  e3 <- matrix(rnorm(d * 750, 0, .5),ncol=d)
+#  e4 <- matrix(rnorm(5 * 500, 0, .5),ncol=5)
+  ##null
+  sim_n41 <- rbind(rSim(pars[[1]],e1),
+                   rSim(pars[[2]],e2),#
+                   rSim(pars[[3]],e3)) #H0 or H1
+  if(test =="Score"){ 
+    #plot.ts(sim_n41)
+    m_n41 <- ar(sim_n41, order.max = 1, aic = F, demean = T, method = "ols")
+    m_n41_a <- cbind(m_n41$x.intercept, matrix(m_n41$ar[1,,]))
+    m_n41_res <- m_n41$resid; #m_n41_res[1,] <- 0.0001
+    t_n41 <- test_Score_new(x=sim_n41, p=2, G, Phi = m_n41_a, eps = m_n41_res, alpha = 0.05, estim)
+  }
+  if(test =="Wald") t_n41 <- test_Wald_new(x=sim_n41, p=1, G, alpha = 0.05, estim)
+  int750 <- t_n41$cps[t_n41$cps <= 790 & t_n41$cps >= 710]
+  int1250 <- t_n41$cps[t_n41$cps <= 1290 & t_n41$cps >= 1210]
+  #int1500 <- t_n41$cps[t_n41$cps <= 1540 & t_n41$cps >= 1460]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$cps), length(int750), length(int1250) )
+  }
+  return(out)
+}
+```
+	
+	
+
+	
+## Segment Length
+
+	How does diff in gap between changes affect p/s?
+					
+	- multiscale example: 	G set = (50, 100, 200, 400)
+	
+	$\kappa =1$
+	
+	gap = 50, 100, 200, 400
+			
+```{r}
+gaps1 <- c(975,50,975);
+gaps2 <- c(950,100,950);
+gaps3 <- c(900,200,900);
+gaps4 <- c(800,400,800);
+
+simSegment <- function(gaps, pars, iterations = 1000, test = "Score", estim = "DiagC"){
+  out <- matrix(NA,iterations,4)
+  d <- 5#dim(pars[[1]])[1]
+  for (ii in 1:iterations) {
+    
+  e1 <- matrix(rnorm(d * gaps[1], 0, .5),ncol=d)
+  e2 <- matrix(rnorm(d * gaps[2], 0, .5),ncol=d)
+  e3 <- matrix(rnorm(d * gaps[3], 0, .5),ncol=d)
+#  e4 <- matrix(rnorm(5 * 500, 0, .5),ncol=5)
+  ##null
+  sim_n41 <- rbind(rSim(pars[[1]],e1),
+                   rSim(pars[[2]],e2),#
+                   rSim(pars[[3]],e3)) #H0 or H1
+  if(test =="Score"){ 
+    #plot.ts(sim_n41)
+    m_n41 <- ar(sim_n41, order.max = 1, aic = F, demean = T, method = "ols")
+    m_n41_a <- cbind(m_n41$x.intercept, matrix(m_n41$ar[1,,]))
+    m_n41_res <- m_n41$resid; #m_n41_res[1,] <- 0.0001
+    t_n41 <- test_Score_new(x=sim_n41, p=2, G, Phi = m_n41_a, eps = m_n41_res, alpha = 0.05, estim)
+  }
+  if(test =="Wald") t_n41 <- MFA2(sim_n41, p=2, Gset= c(50,100,200,400))  #test_Wald_new(x=sim_n41, p=2, G, alpha = 0.05, estim)
+  int750 <- t_n41$cps[t_n41$cps <= gaps[1]+40 & t_n41$cps >= gaps[1]-40]
+  int1250 <- t_n41$cps[t_n41$cps <= gaps[1]+gaps[2]+40 & t_n41$cps >= gaps[1]+gaps[2]-40]
+  #int1500 <- t_n41$cps[t_n41$cps <= 1540 & t_n41$cps >= 1460]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$cps), length(int750), length(int1250) )
+  }
+  ## CHANGE TO Multiscale type
+  
+  return(out)
+}
+```
+	
+	
+```{r, fig.keep=`none`}
+SizeSegment1 <- simSegment(gaps1, PARS1, iterations = 100, test = "Wald")
+SizeSegment2 <- simSegment(gaps2, PARS1, iterations = 100, test = "Wald")
+SizeSegment3 <- simSegment(gaps3, PARS1, iterations = 100, test = "Wald")
+SizeSegment4 <- simSegment(gaps4, PARS1, iterations = 100, test = "Wald")
+```
+
+
+	\subsubsection{Sample Length}
+	How doesfor varying n affect p/s in subsample scheme?	
+	
+	- subsample example: d=5 p=1, $G=n^{2/3}$, n=2000, 5000, 10000, 20000
+	
+	
+		
+```{r}
+
+
+simLength <- function(n, pars, iterations = 1000, method = "Wald", estim = "DiagC", G_exponent = 2/3 ){
+  out <- matrix(NA,iterations,4)
+  d <- 5 #dim(pars[[1]])[1]
+  n1 <- floor(n/3); n2 <- n1*2 #changepoints
+  G <- floor(n^G_exponent)
+  for (ii in 1:iterations) {
+    
+  e1 <- matrix(rnorm(d * n1, 0, .5),ncol=d)
+  e2 <- matrix(rnorm(d * n1, 0, .5),ncol=d)
+  e3 <- matrix(rnorm(d * n1, 0, .5),ncol=d)
+#  e4 <- matrix(rnorm(5 * 500, 0, .5),ncol=5)
+  ##null
+  sim_n41 <- rbind(rSim(pars[[1]],e1),
+                   rSim(pars[[2]],e2),#
+                   rSim(pars[[3]],e3)) #H0 or H1
+
+  t_n41 <- mosum_sub(x=sim_n41, p=1, G, method, alpha = 0.05, estim, kap=1)
+  int750 <- t_n41$cps[t_n41$cps <= (n1+40) & t_n41$cps >= (n1-40)]
+  int1250 <- t_n41$cps[t_n41$cps <= (n2+40) & t_n41$cps >= (n2-40)]
+  #int1500 <- t_n41$cps[t_n41$cps <= 1540 & t_n41$cps >= 1460]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$cps), length(int750), length(int1250) )
+  }
+  return(out)
+}
+simLengthNull <- function(n, pars, iterations = 1000, method = "Wald", estim = "DiagC", G_exponent = .75 ){
+  out <- matrix(NA,iterations,2)
+  d <- 5 #dim(pars[[1]])[1]
+ 
+  G <- floor(n^G_exponent)
+  for (ii in 1:iterations) {
+    
+  e1 <- matrix(rnorm(d * n, 0, .5),ncol=d)
+  
+#  e4 <- matrix(rnorm(5 * 500, 0, .5),ncol=5)
+  ##null
+  sim_n41 <- rSim(pars[[1]],e1) #H0 or H1
+
+  t_n41 <- mosum_sub(x=sim_n41, p=1, G, method, alpha = 0.05, estim, kap=1)
+ # int750 <- t_n41$cps[t_n41$cps <= (n1+40) & t_n41$cps >= (n1-40)]
+ # int1250 <- t_n41$cps[t_n41$cps <= (n2+40) & t_n41$cps >= (n2-40)]
+  #int1500 <- t_n41$cps[t_n41$cps <= 1540 & t_n41$cps >= 1460]
+  gc()
+  out[ii,] <- c(Reject = t_n41$Reject, Number =  length(t_n41$cps) )
+  }
+  return(out)
+}
+```
+	
+	
+```{r, fig.keep=`none`}
+Length1 <- simLength(2000, PARS2, iterations = 1000)
+Length2 <- simLength(5000, PARS2, iterations = 1000)
+Length3 <- simLength(10000, PARS2, iterations = 1000)
+Length4 <- simLength(20000, PARS2, iterations = 1000)
+```
+
+```{r, fig.keep=`none`}
+Length1Score <- simLength(2000, PARS2, method="Score", iterations = 1000)
+Length2Score  <- simLength(5000, PARS2, method="Score",iterations = 1000)
+Length3Score  <- simLength(10000, PARS2,method="Score", iterations = 1000)
+#Length4Score  <- simLength(20000, PARS2, method="Score",iterations = 1000) #takes too long
+```
+
+
+try with larger G exponent
+
+```{r}
+Length2ScoreG1  <- simLength(5000, PARS2, method="Score",iterations = 300, G_exponent = .75) #G=594
+Length2ScoreG2  <- simLength(5000, PARS2, method="Score",iterations = 300, G_exponent = .85) #G=1393
+```
+
+```{r}
+report(Length2ScoreG1)
+report(Length2ScoreG2)
+```
+
+
+
+```{r}
+report(Length1)
+report(Length2)
+report(Length3)
+report(Length4)
+```
+
+```{r}
+report(Length1Score)
+
+report(Length2Score)
+
+report(Length3Score)
+```
+
+
+```{r, fig.keep=`none`}
+Length1Score <- simLength(2000, PARS2, method="Score", iterations = 1000, G_exponent = .75)
+Length2Score  <- simLength(5000, PARS2, method="Score",iterations = 1000, G_exponent = .75)
+Length3Score  <- simLength(10000, PARS2,method="Score", iterations = 1000, G_exponent = .75)
+#Length4Score  <- simLength(20000, PARS2, method="Score",iterations = 1000) #takes too long
+```
+
+
+Now let's simulate under the null to investigate size 
+```{r}
+Length1ScoreNull <- simLengthNull(2000, PARS2, method="Score", iterations = 1000, G_exponent = .75)
+Length2ScoreNull <- simLengthNull(5000, PARS2, method="Score", iterations = 1000, G_exponent = .75)
+Length3ScoreNull <- simLengthNull(10000, PARS2, method="Score", iterations = 1000, G_exponent = .75)
+```
+
+```{r}
+LengthScoreNullReport <- rbind(colMeans(Length1ScoreNull),
+colMeans(Length2ScoreNull),
+colMeans(Length3ScoreNull))
+colnames(LengthScoreNullReport) <- c("Size","Average Number")
+rownames(LengthScoreNullReport) <- c("2000","5000","10000")
+LengthScoreNullReport
+```
+
+```{r}
+Length1WaldNull <- simLengthNull(2000, PARS2, method="Wald", iterations = 1000, G_exponent = .75)
+Length2WaldNull <- simLengthNull(5000, PARS2, method="Wald", iterations = 1000, G_exponent = .75)
+Length3WaldNull <- simLengthNull(10000, PARS2, method="Wald", iterations = 1000, G_exponent = .75)
+```
+
+```{r}
+LengthWaldNullReport <- rbind(colMeans(Length1WaldNull),
+colMeans(Length2WaldNull),
+colMeans(Length3WaldNull))
+colnames(LengthWaldNullReport) <- c("Size","Average Number")
+rownames(LengthWaldNullReport) <- c("2000","5000","10000")
+LengthWaldNullReport
+```

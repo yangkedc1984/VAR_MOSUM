@@ -1,0 +1,62 @@
+---
+title: "nGdp"
+author: "Dom Owens"
+date: "04/12/2020"
+output: html_document
+---
+
+
+
+```{r}
+simnGdp <- function(iterations = 1000, n, G, p, test = "Score", estim = "DiagC", A1, criterion = "eta", nu=0.5){ 
+  out <- vector(length = iterations)
+  d <- nrow(A1)
+  for (ii in 1:iterations) {
+    
+  e1 <- matrix(rnorm(d* n, 0, .5),ncol=d) 
+  ##null
+  sim_n41 <- as.matrix(rSim(A1,e1))#rbind(rSim_p(coeff_list1,e1),rSim_p(coeff_list2,e2),rSim_p(coeff_list3,e3)) #H0 or H1
+  if(test =="Score")t_n41 <- test_Score_new(x=sim_n41, p=p, G=G, Phi = NULL, eps = NULL, alpha = 0.05, estim=estim, var_estim = "Local", criterion, nu) 
+  if(test =="Wald") t_n41 <- test_Wald_new(x=sim_n41, p=p, G, alpha = 0.05, estim, criterion, nu)
+  
+  gc()
+  out[ii] <- t_n41$Reject
+  }
+  return(out)
+}
+```
+
+
+```{r}
+n <- 2000; d <- 3; p <- 1; Delta <- d*(d*p+1)
+AnGdp <- getMS(0.5, d)
+
+nGdpScore_3_d3 <- simnGdp(1000, n, G = 3 * Delta, p, test = "Score", A1 = AnGdp)
+nGdpScore_5_d3 <- simnGdp(1000, n, G = 5 * Delta, p, test = "Score", A1 = AnGdp)
+nGdpScore_7_d3 <- simnGdp(1000, n, G = 7 * Delta, p, test = "Score", A1 = AnGdp)
+
+nGdpWald_3_d3 <- simnGdp(1000, n, G = 3 * Delta, p, test = "Wald", A1 = AnGdp)
+nGdpWald_5_d3 <- simnGdp(1000, n, G = 5 * Delta, p, test = "Wald", A1 = AnGdp)
+nGdpWald_7_d3 <- simnGdp(1000, n, G = 7 * Delta, p, test = "Wald", A1 = AnGdp)
+
+
+d <- 5; Delta <- d*(d*p+1); AnGdp <- getMS(0.5, d)
+nGdpScore_3_d5 <- simnGdp(1000, n, G = 3 * Delta, p, test = "Score", A1 = AnGdp)
+nGdpScore_5_d5 <- simnGdp(1000, n, G = 5 * Delta, p, test = "Score", A1 = AnGdp)
+nGdpScore_7_d5 <- simnGdp(1000, n, G = 7 * Delta, p, test = "Score", A1 = AnGdp)
+
+nGdpWald_3_d5 <- simnGdp(1000, n, G = 3 * Delta, p, test = "Wald", A1 = AnGdp)
+nGdpWald_5_d5 <- simnGdp(1000, n, G = 5 * Delta, p, test = "Wald", A1 = AnGdp)
+nGdpWald_7_d5 <- simnGdp(1000, n, G = 7 * Delta, p, test = "Wald", A1 = AnGdp)
+
+d <- 10; Delta <- d*(d*p+1); AnGdp <- getMS(0.5, d)
+nGdpScore_3_d10 <- simnGdp(1000, n, G = 3 * Delta, p, test = "Score", A1 = AnGdp)
+nGdpScore_5_d10 <- simnGdp(1000, n, G = 5 * Delta, p, test = "Score", A1 = AnGdp)
+nGdpScore_7_d10 <- simnGdp(1000, n, G = 7 * Delta, p, test = "Score", A1 = AnGdp)
+
+nGdpWald_3_d10 <- simnGdp(1000, n, G = 3 * Delta, p, test = "Wald", A1 = AnGdp)
+nGdpWald_5_d10 <- simnGdp(1000, n, G = 5 * Delta, p, test = "Wald", A1 = AnGdp)
+nGdpWald_7_d10 <- simnGdp(1000, n, G = 7 * Delta, p, test = "Wald", A1 = AnGdp) #dlog(d)?
+save.image("sims.Rdata")
+```
+

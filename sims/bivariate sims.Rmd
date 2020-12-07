@@ -1,0 +1,499 @@
+---
+title: "bivariate sims"
+author: "Dom Owens"
+date: "11/11/2020"
+output: html_document
+---
+
+```{r}
+library(Rcpp)
+library(RcppParallel)
+library(RcppArmadillo)
+library(Matrix)
+#sourceCpp(file = "Wald_RcppParallel.cpp")
+#sourceCpp(file = "Score_Rcpp.cpp")
+```
+
+```{r}
+simBivariate <- function(iterations = 1000, G, test = "Score", estim = "DiagC", A1,A2,A3, lag = 1, criterion = "eta", nu=0.25){
+  coeff_list1 <-coeff_list2 <-coeff_list3 <- list(1:lag) #empty AR param lists
+  for (i in 1:lag) {
+    coeff_list1[[i]] <- A1 ^i#%^% i ##element-wise powers? division?
+    coeff_list2[[i]] <- A2 ^i#%^% i
+    coeff_list3[[i]] <- A3 ^i#%^% i
+    
+  }
+  out <- matrix(NA,iterations,4)
+  d <- nrow(A1)
+  for (ii in 1:iterations) {
+    
+  e1 <- matrix(rnorm(d* 750, 0, .5),ncol=d)
+  e2 <- matrix(rnorm(d * 500, 0, .5),ncol=d)
+  e3 <- matrix(rnorm(d * 750, 0, .5),ncol=d)
+#  e4 <- matrix(rnorm(5 * 500, 0, .5),ncol=5)
+  ##null
+  sim_n41 <- rbind(rSim_p(coeff_list1,e1),rSim_p(coeff_list2,e2),rSim_p(coeff_list3,e3)) #H0 or H1
+  if(test =="Score"){ 
+    m_n41 <- ar(sim_n41, order.max = lag, aic = F, demean = T, method = "ols")
+    m_n41_a <- m_n41$x.intercept#cbind(m_n41$x.intercept, as.matrix(m_n41$ar[1,,]))
+    for (i in 1:lag) {
+      m_n41_a <- cbind(m_n41_a, as.matrix(m_n41$ar[i,,]))
+    }
+    m_n41_res <- m_n41$resid; m_n41_res[1:d,] <- 0.0001
+    t_n41 <- test_Score_new(x=sim_n41, p=lag, G, Phi = as.matrix(m_n41_a), eps = as.matrix(m_n41_res), alpha = 0.05, estim, var_estim = "Local", criterion, nu)
+  }
+  if(test =="Wald") t_n41 <- test_Wald_new(x=sim_n41, p=lag, G, alpha = 0.05, estim, criterion, nu)
+  
+  if(test=="BS") {
+    tt <- MOSUMBS(x=sim_n41, p=lag, G)
+    cps <- tt$cps
+    if(is.null(cps)) cps <- c()
+    t_n41 <- list(cps = cps, Reject = length(cps)>0)
+  }  
+  int750 <- t_n41$cps[t_n41$cps <= 790 & t_n41$cps >= 710]
+  int1250 <- t_n41$cps[t_n41$cps <= 1290 & t_n41$cps >= 1210]
+  #int1500 <- t_n41$cps[t_n41$cps <= 1540 & t_n41$cps >= 1460]
+  gc()
+  out[ii,] <- c(t_n41$Reject, length(t_n41$cps), length(int750), length(int1250) )
+  }
+  return(out)
+}
+```
+
+
+
+```{r}
+#library(expm)
+P1 <- matrix(c(0.25,-0.4,
+               -0.4,0.25), 2,2)
+P2 <-  matrix(c(-0.3, -0.1,
+               -0.1, -0.3), 2,2)
+P3 <-  matrix(c(0.2, -0.2,
+                -0.2,0.2), 2,2)
+#P4 <-  matrix(c(-0.5, 0.2,
+#               0.2,-0.5), 2,2)
+```
+
+```{r} 
+#signal strengths
+L11 <- as.vector(P1-P2); 500*norm(L11, type = "2")^2
+L12 <- as.vector(P2-P3); 500*norm(L12, type = "2")^2
+
+L21 <- c(as.vector(P1-P2),as.vector(P1^2-P2^2)) ; 500*norm(L21, type = "2")^2
+L22 <- c(as.vector(P2-P3),as.vector(P2^2-P3^2)) ; 500*norm(L22, type = "2")^2
+
+L31 <- c(as.vector(P1-P2),as.vector(P1^2-P2^2),as.vector(P1^3-P2^3)) ; 500*norm(L31, type = "2")^2
+L32 <- c(as.vector(P2-P3),as.vector(P2^2-P3^2),as.vector(P2^3-P3^3)) ; 500*norm(L32, type = "2")^2
+
+```
+
+```{r}
+# library(microbenchmark)
+# mb <- microbenchmark(
+# s =simBivariate(5, G=200, "Score", "DiagC", P1,P2,P3, lag=1),
+# w=simBivariate(5, G=200, "Wald", "DiagC", P1,P2,P3, lag=1), times = 10)
+# mb
+simBivariate(2, G=200, "Score", "DiagC", P1,P2,P3, lag=1)
+simBivariate(2, G=200, "BS", "DiagC", P1,P2,P3, lag=1)
+simBivariate(2, G=400, "BS", "DiagC", P1,P2,P3, lag=1)
+```
+investigate adding lags, effect on
+
+
+## Alternative
+
+### Score
+```{r}
+bivScoreC_50_alt_lag1 <- simBivariate(1000, G=50, "Score", "DiagC", P1,P2,P3, lag=1)
+bivScoreC_100_alt_lag1 <- simBivariate(1000, G=100, "Score", "DiagC", P1,P2,P3, lag=1)
+bivScoreC_200_alt_lag1 <- simBivariate(1000, G=200, "Score", "DiagC", P1,P2,P3, lag=1)
+bivScoreC_400_alt_lag1 <- simBivariate(1000, G=400, "Score", "DiagC", P1,P2,P3, lag=1 )
+```
+11th Nov
+```{r}
+bivScoreH_50_alt_lag1 <- simBivariate(1000, G=50, "Score", "FullH", P1,P2,P3, lag=1)
+bivScoreH_100_alt_lag1 <- simBivariate(1000, G=100, "Score", "FullH", P1,P2,P3, lag=1)
+bivScoreH_200_alt_lag1 <- simBivariate(1000, G=200, "Score", "FullH", P1,P2,P3, lag=1)
+bivScoreH_400_alt_lag1 <- simBivariate(1000, G=400, "Score", "FullH", P1,P2,P3, lag=1)
+```
+
+```{r}
+bivScoreC_50_alt_lag2 <- simBivariate(1000, G=50, "Score", "DiagC", P1,P2,P3, lag=2)
+bivScoreC_100_alt_lag2 <- simBivariate(1000, G=100, "Score", "DiagC", P1,P2,P3, lag=2)
+bivScoreC_200_alt_lag2 <- simBivariate(1000, G=200, "Score", "DiagC", P1,P2,P3, lag=2)
+bivScoreC_400_alt_lag2 <- simBivariate(1000, G=400, "Score", "DiagC", P1,P2,P3, lag=2)
+```
+
+```{r}
+bivScoreH_50_alt_lag2 <- simBivariate(1000, G=50, "Score", "FullH", P1,P2,P3, lag=2)
+bivScoreH_100_alt_lag2 <- simBivariate(1000, G=100, "Score", "FullH", P1,P2,P3, lag=2)
+bivScoreH_200_alt_lag2 <- simBivariate(1000, G=200, "Score", "FullH", P1,P2,P3, lag=2)
+bivScoreH_400_alt_lag2 <- simBivariate(1000, G=400, "Score", "FullH", P1,P2,P3, lag=2)
+```
+
+```{r}
+bivScoreC_50_alt_lag3 <- simBivariate(1000, G=50, "Score", "DiagC", P1,P2,P3, lag=3)
+bivScoreC_100_alt_lag3 <- simBivariate(1000, G=100, "Score", "DiagC", P1,P2,P3, lag=3)
+bivScoreC_200_alt_lag3 <- simBivariate(1000, G=200, "Score", "DiagC", P1,P2,P3, lag=3)
+bivScoreC_400_alt_lag3 <- simBivariate(1000, G=400, "Score", "DiagC", P1,P2,P3, lag=3)
+```
+
+```{r}
+bivScoreH_50_alt_lag3 <- simBivariate(1000, G=50, "Score", "FullH", P1,P2,P3, lag=3)
+bivScoreH_100_alt_lag3 <- simBivariate(1000, G=100, "Score", "FullH", P1,P2,P3, lag=3)
+bivScoreH_200_alt_lag3 <- simBivariate(1000, G=200, "Score", "FullH", P1,P2,P3, lag=3)
+bivScoreH_400_alt_lag3 <- simBivariate(1000, G=400, "Score", "FullH", P1,P2,P3, lag=3)
+```
+
+
+
+```{r}
+report(bivScoreC_50_alt_lag1)
+report(bivScoreC_100_alt_lag1)
+report(bivScoreC_200_alt_lag1)
+report(bivScoreC_400_alt_lag1)
+
+report(bivScoreH_50_alt_lag1)
+report(bivScoreH_100_alt_lag1)
+report(bivScoreH_200_alt_lag1)
+report(bivScoreH_400_alt_lag1)
+
+report(bivScoreC_50_alt_lag2)
+report(bivScoreC_100_alt_lag2)
+report(bivScoreC_200_alt_lag2)
+report(bivScoreC_400_alt_lag2)
+
+report(bivScoreH_50_alt_lag2)
+report(bivScoreH_100_alt_lag2)
+report(bivScoreH_200_alt_lag2)
+report(bivScoreH_400_alt_lag2)
+
+report(bivScoreC_50_alt_lag3)
+report(bivScoreC_100_alt_lag3)
+report(bivScoreC_200_alt_lag3)
+report(bivScoreC_400_alt_lag3)
+
+report(bivScoreH_50_alt_lag3)
+report(bivScoreH_100_alt_lag3)
+report(bivScoreH_200_alt_lag3)
+report(bivScoreH_400_alt_lag3)
+```
+
+
+
+
+
+
+### Wald
+```{r}
+bivWaldC_50_alt_lag1 <- simBivariate(1000, G=50, "Wald", "DiagC", P1,P2,P3, lag=1)
+bivWaldC_100_alt_lag1 <- simBivariate(1000, G=100, "Wald", "DiagC", P1,P2,P3, lag=1)
+bivWaldC_200_alt_lag1 <- simBivariate(1000, G=200, "Wald", "DiagC", P1,P2,P3, lag=1)
+bivWaldC_400_alt_lag1 <- simBivariate(1000, G=400, "Wald", "DiagC", P1,P2,P3, lag=1)
+```
+12th Nov
+```{r}
+#bivWaldH_50_alt_lag1 <- simBivariate(1000, G=50, "Wald", "FullH", P1,P2,P3, lag=1)
+#bivWaldH_100_alt_lag1 <- simBivariate(1000, G=100, "Wald", "FullH", P1,P2,P3, lag=1) ##19th nov
+bivWaldH_200_alt_lag1 <- simBivariate(1000, G=200, "Wald", "FullH", P1,P2,P3, lag=1)
+bivWaldH_400_alt_lag1 <- simBivariate(1000, G=400, "Wald", "FullH", P1,P2,P3, lag=1)
+```
+
+```{r}
+bivWaldC_50_alt_lag2 <- simBivariate(1000, G=50, "Wald", "DiagC", P1,P2,P3, lag=2)
+bivWaldC_100_alt_lag2 <- simBivariate(1000, G=100, "Wald", "DiagC", P1,P2,P3, lag=2)
+bivWaldC_200_alt_lag2 <- simBivariate(1000, G=200, "Wald", "DiagC", P1,P2,P3, lag=2)
+bivWaldC_400_alt_lag2 <- simBivariate(1000, G=400, "Wald", "DiagC", P1,P2,P3, lag=2)
+```
+
+```{r}
+bivWaldH_50_alt_lag2 <- simBivariate(1000, G=50, "Wald", "FullH", P1,P2,P3, lag=2)
+bivWaldH_100_alt_lag2 <- simBivariate(1000, G=100, "Wald", "FullH", P1,P2,P3, lag=2)
+bivWaldH_200_alt_lag2 <- simBivariate(1000, G=200, "Wald", "FullH", P1,P2,P3, lag=2)
+bivWaldH_400_alt_lag2 <- simBivariate(1000, G=400, "Wald", "FullH", P1,P2,P3, lag=2)
+```
+
+```{r}
+bivWaldC_50_alt_lag3 <- simBivariate(1000, G=50, "Wald", "DiagC", P1,P2,P3, lag=3)
+bivWaldC_100_alt_lag3 <- simBivariate(1000, G=100, "Wald", "DiagC", P1,P2,P3, lag=3)
+bivWaldC_200_alt_lag3 <- simBivariate(1000, G=200, "Wald", "DiagC", P1,P2,P3, lag=3)
+bivWaldC_400_alt_lag3 <- simBivariate(1000, G=400, "Wald", "DiagC", P1,P2,P3, lag=3)
+```
+
+```{r}
+bivWaldH_50_alt_lag3 <- simBivariate(1000, G=50, "Wald", "FullH", P1,P2,P3, lag=3)
+bivWaldH_100_alt_lag3 <- simBivariate(1000, G=100, "Wald", "FullH", P1,P2,P3, lag=3)
+bivWaldH_200_alt_lag3 <- simBivariate(1000, G=200, "Wald", "FullH", P1,P2,P3, lag=3)
+bivWaldH_400_alt_lag3 <- simBivariate(1000, G=400, "Wald", "FullH", P1,P2,P3, lag=3)
+```
+
+
+
+16th nov 
+
+
+```{r}
+report(bivWaldC_50_alt_lag1)
+report(bivWaldC_100_alt_lag1)
+report(bivWaldC_200_alt_lag1)
+report(bivWaldC_400_alt_lag1)
+
+report(bivWaldH_50_alt_lag1)
+report(bivWaldH_100_alt_lag1)
+report(bivWaldH_200_alt_lag1)
+report(bivWaldH_400_alt_lag1)
+
+report(bivWaldC_50_alt_lag2)
+report(bivWaldC_100_alt_lag2)
+report(bivWaldC_200_alt_lag2)
+report(bivWaldC_400_alt_lag2)
+
+report(bivWaldH_50_alt_lag2)
+report(bivWaldH_100_alt_lag2)
+report(bivWaldH_200_alt_lag2)
+report(bivWaldH_400_alt_lag2)
+
+report(bivWaldC_50_alt_lag3)
+report(bivWaldC_100_alt_lag3)
+report(bivWaldC_200_alt_lag3)
+report(bivWaldC_400_alt_lag3)
+
+report(bivWaldH_50_alt_lag3)
+report(bivWaldH_100_alt_lag3)
+report(bivWaldH_200_alt_lag3)
+report(bivWaldH_400_alt_lag3)
+```
+
+
+
+
+### BS
+```{r}
+bivBSC_50_alt_lag1 <- simBivariate(1000, G=50, "BS", "DiagC", P1,P2,P3, lag=1)
+bivBSC_100_alt_lag1 <- simBivariate(1000, G=100, "BS", "DiagC", P1,P2,P3, lag=1)
+bivBSC_200_alt_lag1 <- simBivariate(1000, G=200, "BS", "DiagC", P1,P2,P3, lag=1)
+bivBSC_400_alt_lag1 <- simBivariate(1000, G=400, "BS", "DiagC", P1,P2,P3, lag=1 )
+```
+
+
+```{r}
+bivBSC_50_alt_lag2 <- simBivariate(1000, G=50, "BS", "DiagC", P1,P2,P3, lag=2)
+bivBSC_100_alt_lag2 <- simBivariate(1000, G=100, "BS", "DiagC", P1,P2,P3, lag=2)
+bivBSC_200_alt_lag2 <- simBivariate(1000, G=200, "BS", "DiagC", P1,P2,P3, lag=2)
+bivBSC_400_alt_lag2 <- simBivariate(1000, G=400, "BS", "DiagC", P1,P2,P3, lag=2)
+```
+
+
+```{r}
+bivBSC_50_alt_lag3 <- simBivariate(1000, G=50, "BS", "DiagC", P1,P2,P3, lag=3)
+bivBSC_100_alt_lag3 <- simBivariate(1000, G=100, "BS", "DiagC", P1,P2,P3, lag=3)
+bivBSC_200_alt_lag3 <- simBivariate(1000, G=200, "BS", "DiagC", P1,P2,P3, lag=3)
+bivBSC_400_alt_lag3 <- simBivariate(1000, G=400, "BS", "DiagC", P1,P2,P3, lag=3)
+```
+
+
+
+```{r}
+report(bivBSC_50_alt_lag1)
+report(bivBSC_100_alt_lag1)
+report(bivBSC_200_alt_lag1)
+report(bivBSC_400_alt_lag1)
+
+report(bivBSC_50_alt_lag2)
+report(bivBSC_100_alt_lag2)
+report(bivBSC_200_alt_lag2)
+report(bivBSC_400_alt_lag2)
+
+report(bivBSC_50_alt_lag3)
+report(bivBSC_100_alt_lag3)
+report(bivBSC_200_alt_lag3)
+report(bivBSC_400_alt_lag3)
+```
+
+
+
+## Null
+
+### Score
+```{r}
+bivScoreC_50_alt_lag1Null <- simBivariate(1000, G=50, "Score", "DiagC", P1,P1,P1, lag=1)
+bivScoreC_100_alt_lag1Null <- simBivariate(1000, G=100, "Score", "DiagC", P1,P1,P1, lag=1)
+bivScoreC_200_alt_lag1Null <- simBivariate(1000, G=200, "Score", "DiagC", P1,P1,P1, lag=1)
+bivScoreC_400_alt_lag1Null <- simBivariate(1000, G=400, "Score", "DiagC", P1,P1,P1, lag=1 )
+```
+
+```{r}
+bivScoreH_50_alt_lag1Null <- simBivariate(1000, G=50, "Score", "FullH", P1,P1,P1, lag=1)
+bivScoreH_100_alt_lag1Null <- simBivariate(1000, G=100, "Score", "FullH", P1,P1,P1, lag=1)
+bivScoreH_200_alt_lag1Null <- simBivariate(1000, G=200, "Score", "FullH", P1,P1,P1, lag=1)
+bivScoreH_400_alt_lag1Null <- simBivariate(1000, G=400, "Score", "FullH", P1,P1,P1, lag=1)
+```
+
+```{r}
+bivScoreC_50_alt_lag2Null <- simBivariate(1000, G=50, "Score", "DiagC", P1,P1,P1, lag=2)
+bivScoreC_100_alt_lag2Null <- simBivariate(1000, G=100, "Score", "DiagC", P1,P1,P1, lag=2)
+bivScoreC_200_alt_lag2Null <- simBivariate(1000, G=200, "Score", "DiagC", P1,P1,P1, lag=2)
+bivScoreC_400_alt_lag2Null <- simBivariate(1000, G=400, "Score", "DiagC", P1,P1,P1, lag=2)
+```
+
+```{r}
+bivScoreH_50_alt_lag2Null <- simBivariate(1000, G=50, "Score", "FullH", P1,P1,P1, lag=2)
+bivScoreH_100_alt_lag2Null <- simBivariate(1000, G=100, "Score", "FullH", P1,P1,P1, lag=2)
+bivScoreH_200_alt_lag2Null <- simBivariate(1000, G=200, "Score", "FullH", P1,P1,P1, lag=2)
+bivScoreH_400_alt_lag2Null <- simBivariate(1000, G=400, "Score", "FullH", P1,P1,P1, lag=2)
+```
+
+```{r}
+bivScoreC_50_alt_lag3Null <- simBivariate(1000, G=50, "Score", "DiagC", P1,P1,P1, lag=3)
+bivScoreC_100_alt_lag3Null <- simBivariate(1000, G=100, "Score", "DiagC", P1,P1,P1, lag=3)
+bivScoreC_200_alt_lag3Null <- simBivariate(1000, G=200, "Score", "DiagC", P1,P1,P1, lag=3)
+bivScoreC_400_alt_lag3Null <- simBivariate(1000, G=400, "Score", "DiagC", P1,P1,P1, lag=3)
+```
+
+```{r}
+bivScoreH_50_alt_lag3Null <- simBivariate(1000, G=50, "Score", "FullH", P1,P1,P1, lag=3)
+bivScoreH_100_alt_lag3Null <- simBivariate(1000, G=100, "Score", "FullH", P1,P1,P1, lag=3)
+bivScoreH_200_alt_lag3Null <- simBivariate(1000, G=200, "Score", "FullH", P1,P1,P1, lag=3)
+bivScoreH_400_alt_lag3Null <- simBivariate(1000, G=400, "Score", "FullH", P1,P1,P1, lag=3)
+```
+
+
+
+```{r}
+mean(bivScoreC_50_alt_lag1Null[,1])
+mean(bivScoreC_100_alt_lag1Null[,1])
+mean(bivScoreC_200_alt_lag1Null[,1])
+mean(bivScoreC_400_alt_lag1Null[,1])
+
+
+mean(bivScoreH_50_alt_lag1Null[,1])
+mean(bivScoreH_100_alt_lag1Null[,1])
+mean(bivScoreH_200_alt_lag1Null[,1])
+mean(bivScoreH_400_alt_lag1Null[,1])
+
+mean(bivScoreC_50_alt_lag2Null[,1])
+mean(bivScoreC_100_alt_lag2Null[,1])
+mean(bivScoreC_200_alt_lag2Null[,1])
+mean(bivScoreC_400_alt_lag2Null[,1])
+
+mean(bivScoreH_50_alt_lag2Null[,1])
+mean(bivScoreH_100_alt_lag2Null[,1])
+mean(bivScoreH_200_alt_lag2Null[,1])
+mean(bivScoreH_400_alt_lag2Null[,1])
+
+mean(bivScoreC_50_alt_lag3Null[,1])
+mean(bivScoreC_100_alt_lag3Null[,1])
+mean(bivScoreC_200_alt_lag3Null[,1])
+mean(bivScoreC_400_alt_lag3Null[,1])
+
+
+mean(bivScoreH_50_alt_lag3Null[,1])
+mean(bivScoreH_100_alt_lag3Null[,1])
+mean(bivScoreH_200_alt_lag3Null[,1])
+mean(bivScoreH_400_alt_lag3Null[,1])
+```
+
+
+
+
+### Wald
+```{r}
+bivWaldC_50_alt_lag1Null <- simBivariate(1000, G=50, "Wald", "DiagC", P1,P1,P1, lag=1)
+bivWaldC_100_alt_lag1Null <- simBivariate(1000, G=100, "Wald", "DiagC", P1,P1,P1, lag=1)
+bivWaldC_200_alt_lag1Null <- simBivariate(1000, G=200, "Wald", "DiagC", P1,P1,P1, lag=1)
+bivWaldC_400_alt_lag1Null <- simBivariate(1000, G=400, "Wald", "DiagC", P1,P1,P1, lag=1)
+```
+
+```{r}
+bivWaldH_50_alt_lag1Null <- simBivariate(1000, G=50, "Wald", "FullH", P1,P1,P1, lag=1)
+bivWaldH_100_alt_lag1Null <- simBivariate(1000, G=100, "Wald", "FullH", P1,P1,P1, lag=1)
+bivWaldH_200_alt_lag1Null <- simBivariate(1000, G=200, "Wald", "FullH", P1,P1,P1, lag=1)
+bivWaldH_400_alt_lag1Null <- simBivariate(1000, G=400, "Wald", "FullH", P1,P1,P1, lag=1)
+```
+
+```{r}
+bivWaldC_50_alt_lag2Null <- simBivariate(1000, G=50, "Wald", "DiagC", P1,P1,P1, lag=2)
+bivWaldC_100_alt_lag2Null <- simBivariate(1000, G=100, "Wald", "DiagC", P1,P1,P1, lag=2)
+bivWaldC_200_alt_lag2Null <- simBivariate(1000, G=200, "Wald", "DiagC", P1,P1,P1, lag=2)
+bivWaldC_400_alt_lag2Null <- simBivariate(1000, G=400, "Wald", "DiagC", P1,P1,P1, lag=2)
+```
+
+```{r}
+bivWaldH_50_alt_lag2Null <- simBivariate(1000, G=50, "Wald", "FullH", P1,P1,P1, lag=2)
+bivWaldH_100_alt_lag2Null <- simBivariate(1000, G=100, "Wald", "FullH", P1,P1,P1, lag=2)
+bivWaldH_200_alt_lag2Null <- simBivariate(1000, G=200, "Wald", "FullH", P1,P1,P1, lag=2)
+bivWaldH_400_alt_lag2Null <- simBivariate(1000, G=400, "Wald", "FullH", P1,P1,P1, lag=2)
+```
+
+```{r}
+bivWaldC_50_alt_lag3Null <- simBivariate(1000, G=50, "Wald", "DiagC", P1,P1,P1, lag=3)
+bivWaldC_100_alt_lag3Null <- simBivariate(1000, G=100, "Wald", "DiagC", P1,P1,P1, lag=3)
+bivWaldC_200_alt_lag3Null <- simBivariate(1000, G=200, "Wald", "DiagC", P1,P1,P1, lag=3)
+bivWaldC_400_alt_lag3Null <- simBivariate(1000, G=400, "Wald", "DiagC", P1,P1,P1, lag=3)
+```
+
+```{r}
+bivWaldH_50_alt_lag3Null <- simBivariate(1000, G=50, "Wald", "FullH", P1,P1,P1, lag=3)
+bivWaldH_100_alt_lag3Null <- simBivariate(1000, G=100, "Wald", "FullH", P1,P1,P1, lag=3)
+bivWaldH_200_alt_lag3Null <- simBivariate(1000, G=200, "Wald", "FullH", P1,P1,P1, lag=3)
+bivWaldH_400_alt_lag3Null <- simBivariate(1000, G=400, "Wald", "FullH", P1,P1,P1, lag=3)
+```
+
+
+```{r}
+mean(bivWaldC_50_alt_lag1Null[,1])
+mean(bivWaldC_100_alt_lag1Null[,1])
+mean(bivWaldC_200_alt_lag1Null[,1])
+mean(bivWaldC_400_alt_lag1Null[,1])
+
+
+mean(bivWaldH_50_alt_lag1Null[,1])
+mean(bivWaldH_100_alt_lag1Null[,1])
+mean(bivWaldH_200_alt_lag1Null[,1])
+mean(bivWaldH_400_alt_lag1Null[,1])
+
+mean(bivWaldC_50_alt_lag2Null[,1])
+mean(bivWaldC_100_alt_lag2Null[,1])
+mean(bivWaldC_200_alt_lag2Null[,1])
+mean(bivWaldC_400_alt_lag2Null[,1])
+
+mean(bivWaldH_50_alt_lag2Null[,1])
+mean(bivWaldH_100_alt_lag2Null[,1])
+mean(bivWaldH_200_alt_lag2Null[,1])
+mean(bivWaldH_400_alt_lag2Null[,1])
+
+mean(bivWaldC_50_alt_lag3Null[,1])
+mean(bivWaldC_100_alt_lag3Null[,1])
+mean(bivWaldC_200_alt_lag3Null[,1])
+mean(bivWaldC_400_alt_lag3Null[,1])
+
+
+mean(bivWaldH_50_alt_lag3Null[,1])
+mean(bivWaldH_100_alt_lag3Null[,1])
+mean(bivWaldH_200_alt_lag3Null[,1])
+mean(bivWaldH_400_alt_lag3Null[,1])
+```
+
+### BS
+```{r}
+bivBSC_50_alt_lag1Null <- simBivariate(1000, G=50, "BS", "DiagC", P1,P1,P1, lag=1)
+bivBSC_100_alt_lag1Null <- simBivariate(1000, G=100, "BS", "DiagC", P1,P1,P1, lag=1)
+bivBSC_200_alt_lag1Null <- simBivariate(1000, G=200, "BS", "DiagC", P1,P1,P1, lag=1)
+bivBSC_400_alt_lag1Null <- simBivariate(1000, G=400, "BS", "DiagC", P1,P1,P1, lag=1 )
+```
+
+
+```{r}
+bivBSC_50_alt_lag2Null <- simBivariate(1000, G=50, "BS", "DiagC", P1,P1,P1, lag=2)
+bivBSC_100_alt_lag2Null <- simBivariate(1000, G=100, "BS", "DiagC", P1,P1,P1, lag=2)
+bivBSC_200_alt_lag2Null <- simBivariate(1000, G=200, "BS", "DiagC", P1,P1,P1, lag=2)
+bivBSC_400_alt_lag2Null <- simBivariate(1000, G=400, "BS", "DiagC", P1,P1,P1, lag=2)
+```
+
+
+```{r}
+bivBSC_50_alt_lag3Null <- simBivariate(1000, G=50, "BS", "DiagC", P1,P1,P1, lag=3)
+bivBSC_100_alt_lag3Null <- simBivariate(1000, G=100, "BS", "DiagC", P1,P1,P1, lag=3)
+bivBSC_200_alt_lag3Null <- simBivariate(1000, G=200, "BS", "DiagC", P1,P1,P1, lag=3)
+bivBSC_400_alt_lag3Null <- simBivariate(1000, G=400, "BS", "DiagC", P1,P1,P1, lag=3)
+```

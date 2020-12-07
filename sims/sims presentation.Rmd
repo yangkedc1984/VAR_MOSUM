@@ -1,0 +1,219 @@
+---
+title: "sims presentation"
+author: "Dom Owens"
+date: "29/09/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r, echo=FALSE}
+library(Rcpp)
+library(RcppParallel)
+library(RcppArmadillo)
+library(Matrix)
+#sourceCpp(file = "Wald_RcppParallel.cpp")
+#sourceCpp(file = "Score_Rcpp.cpp")
+load("sims.Rdata")
+report <- function(x){ cat("Power ", colMeans(x)[1],"Average #CPs", colMeans(x)[2], "SD of #CPs", sd(x[2,]), "Location Estimates", colMeans(x)[3:4] ,sep=" ") }
+reportVec <- function(x){ c( colMeans(x)[1],  colMeans(x)[2],sd(x[2,]),colMeans(x)[3:4] )}
+names <- c("Power","Average #CPs","SD of #CPs", "Location estimate 1", "Location estimate 2")
+
+```
+
+
+We set up simulations to investigate how the following aspects affect the performance of the procedure
+
+- Bandwidth
+
+- Dimensionality 
+
+- The size of parameter changes
+
+- Lengths of stationary segments 
+
+- Sample size in the subsample scheme
+
+For each setting, we report
+
+- `Size` The empirical size under null 
+
+- `Power` empirical power under alternative
+
+- `Average #CPs` mean number of change points detected under alternative
+
+- `SD of #CPs ` standard deviation of number of change points detected under alternative
+
+- `Location estimate 1 ` average number of times the first change was located (within +- 40)
+
+- `Location estimate 2` average number of times the second change was located (within +- 40)
+
+(Currently not all simulations have size reported - this is a next step)
+
+## Bandwidth
+
+	$n=2000$, varying $G = 50, 100, 200, 400$, $d=5, p=1$, $N=1000$ iterations
+	
+	changes at $k_1=750$ and $k_2=1500$ 
+	
+```{r}
+dfBandwidth <- t(data.frame(reportVec(BandwidthWald50),reportVec(BandwidthWald100),reportVec(BandwidthWald200),reportVec(BandwidthWald400)))
+colnames(dfBandwidth) <- names
+BandwidthSize <- c(mean(BandwidthWaldNull50[,1]),mean(BandwidthWaldNull100[,1]),mean(BandwidthWaldNull200[,1]),
+                      mean(BandwidthWaldNull400[,1]))
+cbind(Size = BandwidthSize, dfBandwidth)
+```
+
+With respect to increasing bandwidths, size decreases to 0, power is close to 1 (always, in this setting), location performance peaks at $G=200$.
+
+The following is one sample path with $G=200$ - the first change is less detectable than the second
+
+```{r}
+#sB200 <- simBandwidth(iterations = 1,G=200, test = "Wald")
+sB200Plot
+```
+	
+	
+## Dimensionality
+
+	How does dimensionality affect power/size?
+	
+	 
+	$n=2000$, $d=1,2,3,4,$ $p=2$, $norm(A_{j+1}-A_{j}) = a$, $N=1000$ iterations
+	
+	changes at $k_1=750$ and $k_2=1500$
+	
+	
+*THIS CURRENTLY DOESN'T WORK AS INTENDED - will revise*	
+
+```{r}
+dfDim <- t(data.frame(reportVec(DimensionWald1),reportVec(DimensionWald2),reportVec(DimensionWald3),reportVec(DimensionWald4)))
+colnames(dfDim) <- names
+dfDim
+```
+
+```{r}
+#simDimension(pars2, 2,iterations = 1,G=200, test = "Wald")
+```
+
+	
+## Change Size
+
+	How does magnitude of parameter change affect p/s?	
+	
+	$n=2000$, $d=5, p=1$, varying size of changes	i.e. $norm(A_{j+1}-A_{j})$ = a, 2a, 4a, 8a, $N=1000$ iterations
+	
+	changes at $k_1=750$ and $k_2=1500$
+```{r}
+dfSize <- t(data.frame(reportVec(SizeWald1),reportVec(SizeWald2),reportVec(SizeWald3),reportVec(SizeWald4)))
+colnames(dfSize) <- names
+dfSize
+```
+With respect to increasing change sizes, power increases to 1, location performance increases notably
+
+The following are two sample paths, the second with a change 4 times the size of the first change
+
+```{r}
+#sS2<-simSize(PARS2, iterations = 1,G=200, test = "Wald")
+sS2Plot
+#sS4<-simSize(PARS4, iterations = 1,G=200, test = "Wald")
+sS4Plot
+```
+
+
+## Segment Length
+
+	How does diff in gap between changes affect p/s?
+					
+	- multiscale example: 	G set = $(50, 100, 200, 400)$
+	
+	gap $= 50, 100, 200, 400$
+	
+```{r}
+dfSegment <- t(data.frame(reportVec(SizeSegment1),reportVec(SizeSegment2),reportVec(SizeSegment3),reportVec(SizeSegment4)))
+colnames(dfSegment) <- names
+dfSegment
+```
+
+*ALSO NOT WORKING*
+	
+	
+## Sample Length
+
+	How does varying n affect p/s in subsample scheme?	
+	
+	- subsample example: d=5 p=1, $G=n^{2/3}$, n=2000, 5000, 10000, 20000
+	
+	changes at $k_1 =  floor(n/3)$ and $k_2 = floor(2n/3)$
+
+
+First we use the Wald method
+
+
+```{r}
+dfLength <- t(data.frame(reportVec(Length1),reportVec(Length2),reportVec(Length3),reportVec(Length4)))
+colnames(dfLength) <- names
+dfLength
+```
+With respect to increasing sample lengths, power increases to 1, location performance increases.
+
+The following are two sample paths, one with $n=2000$, the other with $n=10000$
+
+```{r}
+#sL2000<-simLength(2000, PARS2, iterations = 1, test = "Wald")
+sL2000Plot
+#sL10000<-simLength(10000, PARS2, iterations = 1, test = "Wald")
+sL10000Plot
+```
+
+
+Now we use the Score method
+
+```{r}
+#dfLengthScore <- t(data.frame(reportVec(Length1Score),reportVec(Length2Score),reportVec(Length3Score)))
+#colnames(dfLengthScore) <- names
+dfLengthScore
+```
+This overestimates the number of change points.
+
+
+```{r}
+#sLS2000<-simLength(2000, PARS2, iterations = 1, method = "Score")
+sLS2000Plot
+#sLS10000<-simLength(10000, PARS2, iterations = 1, method = "Score")
+sLS10000Plot
+```
+
+
+Are we setting $G$ too small proportionally to $n$? Should $G$ be scaling exponentially with $n$, or should we use e.g. linear scaling?
+
+Try with $G = n^{0.75}$ and $G = n^{0.85}$ for simulation with $n=5000$
+
+```{r}
+dfLengthScoreG <- t(data.frame(reportVec(Length2ScoreG1),reportVec(Length2ScoreG2)))
+colnames(dfLengthScoreG) <- names
+dfLengthScoreG
+```
+$G = n^{0.75}$ seems to capture the change points better - estimates number correctly on average, locates the first change but not the second.
+
+$G = n^{0.85}$ is unable to detect the second change, so the exponent is probably too large here
+
+
+
+Let's redo the Score simulations with $G = n^{0.75}$
+```{r}
+dfLengthScoreG75 <- t(data.frame(reportVec(Length1Score),reportVec(Length2Score),reportVec(Length3Score)))
+colnames(dfLengthScoreG75) <- names
+dfLengthScoreG75
+```
+This seems to do a better job of localising the change points than $G=n^{2/3}$. The problem with estimation in number seems to have some convexity, we should investigate linear growth of $G$ wrt. $n$.
+
+Overall, this is still doing a better job of locating changes than the Wald subsampling procedure, especially for simulation setting 2 with moderate sample length. The Score procedure is more prone to overestimating the number of changes, likely due to the slightly larger magnitude of $T$ compared to $W$ on the same sample with similar hyperparameters. This leads to higher power for the Score procedure, but may come as a trade-off for size control - this requires further investigation.
+
+Currently, the Score procedure has is far worse in terms of runtime, especially as $G$ and $n$ grow. This may be fixable with an implementation entirely in `Rcpp`. 
+
+
+```{r}
+LengthScoreNullReport
+```
+

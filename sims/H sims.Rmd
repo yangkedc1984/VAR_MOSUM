@@ -1,0 +1,229 @@
+---
+title: "H sims"
+author: "Dom Owens"
+date: "16/11/2020"
+output: html_document
+---
+
+## Alternative 
+Wald
+
+H1 d3
+```{r, fig.keep=`none`}
+BandwidthWald_d3G50H <- simBandwidth(iterations = 1000,G=50, test = "Wald", estim = "FullH", A1_d3,A2_d3,A3_d3)
+BandwidthWald_d3G100H <- simBandwidth(iterations = 1000,G=100, test = "Wald", estim = "FullH", A1_d3,A2_d3,A3_d3)
+BandwidthWald_d3G200H <- simBandwidth(iterations = 1000,G=200, test = "Wald", estim = "FullH", A1_d3,A2_d3,A3_d3)
+BandwidthWald_d3G400H <- simBandwidth(iterations = 1000,G=400, test = "Wald", estim = "FullH", A1_d3,A2_d3,A3_d3, criterion = "eta") ##
+```
+```{r}
+report(BandwidthWald_d3G50H)
+report(BandwidthWald_d3G100H)
+report(BandwidthWald_d3G200H)
+report(BandwidthWald_d3G400H)
+```
+
+
+H1 d4
+```{r, fig.keep=`none`}
+BandwidthWald_d4G50H <- simBandwidth(iterations = 1000,G=50, test = "Wald", estim = "FullH", A1_d4,A2_d4,A3_d4)
+BandwidthWald_d4G100H <- simBandwidth(iterations = 1000,G=100, test = "Wald", estim = "FullH", A1_d4,A2_d4,A3_d4)
+BandwidthWald_d4G200H <- simBandwidth(iterations = 1000,G=200, test = "Wald", estim = "FullH", A1_d4,A2_d4,A3_d4)
+BandwidthWald_d4G400H <- simBandwidth(iterations = 1000,G=400, test = "Wald", estim = "FullH", A1_d4,A2_d4,A3_d4, criterion = "eta") ##
+```
+```{r}
+report(BandwidthWald_d4G50H)
+report(BandwidthWald_d4G100H)
+report(BandwidthWald_d4G200H)
+report(BandwidthWald_d4G400H)
+```
+
+H1 d5
+```{r, fig.keep=`none`}
+BandwidthWald_d5G50H <- simBandwidth(iterations = 1000,G=50, test = "Wald", estim = "FullH", A1_d5,A2_d5,A3_d5)
+BandwidthWald_d5G100H <- simBandwidth(iterations = 1000,G=100, test = "Wald", estim = "FullH",  A1_d5,A2_d5,A3_d5)
+BandwidthWald_d5G200H<- simBandwidth(iterations = 1000,G=200, test = "Wald", estim = "FullH",  A1_d5,A2_d5,A3_d5)
+BandwidthWald_d5G400H <- simBandwidth(iterations = 1000,G=400, test = "Wald", estim = "FullH",  A1_d5,A2_d5,A3_d5, criterion = "eta")
+```
+```{r}
+report(BandwidthWald_d5G50H)
+report(BandwidthWald_d5G100H)
+report(BandwidthWald_d5G200H)
+report(BandwidthWald_d5G400H) ##rerun with union
+```
+
+```{r}
+simBandwidth(iterations = 2,G=400, test = "Wald", estim = "FullH",  A1_d5,A2_d5,A3_d5, criterion = "eta")
+simBandwidth(iterations = 2,G=400, test = "Score", estim = "FullH",  A1_d5,A2_d5,A3_d5, criterion = "eta")
+```
+
+
+
+Score
+
+H1 d3
+```{r, fig.keep=`none`}
+BandwidthScore_d3G50H <- simBandwidth(iterations = 1000,G=50, test = "Score", estim = "FullH", A1_d3,A2_d3,A3_d3)
+BandwidthScore_d3G100H <- simBandwidth(iterations = 1000,G=100, test = "Score", estim = "FullH", A1_d3,A2_d3,A3_d3)
+BandwidthScore_d3G200H <- simBandwidth(iterations = 1000,G=200, test = "Score", estim = "FullH", A1_d3,A2_d3,A3_d3)
+BandwidthScore_d3G400H <- simBandwidth(iterations = 1000,G=400, test = "Score", estim = "FullH", A1_d3,A2_d3,A3_d3, criterion = "eta")
+```
+```{r}
+report(BandwidthScore_d3G50H)
+report(BandwidthScore_d3G100H)
+report(BandwidthScore_d3G200H)
+report(BandwidthScore_d3G400H) ##union
+```
+
+
+H1 d4
+```{r, fig.keep=`none`}
+BandwidthScore_d4G50H <- simBandwidth(iterations = 1000,G=50, test = "Score", estim = "FullH", A1_d4,A2_d4,A3_d4)
+BandwidthScore_d4G100H <- simBandwidth(iterations = 1000,G=100, test = "Score", estim = "FullH", A1_d4,A2_d4,A3_d4)
+BandwidthScore_d4G200H<- simBandwidth(iterations = 1000,G=200, test = "Score", estim = "FullH", A1_d4,A2_d4,A3_d4)
+BandwidthScore_d4G400H <- simBandwidth(iterations = 1000,G=400, test = "Score", estim = "FullH", A1_d4,A2_d4,A3_d4, criterion = "eta")
+```
+```{r}
+report(BandwidthScore_d4G50H)
+report(BandwidthScore_d4G100H)
+report(BandwidthScore_d4G200H)
+report(BandwidthScore_d4G400H) ##union
+```
+
+H1 d5
+```{r, fig.keep=`none`}
+BandwidthScore_d5G50H <- simBandwidth(iterations = 1000,G=50, test = "Score", estim = "FullH", A1_d5,A2_d5,A3_d5)
+BandwidthScore_d5G100H <- simBandwidth(iterations = 1000,G=100, test = "Score", estim = "FullH",  A1_d5,A2_d5,A3_d5)
+BandwidthScore_d5G200H <- simBandwidth(iterations = 1000,G=200, test = "Score", estim = "FullH",  A1_d5,A2_d5,A3_d5)
+BandwidthScore_d5G400H <- simBandwidth(iterations = 1000,G=400, test = "Score", estim = "FullH",  A1_d5,A2_d5,A3_d5, criterion = "eta")
+```
+```{r}
+report(BandwidthScore_d5G50H)
+report(BandwidthScore_d5G100H)
+report(BandwidthScore_d5G200H)
+report(BandwidthScore_d5G400H)
+```
+
+
+```{r}
+report(BandwidthWald50H)
+report(BandwidthWald100H)
+report(BandwidthWald200H)
+report(BandwidthWald400H)
+```
+
+```{r, fig.keep=`none`}
+BandwidthScore50H <- simBandwidth(iterations = 1000,G=50, test = "Score")
+BandwidthScore100H <- simBandwidth(iterations = 1000,G=100, test = "Score")
+BandwidthScore200H <- simBandwidth(iterations = 1000,G=200, test = "Score")
+BandwidthScore400H <- simBandwidth(iterations = 1000,G=400, test = "Score")
+```
+
+```{r}
+report(BandwidthScore50H)
+report(BandwidthScore100H)
+report(BandwidthScore200H)
+report(BandwidthScore400H)
+```
+
+### Null
+
+
+Wald
+
+H0 d3
+```{r, fig.keep=`none`}
+BandwidthWaldNull_d3G50H <- simBandwidthNull(iterations = 1000,G=50, test = "Wald", estim = "FullH", A1_d3)
+BandwidthWaldNull_d3G100H <- simBandwidthNull(iterations = 1000,G=100, test = "Wald", estim = "FullH", A1_d3)
+BandwidthWaldNull_d3G200H <- simBandwidthNull(iterations = 1000,G=200, test = "Wald", estim = "FullH", A1_d3)
+BandwidthWaldNull_d3G400H <- simBandwidthNull(iterations = 1000,G=400, test = "Wald", estim = "FullH", A1_d3)
+```
+```{r}
+mean(BandwidthWaldNull_d3G50H[,1])
+mean(BandwidthWaldNull_d3G100H[,1])
+mean(BandwidthWaldNull_d3G200H[,1])
+mean(BandwidthWaldNull_d3G400H[,1])
+```
+
+H0 d4
+```{r, fig.keep=`none`}
+BandwidthWaldNull_d4G50H <- simBandwidthNull(iterations = 1000,G=50, test = "Wald", estim = "FullH", A1_d4)
+BandwidthWaldNull_d4G100H <- simBandwidthNull(iterations = 1000,G=100, test = "Wald", estim = "FullH", A1_d4)
+BandwidthWaldNull_d4G200H <- simBandwidthNull(iterations = 1000,G=200, test = "Wald", estim = "FullH", A1_d4)
+BandwidthWaldNull_d4G400H <- simBandwidthNull(iterations = 1000,G=400, test = "Wald", estim = "FullH", A1_d4)
+```
+```{r}
+mean(BandwidthWaldNull_d4G50H[,1])
+mean(BandwidthWaldNull_d4G100H[,1])
+mean(BandwidthWaldNull_d4G200H[,1])
+mean(BandwidthWaldNull_d4G400H[,1])
+```
+
+```{r}
+simBandwidth(iterations = 1,G=200, test = "Score", estim = "FullH", A1_d4, A2_d4,A3_d4)
+simBandwidth(iterations = 1,G=200, test = "Wald", estim = "FullH", A1_d4, A2_d4,A3_d4)
+simBandwidthNull(iterations = 1,G=100, test = "Score", estim = "FullH", A1_d4)
+```
+
+H0 d5
+```{r, fig.keep=`none`}
+BandwidthWaldNull_d5G50H <- simBandwidthNull(iterations = 1000,G=50, test = "Wald", estim = "FullH", A1_d5)
+BandwidthWaldNull_d5G100H <- simBandwidthNull(iterations = 1000,G=100, test = "Wald", estim = "FullH", A1_d5)
+BandwidthWaldNull_d5G200H <- simBandwidthNull(iterations = 1000,G=200, test = "Wald", estim = "FullH", A1_d5)
+BandwidthWaldNull_d5G400H <- simBandwidthNull(iterations = 1000,G=400, test = "Wald", estim = "FullH", A1_d5)
+```
+```{r}
+mean(BandwidthWaldNull_d5G50[,1])
+mean(BandwidthWaldNull_d5G100[,1])
+mean(BandwidthWaldNull_d5G200[,1])
+mean(BandwidthWaldNull_d5G400[,1])
+```
+
+ -- Ended here Nov 2nd
+
+Score
+
+H0 d3
+```{r, fig.keep=`none`}
+BandwidthScoreNull_d3G50H <- simBandwidthNull(iterations = 1000,G=50, test = "Score", estim = "FullH", A1_d3)
+BandwidthScoreNull_d3G100H <- simBandwidthNull(iterations = 1000,G=100, test = "Score", estim = "FullH", A1_d3)
+BandwidthScoreNull_d3G200H <- simBandwidthNull(iterations = 1000,G=200, test = "Score", estim = "FullH", A1_d3)
+BandwidthScoreNull_d3G400H <- simBandwidthNull(iterations = 1000,G=400, test = "Score", estim = "FullH", A1_d3)
+```
+
+```{r}
+mean(BandwidthScoreNull_d3G50H[,1])
+mean(BandwidthScoreNull_d3G100H[,1])
+mean(BandwidthScoreNull_d3G200H[,1])
+mean(BandwidthScoreNull_d3G400H[,1])
+```
+
+
+H0 d4
+```{r, fig.keep=`none`}
+BandwidthScoreNull_d4G50H <- simBandwidthNull(iterations = 1000,G=50, test = "Score", estim = "FullH", A1_d4)
+BandwidthScoreNull_d4G100H <- simBandwidthNull(iterations = 1000,G=100, test = "Score", estim = "FullH", A1_d4)
+BandwidthScoreNull_d4G200H <- simBandwidthNull(iterations = 1000,G=200, test = "Score", estim = "FullH", A1_d4)
+BandwidthScoreNull_d4G400H <- simBandwidthNull(iterations = 1000,G=400, test = "Score", estim = "FullH", A1_d4)
+```
+```{r}
+mean(BandwidthScoreNull_d4G50H[,1])
+mean(BandwidthScoreNull_d4G100H[,1])
+mean(BandwidthScoreNull_d4G200H[,1])
+mean(BandwidthScoreNull_d4G400H[,1])
+```
+
+H0 d5
+```{r, fig.keep=`none`}
+BandwidthScoreNull_d5G50H <- simBandwidthNull(iterations = 1000,G=50, test = "Score", estim = "FullH", A1_d5)
+BandwidthScoreNull_d5G100H <- simBandwidthNull(iterations = 1000,G=100, test = "Score", estim = "FullH", A1_d5)
+BandwidthScoreNull_d5G200H <- simBandwidthNull(iterations = 1000,G=200, test = "Score", estim = "FullH", A1_d5)
+BandwidthScoreNull_d5G400H <- simBandwidthNull(iterations = 1000,G=400, test = "Score", estim = "FullH", A1_d5)
+```
+```{r}
+mean(BandwidthScoreNull_d5G50H[,1])
+mean(BandwidthScoreNull_d5G100H[,1])
+mean(BandwidthScoreNull_d5G200H[,1])
+mean(BandwidthScoreNull_d5G400H[,1])
+```
+
+

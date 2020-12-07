@@ -7,6 +7,33 @@ sourceCpp(file = "Wald_RcppParallel.cpp")
 sourceCpp(file = "Score_Rcpp.cpp")
 ##
 
+###################
+# WARNING MESSAGE #
+###################
+
+dim_warning <- function(n, G, d, p, method) {
+  dim <- d*(d*p + 1 ) + d*(d+1)/2
+  dimScore <- d*(d*p + 1 )/2 + d*(d+1)/2
+  fl <- floor(n^(2/3))
+  
+  
+  W3dim <- paste0("Bandwidth too small relative to model dimensions: set G > 3d(dp + 1) = ", 3*d*(d*p + 1), 
+                  "\n")
+  Wfl <- paste0("Bandwidth too small relative to sample size: set G > floor(n^(2/3)) = ", fl, "\n" )
+  Wlarge <- "Large dimensions: consider `option = univariate` or `p=1`\n"
+  
+  
+  if(G < dim & method == "Wald") warning(paste0("Not enough degrees of freedom for Wald method: set G > d(dp + 1) + d(d+1)/2 = ", dim, "\n"))
+  if(G < dimScore & method == "Score")warning(paste0("Not enough degrees of freedom for Score method: set G > d(dp + 1)/2 + d(d+1)/2 = ", dimScore, "\n"))
+  if(G < 3*dim) warning(W3dim)
+  if(G < fl ) warning(Wfl)
+  if(d*(d*p + 1 ) > 30) warning(Wlarge)
+  
+}
+dim_warning(100, 10, 5,5)
+dim_warning(100, 145, 5,5)
+
+
 index <- function(n, G, p, kap){ #define grid
   a <- 1:n
   R <- floor(kap*G)
@@ -20,7 +47,7 @@ get_sub_pairs <- function(Tn, D_n, G, kap, nu = 1/4){
   n <- length(Tn)
   R <- 1#floor(kap*G)
     rshift <- c(Tn[-(1:R)],rep(0,R)); lshift <- c(rep(0,R),Tn[- ((n-R+1):n)]); 
-    over <- (Tn >D_n) #indices are greater than D_n?
+    over <- (Tn >D_n) #indices greater than D_n
     v <- which(over & lshift < D_n )#& lshift >0 ) #lowers
     w <- which(over & rshift < D_n )#& rshift >0) #uppers
     nu_remove <- which(w-v >= nu*R*G) #nu(epsilon) test for distance between 
@@ -35,8 +62,8 @@ get_local_maxima <- function(Tn, D_n, G, nu = 1/4) {
   n <- length(Tn)
   cps <- c()
   window <- floor(nu*G)
-  for(t in (G+1):(n-G)){
-    if( all(Tn[(t - window):(t+window)]  > D_n) & Tn[t] == max(Tn[(t - window):(t+window)]) ){cps <- append(cps,t)} ##add to list
+  for(t in (G+1):(n-G)){#all(Tn[(t - window):(t+window)]  > D_n) &
+    if( Tn[t] > D_n & Tn[t] == max(Tn[(t - window):(t+window)]) ){cps <- append(cps,t)} ##add to list
   }
   return(cps)
 }
@@ -47,7 +74,9 @@ get_local_maxima(Tn = msub$mosum, D_n = 3, G= 200,  nu = .25)
 mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local", kap = 1,  alpha = 0.05, criterion="eps", nu=.25){
   n <- dim(x)[1]
   d <- dim(x)[2] 
-  #nu <- 0.25
+  
+  dim_warning(n,G,d,p, method)
+  
   R <- floor(kap*G)
   ##Test setup----------------------------
   c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
@@ -175,8 +204,8 @@ autoplot(mbScore)
 ##################################################
 
 
-MBS_RECUR <- function(x, p, d, s, e, D, G, estim = "DiagC", var_estim = "Local", cps, iter =1){
-if(e-s>2*G + p && iter < 3){ ## segment is long enough, and recursion is shallow
+MBS_RECUR <- function(x, p, d, s, e, D, G, estim = "DiagC", var_estim = "Local", cps, stat = list(), nu=0.25, iter =1){
+if(e-s>2*G + p && iter < length(stat)){ ## segment is long enough, and recursion is shallow
   iter <- iter +1
   mod <- ar.ols(x, aic=F, order.max = p)
   mod_a <- mod$x.intercept
@@ -188,28 +217,29 @@ if(e-s>2*G + p && iter < 3){ ## segment is long enough, and recursion is shallow
     } 
   }  
   sub_vector <- get_T_RCPP(x[s:e,], p,G-p-1,mod_a,eps,estim,var_estim) ##calculate statistic on subsample ##index here
+  stat[[iter]][(s+G):(e-G)] <- sub_vector[G:(e-s-G)]
   statW <- max(sub_vector) ##collect into output vector ##[which(ind==k)]
   if(statW> D){ #test
-    cps_se <- get_sub_pairs(sub_vector, D, G, kap=1) #MOSUM locate change points in interval
+    cps_se <- get_local_maxima(sub_vector, D, G, nu=.25) #MOSUM locate change points in interval
     cps_se <- c(s, s+cps_se, e) #add start and end points
     for(jj in 2:length(cps_se)){ #BS on each interval
-      cps_jj <- MBS_RECUR(x,p, d, s= cps_se[jj-1], e= cps_se[jj], D, G, estim,var_estim, cps_se, iter ) ##RECURSION
-      cps_se <- union(cps_se, cps_jj) ##add change points
+      cps_jj <- MBS_RECUR(x,p, d, s= cps_se[jj-1], e= cps_se[jj], D, G, estim,var_estim, cps_se, stat = stat, iter ) ##RECURSION
+      stat <- cps_jj$stat
+      cps_se <- union(cps_se, cps_jj$cps) ##add change points
     }
     cps <- union(cps,cps_se) ##add change points to output
   }
   #else break
 }
-  return(sort(cps))
+  return(list(cps = sort(cps), stat=stat))
 }
 
-MBS_RECUR(dp2_change, p=2, d=3, s=100,e=400,D=6, G=100, cps = c() )
+MBS_RECUR(dp2_change, p=2, d=3, s=100,e=400,D=2, G=100, cps = c(), stat = list(rep(0,2000),rep(0,2000),rep(0,2000)) )
 
-MOSUMBS <- function(x, p, G, estim = "DiagC", varEstim = "Local", kap = 1,  alpha = 0.05){
+MOSUMBS <- function(x, p, G, estim = "DiagC", varEstim = "Local",  alpha = 0.05){
   n <- dim(x)[1]
   d <- dim(x)[2] 
-  #nu <- 0.25
-  R <- floor(kap*G)
+  dim_warning(n,G,d,p)
   ##Test setup----------------------------
   c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
   a <- sqrt(2*log(n/G)) #test transform multipliers
@@ -218,10 +248,22 @@ MOSUMBS <- function(x, p, G, estim = "DiagC", varEstim = "Local", kap = 1,  alph
   D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   Reject <- FALSE
   ##Run test-----------------------------
-  ind <- index(n,G,p,kap) #fit grid
-  stat <- rep(0, n) #initialise statistic vector
+  max_iter <- 3
+  stat <- list(1:max_iter) #initialise statistic vector
+  for (ii in 1:max_iter) {
+    stat[[ii]] <- rep(0,n)
+  }
   ##
-  out_cps <- MBS_RECUR(x,p,d,s=1,e=n,D=D_n,G,cps = c())
-  return(sort(out_cps))
+  callBS <- MBS_RECUR(x,p,d,s=1,e=n,D=D_n,G,cps = c(), stat=stat, iter=0)
+  cps <- callBS$cps[-c(1, length(callBS$cps))]
+  #par(mfrow = c(max_iter,1))
+  plot.ts(callBS$stat[[1]], ylab="Statistic") # plot test statistic
+  for (ii in 2:max_iter) {
+    lines(callBS$stat[[ii]], col = ii+1)
+  }
+  abline(h = D_n, col = "blue"); legend("topright", legend =1:max_iter,title="Iteration", fill = c(1,2:max_iter +1) ) #add threshold 
+  if(length(cps) > 0) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
+  pl <- recordPlot()
+  return(list(cps = cps, stat = callBS$stat, plot=pl))
 }
-MOSUMBS(dp2_change, p=2, G=200)
+msbs_test <- MOSUMBS(dp2_change, p=2, G=200)

@@ -52,11 +52,32 @@ tn <- get_T_RCPP(var_change,p=1,G=200,Phi=a_change, eps=eps_change, estim = "Dia
 tn <- get_T_RCPP(p2_change,p=2,G=200,Phi=p2_a, eps=p2_eps, estim = "DiagH", var_estim = "Global")
 ts.plot(tn)
 
+
+
+
+
+
+
+
 ##Score-type test
-test_Score_new <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagC",var_estim = "Local"){ 
+test_Score_new <- function(x, p, G, Phi=NULL, eps=NULL, alpha = 0.05, estim="DiagC",var_estim = "Local", criterion="eps", nu=0.25){ 
   if(is.null(dim(x)) || dim(x)[2] == 1 ) {x <- matrix(x); Phi <- matrix(Phi); eps <- matrix(eps)} #handle univariate case
   n <- dim(x)[1] #dimensions
   d <- dim(x)[2] 
+  dim_warning(n,G,d,p,"Score")
+  
+  ## Estimate model
+  if( is.null(Phi) || is.null(eps) ){
+    mod <- ar(x, order.max = p, demean = T, method = "ols", aic = F)
+    Phi <- mod$x.intercept
+    eps <- mod$resid; eps[1:p,] <- 1e-4 ##solve NA
+    if(p==1) Phi <- cbind(Phi,  matrix( mod$ar, nrow=d, ncol=d))
+    if(p>1){ 
+      for (jj in 1:p){ #collect parameters into mat
+        Phi <- cbind(Phi,  mod$ar[jj,,])
+      } 
+    }
+  }
   ##Test setup----------------------------
   c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
   a <- sqrt(2*log(n/G)) #test transform multipliers
@@ -65,12 +86,12 @@ test_Score_new <- function(x, p, G, Phi, eps, alpha = 0.05, estim="DiagC",var_es
   D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   Reject <- FALSE
   ##Run test-----------------------------
-  Tn <- ts(get_T_RCPP(x,p,G,Phi,eps,estim,var_estim)) #evaluate statistic at each time k
+  Tn <- ts(get_T_RCPP(as.matrix(x),p,G,as.matrix(Phi), as.matrix(eps),estim,var_estim)) #evaluate statistic at each time k
   test_stat <- max(Tn)
   cps <- c() #empty changepoint vector
   if(test_stat > D_n){ #compare test stat with threshold
     Reject <- TRUE
-    cps <- get_cps(Tn,D_n,G, nu=1/4)
+    cps <- get_cps(Tn,D_n,G, nu=nu, criterion)
     if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
   } 
   ##Plot------------------------------------

@@ -1,11 +1,11 @@
-## Subsampling algorithm
-library(Rcpp)
-library(RcppParallel)
-library(RcppArmadillo)
-library(Matrix)
-sourceCpp(file = "Wald_RcppParallel.cpp")
-sourceCpp(file = "Score_Rcpp.cpp")
-##
+# ## Subsampling algorithm
+# library(Rcpp)
+# library(RcppParallel)
+# library(RcppArmadillo)
+# library(Matrix)
+# sourceCpp(file = "Wald_RcppParallel.cpp")
+# sourceCpp(file = "Score_Rcpp.cpp")
+# ##
 
 ###################
 # WARNING MESSAGE #
@@ -30,8 +30,8 @@ dim_warning <- function(n, G, d, p, method) {
   if(d*(d*p + 1 ) > 30) warning(Wlarge)
   
 }
-dim_warning(100, 10, 5,5)
-dim_warning(100, 145, 5,5)
+# dim_warning(100, 10, 5,5)
+# dim_warning(100, 145, 5,5)
 
 
 index <- function(n, G, p, kap){ #define grid
@@ -56,7 +56,7 @@ get_sub_pairs <- function(Tn, D_n, G, kap, nu = 1/4){
   return(sub_pairs)
   #plot(lshift); lines(Tn)
 }
-get_sub_pairs(Tn = msub$mosum, D_n = 5, G= 200, kap = 0.3, nu = .25)
+#get_sub_pairs(Tn = msub$mosum, D_n = 5, G= 200, kap = 0.3, nu = .25)
 
 get_local_maxima <- function(Tn, D_n, G, nu = 1/4) {
   n <- length(Tn)
@@ -67,7 +67,7 @@ get_local_maxima <- function(Tn, D_n, G, nu = 1/4) {
   }
   return(cps)
 }
-get_local_maxima(Tn = msub$mosum, D_n = 3, G= 200,  nu = .25)
+#get_local_maxima(Tn = msub$mosum, D_n = 3, G= 200,  nu = .25)
 
 ##get subsample change point estimates
 
@@ -182,24 +182,24 @@ mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Loc
   return(out)
 }
 
-msub <- mosum_sub(x=p2_change,p=2,G=200, method = "Wald", estim = "DiagC", kap = 0.6)
-mmm <- mosum_sub(x=dp2_change,p=2,G=200, estim = "DiagC", kap = 1)
-  test_Wald_new(x=dp2_change,p=2,G=200, alpha = 0.05,  estim = "DiagC")
-  
-  
-msubScore <- mosum_sub(x=dp2_change,p=2,G=200, method = "Score", estim = "DiagC", kap = 0.6)
-  
-  
-sourceCpp(file = "Score_Rcpp.cpp")
-test_Score_new(x= as.matrix(p2_change),p=2,G=200, Phi=p2_a, eps= as.matrix(p2_eps) )
-#plot(msub)
-
-library(microbenchmark)
-library(ggplot2)
-mb <- microbenchmark( msub <- mosum_sub(x=p2_change,p=2,G=200, estim = "DiagC", kap = 0.3))
-mbScore <- microbenchmark( msubScore <-  mosum_sub(x=dp2_change,p=2,G=200, method="Score", estim = "DiagC", kap = 0.3))
-autoplot(mb)
-autoplot(mbScore)
+# msub <- mosum_sub(x=p2_change,p=2,G=200, method = "Wald", estim = "DiagC", kap = 0.6)
+# mmm <- mosum_sub(x=dp2_change,p=2,G=200, estim = "DiagC", kap = 1)
+#   test_Wald_new(x=dp2_change,p=2,G=200, alpha = 0.05,  estim = "DiagC")
+#   
+#   
+# msubScore <- mosum_sub(x=dp2_change,p=2,G=200, method = "Score", estim = "DiagC", kap = 0.6)
+#   
+#   
+# sourceCpp(file = "Score_Rcpp.cpp")
+# test_Score_new(x= as.matrix(p2_change),p=2,G=200, Phi=p2_a, eps= as.matrix(p2_eps) )
+# #plot(msub)
+# 
+# library(microbenchmark)
+# library(ggplot2)
+# mb <- microbenchmark( msub <- mosum_sub(x=p2_change,p=2,G=200, estim = "DiagC", kap = 0.3))
+# mbScore <- microbenchmark( msubScore <-  mosum_sub(x=dp2_change,p=2,G=200, method="Score", estim = "DiagC", kap = 0.3))
+# autoplot(mb)
+# autoplot(mbScore)
 
 ##################################################
 
@@ -234,12 +234,12 @@ if(e-s>2*G + p && iter < length(stat)){ ## segment is long enough, and recursion
   return(list(cps = sort(cps), stat=stat))
 }
 
-MBS_RECUR(dp2_change, p=2, d=3, s=100,e=400,D=2, G=100, cps = c(), stat = list(rep(0,2000),rep(0,2000),rep(0,2000)) )
+#MBS_RECUR(dp2_change, p=2, d=3, s=100,e=400,D=2, G=100, cps = c(), stat = list(rep(0,2000),rep(0,2000),rep(0,2000)) )
 
 MOSUMBS <- function(x, p, G, estim = "DiagC", varEstim = "Local",  alpha = 0.05){
   n <- dim(x)[1]
   d <- dim(x)[2] 
-  dim_warning(n,G,d,p)
+  dim_warning(n,G,d,p, "Score")
   ##Test setup----------------------------
   c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
   a <- sqrt(2*log(n/G)) #test transform multipliers
@@ -266,4 +266,4 @@ MOSUMBS <- function(x, p, G, estim = "DiagC", varEstim = "Local",  alpha = 0.05)
   pl <- recordPlot()
   return(list(cps = cps, stat = callBS$stat, plot=pl))
 }
-msbs_test <- MOSUMBS(dp2_change, p=2, G=200)
+#msbs_test <- MOSUMBS(dp2_change, p=2, G=200)

@@ -1,2 +1,3 @@
+exportPattern("^[[:alpha:]]+")
 useDynLib(mosumvar, .registration=TRUE)
 importFrom(Rcpp, evalCpp)

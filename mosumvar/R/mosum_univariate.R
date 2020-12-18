@@ -23,7 +23,7 @@ mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Lo
     if(p==1) PhiList[[i]] <- matrix(c(PhiList[[i]],mod[[i]]$ar[,,1]),1,2 ) #cbind(Phi,  matrix( mod$ar, nrow=d, ncol=d))
     if(p>1){ 
       for (jj in 1:p){ #collect parameters into mat
-        PhiList[[i]] <- cbind(Phi[[i]],  mod[[i]]$ar[jj,,])
+        PhiList[[i]] <- cbind(PhiList[[i]],  mod[[i]]$ar[jj,,])
       } 
     } 
   }
@@ -81,7 +81,7 @@ mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Lo
   }
   if(method == "Score"){
   #if(global_resids) eps_global <-  (ar(x, order.max = p, demean = T, method = "ols", aic = F)$resid)
-    stat <- get_T_RCPP(as.matrix(x), p, G, Phi = matrix(0), as.matrix(eps), PhiList = Phi, var_estim = varEstim, univariate = T )
+    stat <- get_T_RCPP(as.matrix(x), p, G, Phi = matrix(0), as.matrix(eps), PhiList = PhiList, var_estim = varEstim, univariate = T )
   }
   
   cps <- c() #empty changepoint vector

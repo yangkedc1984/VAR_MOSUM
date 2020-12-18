@@ -76,7 +76,7 @@ W_ex <- get_W_RCPP(x=p2_change,p=4,G=30, estim = "DiagC")
 #   return(cps)
 # }
 
-get_cps <- function(stat, D_n, G, nu = 1/4, criterion = c("eps","eta","union") ){
+get_cps <- function(stat, D_n, G, nu = 1/4, criterion = c("eps","eta","union")[1] ){
   cps1 <- cps2 <- c() ##assign empty cps
   if(criterion =="eps" | criterion == "union"){
     sub_pairs <- get_sub_pairs(stat,D_n,G,kap=1,nu=nu) #get_sub_pairs
@@ -101,7 +101,7 @@ get_cps <- function(stat, D_n, G, nu = 1/4, criterion = c("eps","eta","union") )
 
 ## TEST ----------------------------------------------------
 ##Wald-type test
-test_Wald_new <- function(x, p, G, alpha = 0.05, estim="DiagC", criterion = "eps",nu=1/4){ 
+test_Wald_new <- function(x, p, G, alpha = 0.05, estim="DiagC", criterion = "eps", nu=1/4){ 
   n <- dim(x)[1] #dimensions
   d <- dim(x)[2] 
   dim_warning(n,G,d,p,"Wald")
@@ -113,7 +113,7 @@ test_Wald_new <- function(x, p, G, alpha = 0.05, estim="DiagC", criterion = "eps
   D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   Reject <- FALSE
   ##Run test-----------------------------
-  Wn <- (get_W_RCPP(x,p,G,estim) ) #evaluate statistic at each time k
+  Wn <- get_W_RCPP(x,p,G,estim)  #evaluate statistic at each time k
   test_stat <- max(Wn)
   cps <- c() #empty changepoint vector
   if(test_stat > D_n){ #compare test stat with threshold

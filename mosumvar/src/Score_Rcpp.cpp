@@ -31,6 +31,30 @@ arma::vec H_ik(arma::mat& x, int i, int k, int p, arma::mat Phi, arma::mat eps)
 }
 
 
+// [[Rcpp::export(getH_ik_univ)]] //getH_ik
+vec H_ik_univ(mat& x, int i, int k, int p, mat Phi, mat eps)
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+  vec ai = Phi.t(); //intercept - index
+  
+  mat X = x( span(k-p-1,k-1-1), i-1) ; //depends on self only
+  
+  vec V = vectorise(flipud(X),1).t(); //time order
+  vec O = ones(1); //intercept
+  vec VV = join_cols(O,V);
+  
+  double y = x(k-1,i-1); //double aV = dot(ai, VV);
+  double  e = eps(k-1,i-1);  // y - aV;  //residual
+  
+  vec  out = - y*VV +  VV*VV.t()*ai - e*VV ;
+  
+  return out;
+  
+}
+
+
+
 // [[Rcpp::export(makeH_k_RCPP)]] //makeH_k
 arma::vec H_k(arma::mat& x, int k, int p, arma::mat Phi, arma::mat eps)
 {
@@ -39,6 +63,19 @@ arma::vec H_k(arma::mat& x, int k, int p, arma::mat Phi, arma::mat eps)
 
   for (int ii=1; ii< d+1; ii++) {
     H.subvec((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1 )= H_ik(x,ii,k,p,Phi,eps) ;
+  };
+  return H;
+}
+
+
+// [[Rcpp::export(makeH_k_univ)]] //makeH_k
+vec H_k_univ(mat& x, int k, int p,  arma::field<arma::mat> PhiList, mat eps)
+{
+  int d = x.n_cols;
+  vec H = zeros(d+  d*p); //accounts for intercept
+  
+  for (int ii=1; ii< d+1; ii++) {
+    H.subvec((ii-1)*(p+1), (ii-1)*(p+1)+ (p+1)-1  )= H_ik_univ(x,ii,k,p,PhiList(ii-1),eps) ;
   };
   return H;
 }
@@ -56,7 +93,23 @@ arma::mat H_all(arma::mat& x,  int p, int G, arma::mat Phi, arma::mat eps)
     H.col(t) = H_k(x, t, p, Phi, eps) ;//-1-1
   };
   return H;
+}
 
+
+
+// [[Rcpp::export(makeH_all_univ)]] //makeH_all
+mat H_all_univ(mat& x,  int p, int G, arma::field<arma::mat> PhiList, mat eps)
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+  int nr = d+ d*p;
+  //int nc = u-l+1;
+  mat H; H.zeros(nr,n); mat xx;  //matrix of H values #accounts for intercept
+  for (int t=p+1; t <(n-p); t++ ) {
+    mat xin =x;
+    H.col(t) = H_k_univ(xin, t, p, PhiList, eps) ;//-1-1
+  };
+  return H;
 }
 
 // struct arma::matrix_types {
@@ -325,61 +378,67 @@ arma::mat DiagC(arma::mat x, int p, arma::mat sigma_d, int k, int G)
 }
 
 
+
 // [[Rcpp::export(get_Tkn_RCPP)]] //get_Tkn
-double Tkn(arma::mat x, int k, int p,  int G, arma::mat Phi, arma::mat eps, arma::mat h_all , String estim, String var_estim)
+double Tkn(arma::mat x, int k, int p,  int G, arma::mat Phi, arma::mat eps, arma::mat h_all , String estim, String var_estim, arma::mat sgd, bool univariate = 0)
 {
   int n = x.n_rows;
   int d = x.n_cols;
   double out;
   arma::mat A = getA(x,k,G,p,eps,h_all);
   //double v;
-  //Sigma estiarma::mator options------
+  //Sigma estimator options------
   if(estim == "DiagC"){
-    arma::mat sgd;
-    if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
-    //if(var_estim == "Local"){sgd = conv_to<arma::vec>::from(sigma_d.row(k));} else if (var_estim == "Global") {sgd = conv_to<arma::vec>::from(sigma_d);}
-    if (var_estim == "Local") {
-      sgd = getsigma_dLocal(eps, k, p, G);}
-      arma::mat Sig_ = DiagC(x,p,sgd,k,G) ;
-      arma::mat prod = A.t() * Sig_ * A;
-      out = sqrt( prod(0,0) ) /sqrt(16*G) ;//out = norm(Sig_ * A)  WHY is it scaling like this? undoing estiarma::mator scaling?
-    } else{
-   // if(estim == "DiagH") {
-   //   sp_arma::mat Sig_ = DiagH(x,k,G,p,h_all); //DiagH estiarma::mator for Sigma
-   //   out = pow(2*G, -0.5) * norm(Sig_ * A, "fro");
-   // }
+    //if(var_estim == "Local"){sgd = conv_to<vec>::from(sigma_d.row(k));} else if (var_estim == "Global") {sgd = conv_to<vec>::from(sigma_d);}
+    if (var_estim == "Local") {sgd = getsigma_dLocal(eps, k, p, G);}
+    arma::mat Sig_;
+    if(univariate){
+      Sig_ = DiagC_univ(x,p,sgd,k,G) ;
+    } else {
+      Sig_ = DiagC(x,p,sgd,k,G) ;
+    }
+    
+    arma::mat prod = A.t() * Sig_ * A;
+    out = sqrt( prod(0,0) ) /sqrt(16*G) ;//out = norm(Sig_ * A)  WHY is it scaling like this? undoing estimator scaling?
+  } else{
+    // if(estim == "DiagH") {
+    //   sp_mat Sig_ = DiagH(x,k,G,p,h_all); //DiagH estimator for Sigma
+    //   out = pow(2*G, -0.5) * norm(Sig_ * A, "fro");
+    // }
     if(estim == "FullH") {
-      arma::mat Sig_ = FullH(x,k,G,h_all);  //FullH estiarma::mator
+      arma::mat Sig_ = FullH(x,k,G,h_all);  //FullH estimator
       out = norm(Sig_ * A) / (sqrt(8*G)); //2*
     }
-
+    
   }
   //------------------------------
   return out;
-}
-//
-//
-// double floop(int k) {
-//   arma::mat x; int p; int G; String estim;
+}   //arma::mat x; int p; int G; String estim;
 //   return Wkn(x,p,k,G,estim);
 // } //wrapper
 //
 
 // [[Rcpp::export(get_T_RCPP)]] //get_T
-arma::vec T(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, String estim = "DiagC",  String var_estim = "Local")
+arma::vec T(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps,arma::field<arma::mat> PhiList, String estim = "DiagC",  String var_estim = "Local", bool univariate = 0)
 {
   int n = x.n_rows;
-  arma::mat h_all = H_all(x, p, G, Phi, eps);
- // arma::mat sigma_d;
+  arma::mat h_all;
+  if(univariate){
+    h_all  = H_all_univ(x, p, G, PhiList, eps);
+  } else {
+    h_all  = H_all(x, p, G, Phi, eps);
+  }
+  // mat sigma_d;
   arma::vec out(n, fill::zeros);
   // if(var_estim == "Local"){
   //   sigma_d = getsigma_dLocal(eps,p,G);
-  // } else if(var_estim == "Global"){
+  // } else if(var_estim == "Global"){ 
   //     sigma_d = getsigma_dGlobal(eps,p);
   // }
-
+  arma::mat sgd;
+  if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
   for (int k=G+ p+1; k< n-G-p; k++) {
-    out(k) = Tkn(x,k,p,G,Phi,eps,h_all ,estim, var_estim);
+    out(k) = Tkn(x,k,p,G,Phi,eps,h_all ,estim, var_estim, sgd, univariate);
   }
   return out;
 }
@@ -423,7 +482,7 @@ List test_Score(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, double 
   double D_n = max((b + c_alpha)/a, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) ); //##ASYMPTOTIC correction
   int Reject = 0; //
   //Run test-----------------------------
-  arma::vec Tn = T(x,p,G, Phi, eps, estim); //evaluate statistic at each time k
+  arma::vec Tn = T(x,p,G, Phi, eps, arma::field<arma::mat>(0), estim); //evaluate statistic at each time k
   double test_stat = Tn.max();
   if(test_stat > D_n){ //compare test stat with threshold
     Reject = 1; //test true

@@ -53,14 +53,31 @@ tn <- get_T_RCPP(p2_change,p=2,G=200,Phi=p2_a, eps=p2_eps, estim = "DiagH", var_
 ts.plot(tn)
 
 
-
+fit_out_model <- function(x,cps, p=NULL, pen = log(nrow(x))^1.01 ){
+  n <- nrow(x)
+  d <- ncol(x)
+  starts <- c(0, cps); ends <- c(cps, n)
+  
+  q <- length(cps)
+  RSS <- 0
+  out <- as.list(1:(q+1) )
+  for (ii in 1:(q+1)) {
+    out[[ii]] <- ar.ols(x[(starts[ii]+1):ends[ii],] , order.max = p)
+    #out[[ii]]$resid <- na.omit(out[[ii]]$resid) 
+    #V <- out[[ii]]$var.pred
+    RSS <- RSS + (ends[ii] - starts[ii]+1) *  norm( out[[ii]]$var.pred , type="F")^2 #   sum(diag( t(V) %*% V ))  
+  }
+  
+  sSIC <- pen*q + (n/2) * log(RSS / n)
+  return(list(outmodel = out, sSIC = sSIC))
+}
 
 
 
 
 
 ##Score-type test
-test_Score_new <- function(x, p, G, Phi=NULL, eps=NULL, alpha = 0.05, estim="DiagC",var_estim = "Local", criterion="eps", nu=0.25){ 
+test_Score_new <- function(x, p, G, Phi=NULL, eps=NULL, alpha = 0.05, estim="DiagC",var_estim = "Local", criterion="eps", nu=0.25, fit.model =F){ 
   if(is.null(dim(x)) || dim(x)[2] == 1 ) {x <- matrix(x); Phi <- matrix(Phi); eps <- matrix(eps)} #handle univariate case
   n <- dim(x)[1] #dimensions
   d <- dim(x)[2] 
@@ -100,8 +117,15 @@ test_Score_new <- function(x, p, G, Phi=NULL, eps=NULL, alpha = 0.05, estim="Dia
   if(Reject==TRUE) abline(v = cps, col = "red")  #if rejecting H0, add estimated cps
   pl <- recordPlot()
   #plot( a*Tn - b); abline(h=c_alpha, col="blue") #rescaled plot
+  ##Fit model-------------------------------
+  outmodel_list <- NULL
+  if(fit.model){    outmodel_list <- fit_out_model(x,cps,p) }
+  
+  
   ##Output------------------------------------
-  out <- list(Reject = Reject, Threshold = D_n, mosum = Tn, cps = cps, plot = pl, estim = estim)
+  out <- list(Reject = Reject, Threshold = D_n, mosum = Tn, cps = cps, plot = pl, estim = estim, 
+              outmodel=outmodel_list$outmodel, sSIC = outmodel_list$sSIC)
   return(out)
 }
-test_Score_new(p2_change,p=2,G=200,Phi=p2_a, eps=p2_eps, estim = "DiagC", var_estim = "Local")
+tsn <- test_Score_new(p2_change,p=2,G=200,Phi=p2_a, eps=p2_eps, estim = "DiagC", var_estim = "Local", fit.model = T)
+fit_out_model(p2_change, cps=c())

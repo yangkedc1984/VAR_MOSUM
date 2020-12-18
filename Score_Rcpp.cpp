@@ -1,12 +1,13 @@
 
 //#include <Rcpp.h>
-#include <RcppArmadillo.h>
+// #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::depends(RcppParallel)]]
-// [[Rcpp::plugins(openmp)]]
+// // [[Rcpp::depends(RcppParallel)]]
+// // [[Rcpp::plugins(openmp)]]
 
-#include <iostream>
-#include <RcppParallel.h>
+// #include <iostream>
+//#include <RcppParallel.h>
+#include <RcppArmadilloExtensions/sample.h>
 using namespace Rcpp;
 using namespace arma;
 using namespace std;
@@ -34,6 +35,31 @@ vec H_ik(mat& x, int i, int k, int p, mat Phi, mat eps)
   
 }
 
+// [[Rcpp::export(getH_ik_univ)]] //getH_ik
+vec H_ik_univ(mat& x, int i, int k, int p, mat Phi, mat eps)
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+  vec ai = Phi.t(); //intercept - index
+
+  mat X = x( span(k-p-1,k-1-1), i-1) ; //depends on self only
+  
+  vec V = vectorise(flipud(X),1).t(); //time order
+  vec O = ones(1); //intercept
+  vec VV = join_cols(O,V);
+  
+  double y = x(k-1,i-1); //double aV = dot(ai, VV);
+  double  e = eps(k-1,i-1);  // y - aV;  //residual
+  
+  vec  out = - y*VV +  VV*VV.t()*ai - e*VV ;
+  
+  return out;
+  
+}
+
+
+
+
 
 // [[Rcpp::export(makeH_k_RCPP)]] //makeH_k
 vec H_k(mat& x, int k, int p, mat Phi, mat eps)
@@ -42,7 +68,20 @@ vec H_k(mat& x, int k, int p, mat Phi, mat eps)
   vec H = zeros(d+  d*d*p); //accounts for intercept
 
   for (int ii=1; ii< d+1; ii++) {
-    H.subvec((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1 )= H_ik(x,ii,k,p,Phi,eps) ;
+    H.subvec((ii-1)*(d*p+1), (ii-1)*(d*p+1)+ d*p  )= H_ik(x,ii,k,p,Phi,eps) ;
+  };
+  return H;
+}
+
+
+// [[Rcpp::export(makeH_k_univ)]] //makeH_k
+vec H_k_univ(mat& x, int k, int p,  arma::field<mat> PhiList, mat eps)
+{
+  int d = x.n_cols;
+  vec H = zeros(d+  d*p); //accounts for intercept
+  
+  for (int ii=1; ii< d+1; ii++) {
+    H.subvec((ii-1)*(p+1), (ii-1)*(p+1)+ (p+1)-1  )= H_ik_univ(x,ii,k,p,PhiList(ii-1),eps) ;
   };
   return H;
 }
@@ -62,6 +101,23 @@ mat H_all(mat& x,  int p, int G, mat Phi, mat eps)
   return H;
 
 }
+
+
+// [[Rcpp::export(makeH_all_univ)]] //makeH_all
+mat H_all_univ(mat& x,  int p, int G, arma::field<mat> PhiList, mat eps)
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+  int nr = d+ d*p;
+  //int nc = u-l+1;
+  mat H; H.zeros(nr,n); mat xx;  //matrix of H values #accounts for intercept
+  for (int t=p+1; t <(n-p); t++ ) {
+    mat xin =x;
+    H.col(t) = H_k_univ(xin, t, p, PhiList, eps) ;//-1-1
+  };
+  return H;
+}
+
 
 // struct Matrix_types {
 //   arma::mat m;
@@ -328,9 +384,40 @@ mat DiagC(mat x, int p, mat sigma_d, int k, int G)
   return out;
 }
 
+// [[Rcpp::export(get_DiagC_univ)]] //get_DiagC
+mat DiagC_univ(mat x, int p, mat sigma_d, int k, int G)
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+  mat xk(2*G,d*p+d, fill::ones) ;
+  //mat O = ones(2*G,1) ;
+  for(int t=0; t<2*G ; t++){
+    for(int ii=0; ii<d; ii++){
+      xk(t, span( (ii)*(p+1) + 1, (ii)*(p+1) +p ) ) = x( span(k- G + t,k- G + t+p-1),  ii ).t()  ;
+    }
+  }
+  
+  mat C =  xk.t() * xk /(2*G -1); //works as intended
+  mat S = repelem(sigma_d, p+1, p+1);
+  mat out = pinv(S % C);
+  // //eigen decomposition
+  // eig_sym(evals,evecs,C);
+  // mat C_ = evecs * diagmat( 1/(evals) )*  evecs.t(); //now returns inverse Sigma
+  // eig_sym(evalS,evecS,sigma_d);
+  // mat S_ = evecS * diagmat( 1/(evalS) )*  evecS.t();
+  // 
+  // //mat evecKron = kron(evecs, evecS);
+  // 
+  // //eig_sym(evals,evecs,kron(sigma_d,C));
+  // //mat out = evecs * diagmat( pow(evals, -0.5) )*  evecs.t();
+  // //mat out = evecKron * kron(diagmat( pow(evals, -0.5) ), diagmat( pow(evalS, -0.5) )) * evecKron.t();
+  // mat out = kron(S_, C_);
+  return out;
+}
+
 
 // [[Rcpp::export(get_Tkn_RCPP)]] //get_Tkn
-double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String estim, String var_estim)
+double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String estim, String var_estim, mat sgd, bool univariate = 0)
 {
   int n = x.n_rows;
   int d = x.n_cols;
@@ -339,15 +426,18 @@ double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String est
   //double v;
   //Sigma estimator options------
   if(estim == "DiagC"){
-    mat sgd;
-    if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
     //if(var_estim == "Local"){sgd = conv_to<vec>::from(sigma_d.row(k));} else if (var_estim == "Global") {sgd = conv_to<vec>::from(sigma_d);}
-    if (var_estim == "Local") {
-      sgd = getsigma_dLocal(eps, k, p, G);}
-      mat Sig_ = DiagC(x,p,sgd,k,G) ;
-      mat prod = A.t() * Sig_ * A;
-      out = sqrt( prod(0,0) ) /sqrt(16*G) ;//out = norm(Sig_ * A)  WHY is it scaling like this? undoing estimator scaling?
-    } else{
+    if (var_estim == "Local") {sgd = getsigma_dLocal(eps, k, p, G);}
+    mat Sig_;
+    if(univariate){
+      Sig_ = DiagC_univ(x,p,sgd,k,G) ;
+    } else {
+      Sig_ = DiagC(x,p,sgd,k,G) ;
+    }
+     
+    mat prod = A.t() * Sig_ * A;
+    out = sqrt( prod(0,0) ) /sqrt(16*G) ;//out = norm(Sig_ * A)  WHY is it scaling like this? undoing estimator scaling?
+  } else{
    // if(estim == "DiagH") {
    //   sp_mat Sig_ = DiagH(x,k,G,p,h_all); //DiagH estimator for Sigma
    //   out = pow(2*G, -0.5) * norm(Sig_ * A, "fro");
@@ -370,10 +460,15 @@ double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String est
 // 
 
 // [[Rcpp::export(get_T_RCPP)]] //get_T
-vec T(mat x, int p, int G, mat Phi, mat eps, String estim = "DiagC",  String var_estim = "Local")
+vec T(mat x, int p, int G, mat Phi, mat eps,arma::field<mat> PhiList, String estim = "DiagC",  String var_estim = "Local", bool univariate = 0)
 {
   int n = x.n_rows;
-  mat h_all = H_all(x, p, G, Phi, eps);
+  mat h_all;
+  if(univariate){
+    h_all  = H_all_univ(x, p, G, PhiList, eps);
+  } else {
+    h_all  = H_all(x, p, G, Phi, eps);
+  }
  // mat sigma_d;
   vec out(n, fill::zeros);
   // if(var_estim == "Local"){
@@ -381,9 +476,10 @@ vec T(mat x, int p, int G, mat Phi, mat eps, String estim = "DiagC",  String var
   // } else if(var_estim == "Global"){ 
   //     sigma_d = getsigma_dGlobal(eps,p);
   // }
-
+  mat sgd;
+  if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
   for (int k=G+ p+1; k< n-G-p; k++) {
-    out(k) = Tkn(x,k,p,G,Phi,eps,h_all ,estim, var_estim);
+    out(k) = Tkn(x,k,p,G,Phi,eps,h_all ,estim, var_estim, sgd, univariate);
   }
   return out;
 }
@@ -427,13 +523,13 @@ List test_Score(mat x, int p, int G, mat Phi, mat eps, double alpha =0.05, Strin
   double D_n = max((b + c_alpha)/a, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) ); //##ASYMPTOTIC correction
   int Reject = 0; //
   //Run test-----------------------------
-  vec Tn = T(x,p,G, Phi, eps, estim); //evaluate statistic at each time k
+  vec Tn = T(x,p,G, Phi, eps, arma::field<arma::mat>(0), estim); //evaluate statistic at each time k
   double test_stat = Tn.max();
   if(test_stat > D_n){ //compare test stat with threshold
     Reject = 1; //test true
     cp = cps(Tn,D_n,G);
     if( cp.size()==0 ) Reject = 0 ;//doesn't pass eps-test
-  } ; 
+  } ;
   //Plot------------------------------------
   //       plot(Wn) # plot test statistic
   //         abline(h = D_n, col = "blue") #add threshold
@@ -472,6 +568,38 @@ List MFA(mat x, int p, vec Gset, mat Phi, mat eps, String estim = "DiagC", doubl
   return(List::create(Named("Reject") = Reject, _["ChangePoints"]=cps, _["q"] = cps.size() ));
 }
 
+
+
+// [[Rcpp::export]]
+arma::uvec sample_index(const int &size, const int &n_tilde){
+  arma::uvec sequence = arma::linspace<arma::uvec>(0, n_tilde-1, n_tilde);
+  arma::uvec out = Rcpp::RcppArmadillo::sample(sequence, size, true);
+  return out;
+}
+
+// [[Rcpp::export(bootstrap)]]
+vec bootstrap(mat x, int p, int G, field<mat> bsPhi, mat bsResid, int n_tilde, int M, String estim, String var_estim){
+  int n = x.n_rows;
+  int d = x.n_cols;
+  uvec s;  uvec i;
+  vec stat_m(n); vec max_m(M);
+  vec epsi;
+
+
+  for(int m = 0; m < M; m++){
+    s = sample_index(n, n_tilde); //randi(n, distr_param(0, n_tilde-1));
+    stat_m = zeros(n);
+    for(int ii = 0; ii < d; ii++ ){
+      i = ii;
+      epsi = bsResid.submat(s, i);
+      mat Phi = bsPhi(ii);
+      stat_m = stat_m + T(x.col(ii), p, G, Phi, epsi, arma::field<mat>(0), estim, var_estim);
+    }
+  max_m(m) = max(stat_m);
+  }
+
+  return max_m;
+}
 
 
 

@@ -22,6 +22,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// H_ik_univ
+vec H_ik_univ(mat& x, int i, int k, int p, mat Phi, mat eps);
+RcppExport SEXP _mosumvar_H_ik_univ(SEXP xSEXP, SEXP iSEXP, SEXP kSEXP, SEXP pSEXP, SEXP PhiSEXP, SEXP epsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< mat& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type i(iSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< int >::type p(pSEXP);
+    Rcpp::traits::input_parameter< mat >::type Phi(PhiSEXP);
+    Rcpp::traits::input_parameter< mat >::type eps(epsSEXP);
+    rcpp_result_gen = Rcpp::wrap(H_ik_univ(x, i, k, p, Phi, eps));
+    return rcpp_result_gen;
+END_RCPP
+}
 // H_k
 arma::vec H_k(arma::mat& x, int k, int p, arma::mat Phi, arma::mat eps);
 RcppExport SEXP _mosumvar_H_k(SEXP xSEXP, SEXP kSEXP, SEXP pSEXP, SEXP PhiSEXP, SEXP epsSEXP) {
@@ -37,6 +53,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// H_k_univ
+vec H_k_univ(mat& x, int k, int p, arma::field<arma::mat> PhiList, mat eps);
+RcppExport SEXP _mosumvar_H_k_univ(SEXP xSEXP, SEXP kSEXP, SEXP pSEXP, SEXP PhiListSEXP, SEXP epsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< mat& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< int >::type p(pSEXP);
+    Rcpp::traits::input_parameter< arma::field<arma::mat> >::type PhiList(PhiListSEXP);
+    Rcpp::traits::input_parameter< mat >::type eps(epsSEXP);
+    rcpp_result_gen = Rcpp::wrap(H_k_univ(x, k, p, PhiList, eps));
+    return rcpp_result_gen;
+END_RCPP
+}
 // H_all
 arma::mat H_all(arma::mat& x, int p, int G, arma::mat Phi, arma::mat eps);
 RcppExport SEXP _mosumvar_H_all(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiSEXP, SEXP epsSEXP) {
@@ -49,6 +80,21 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type Phi(PhiSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type eps(epsSEXP);
     rcpp_result_gen = Rcpp::wrap(H_all(x, p, G, Phi, eps));
+    return rcpp_result_gen;
+END_RCPP
+}
+// H_all_univ
+mat H_all_univ(mat& x, int p, int G, arma::field<arma::mat> PhiList, mat eps);
+RcppExport SEXP _mosumvar_H_all_univ(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiListSEXP, SEXP epsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< mat& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type p(pSEXP);
+    Rcpp::traits::input_parameter< int >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::field<arma::mat> >::type PhiList(PhiListSEXP);
+    Rcpp::traits::input_parameter< mat >::type eps(epsSEXP);
+    rcpp_result_gen = Rcpp::wrap(H_all_univ(x, p, G, PhiList, eps));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -152,8 +198,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // Tkn
-double Tkn(arma::mat x, int k, int p, int G, arma::mat Phi, arma::mat eps, arma::mat h_all, String estim, String var_estim);
-RcppExport SEXP _mosumvar_Tkn(SEXP xSEXP, SEXP kSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiSEXP, SEXP epsSEXP, SEXP h_allSEXP, SEXP estimSEXP, SEXP var_estimSEXP) {
+double Tkn(arma::mat x, int k, int p, int G, arma::mat Phi, arma::mat eps, arma::mat h_all, String estim, String var_estim, arma::mat sgd, bool univariate);
+RcppExport SEXP _mosumvar_Tkn(SEXP xSEXP, SEXP kSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiSEXP, SEXP epsSEXP, SEXP h_allSEXP, SEXP estimSEXP, SEXP var_estimSEXP, SEXP sgdSEXP, SEXP univariateSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -166,13 +212,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type h_all(h_allSEXP);
     Rcpp::traits::input_parameter< String >::type estim(estimSEXP);
     Rcpp::traits::input_parameter< String >::type var_estim(var_estimSEXP);
-    rcpp_result_gen = Rcpp::wrap(Tkn(x, k, p, G, Phi, eps, h_all, estim, var_estim));
+    Rcpp::traits::input_parameter< arma::mat >::type sgd(sgdSEXP);
+    Rcpp::traits::input_parameter< bool >::type univariate(univariateSEXP);
+    rcpp_result_gen = Rcpp::wrap(Tkn(x, k, p, G, Phi, eps, h_all, estim, var_estim, sgd, univariate));
     return rcpp_result_gen;
 END_RCPP
 }
 // T
-arma::vec T(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, String estim, String var_estim);
-RcppExport SEXP _mosumvar_T(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiSEXP, SEXP epsSEXP, SEXP estimSEXP, SEXP var_estimSEXP) {
+arma::vec T(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, arma::field<arma::mat> PhiList, String estim, String var_estim, bool univariate);
+RcppExport SEXP _mosumvar_T(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiSEXP, SEXP epsSEXP, SEXP PhiListSEXP, SEXP estimSEXP, SEXP var_estimSEXP, SEXP univariateSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -181,9 +229,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type G(GSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type Phi(PhiSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< arma::field<arma::mat> >::type PhiList(PhiListSEXP);
     Rcpp::traits::input_parameter< String >::type estim(estimSEXP);
     Rcpp::traits::input_parameter< String >::type var_estim(var_estimSEXP);
-    rcpp_result_gen = Rcpp::wrap(T(x, p, G, Phi, eps, estim, var_estim));
+    Rcpp::traits::input_parameter< bool >::type univariate(univariateSEXP);
+    rcpp_result_gen = Rcpp::wrap(T(x, p, G, Phi, eps, PhiList, estim, var_estim, univariate));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -505,8 +555,11 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_mosumvar_H_ik", (DL_FUNC) &_mosumvar_H_ik, 6},
+    {"_mosumvar_H_ik_univ", (DL_FUNC) &_mosumvar_H_ik_univ, 6},
     {"_mosumvar_H_k", (DL_FUNC) &_mosumvar_H_k, 5},
+    {"_mosumvar_H_k_univ", (DL_FUNC) &_mosumvar_H_k_univ, 5},
     {"_mosumvar_H_all", (DL_FUNC) &_mosumvar_H_all, 5},
+    {"_mosumvar_H_all_univ", (DL_FUNC) &_mosumvar_H_all_univ, 5},
     {"_mosumvar_DiagH", (DL_FUNC) &_mosumvar_DiagH, 5},
     {"_mosumvar_FullH", (DL_FUNC) &_mosumvar_FullH, 4},
     {"_mosumvar_getA", (DL_FUNC) &_mosumvar_getA, 6},
@@ -514,8 +567,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mosumvar_getsigma_dGlobal", (DL_FUNC) &_mosumvar_getsigma_dGlobal, 2},
     {"_mosumvar_getsigma_dLocal", (DL_FUNC) &_mosumvar_getsigma_dLocal, 4},
     {"_mosumvar_DiagC", (DL_FUNC) &_mosumvar_DiagC, 5},
-    {"_mosumvar_Tkn", (DL_FUNC) &_mosumvar_Tkn, 9},
-    {"_mosumvar_T", (DL_FUNC) &_mosumvar_T, 7},
+    {"_mosumvar_Tkn", (DL_FUNC) &_mosumvar_Tkn, 11},
+    {"_mosumvar_T", (DL_FUNC) &_mosumvar_T, 9},
     {"_mosumvar_test_Score", (DL_FUNC) &_mosumvar_test_Score, 7},
     {"_mosumvar_MFA_Score", (DL_FUNC) &_mosumvar_MFA_Score, 7},
     {"_mosumvar_VAR_sim", (DL_FUNC) &_mosumvar_VAR_sim, 8},

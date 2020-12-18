@@ -179,3 +179,9 @@ norm(  ar.ols(marketmodel$residuals[3303:4414,], order.max = 1, aic = F)$var.pre
 norm(  ar.ols(marketmodel$residuals[4415:5507,], order.max = 1, aic = F)$var.pred, "F" )
 ```
 
+```{r}
+fit_out_model(marketmodel$residuals, cps=c())$sSIC
+fit_out_model(marketmodel$residuals, cps= MarketWaldSub$cps)$sSIC
+fit_out_model(marketmodel$residuals, cps= MarketScore$cps)$sSIC
+```
+

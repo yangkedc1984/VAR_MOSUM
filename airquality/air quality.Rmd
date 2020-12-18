@@ -7,177 +7,328 @@ output: html_document
 
 
 ```{r}
-airqual <- read.csv("air-quality-parson-street.csv")
-stpauls <- read.csv("air-quality-stpauls.csv")
-traffic <- read.csv("fact-traffic-counts.csv")
-weather <- read.csv("met-data-bristol-lulsgate.csv")
+airqual <- read.csv("air-quality-data-2010-2020.csv") #("air-quality-parson-street.csv")
+#stpauls <- read.csv("air-quality-stpauls.csv")
+#traffic <- read.csv("fact-traffic-counts.csv")
+weather <- read.csv("met-data-bristol-2010-2020.csv") #"met-data-bristol-lulsgate.csv")
 head(airqual)
-head(stpauls)
-head(traffic)
+#head(stpauls)
+#head(traffic)
 head(weather)
+
 ```
+process airqual
+```{r}
+library(tidyverse)
+airqual <- airqual%>% select(Date.Time,NOx,SiteID)
+airqual$Date.Time <- lubridate::as_datetime(airqual$Date.Time)
+head(airqual)
+```
+
+```{r}
+#airqualmap <- read.csv("air-quality-around-bristol.csv")
+#head(airqualmap)
+unique(airqual$SiteID)
+airqual203 <- airqual %>%
+ filter(SiteID == 203) %>% select(Date.Time, NOx)
+airqual215 <- airqual %>%
+ filter(SiteID == 215) %>% select(Date.Time, NOx)
+airqual270 <- airqual %>%
+ filter(SiteID == 270) %>% select(Date.Time, NOx)
+airqual452 <- airqual %>%
+ filter(SiteID == 452) %>% select(Date.Time, NOx)
+airqual463 <- airqual %>%
+ filter(SiteID == 463) %>% select(Date.Time, NOx) ##was 501
+dfmap <-airqual203
+for(i in list(airqual215,airqual270,airqual452,airqual463)){
+  dfmap <- inner_join(dfmap, i, by = "Date.Time", copy=T)
+}
+dfmap <- dfmap %>% arrange(Date.Time) # in order
+
+#dfmap <- dfmap[157:nrow(dfmap),]## first 156 readings are missing
+colnames(dfmap)[2:6] <- c("NOx215","NOx270","NOx452","NOx463","NOx203") 
+dfmap[,2:6][which(dfmap[,2:6] ==0, arr.ind = T)] <- 0.01 #prevent -Inf
+#dfmap <- na.omit(dfmap)
+dfmap[,2:6] <- log(dfmap[,2:6]) ##take logs
+head(dfmap)
+```
+daily average
 ```{r}
 library("lubridate")
-library(dplyr)
-WeatherTimes <- lubridate::as_datetime(weather$Date.Time) + 10 *60 ##align
-weather$Date.Time <- WeatherTimes
-weather_trim <- weather %>%
- filter(minute(Date.Time) == 0) ##select on the hour
+dfdaily <- dfmap %>%
+  mutate(day = floor_date(Date.Time, "day")) %>%
+           group_by(day) %>%
+           summarise_at(2:6,mean, na.rm=T)
+head(dfdaily)
+plot.ts(dfdaily[,2:6])
+```
+
+How to deal with wind direction? Include interaction with speed?
+```{r}
+plot(dfmap_meteo$Wind.Direction, dfmap_meteo$NOx215)
+plot(dfmap_meteo$Wind.Direction, dfmap_meteo$NOx270)#
+plot(dfmap_meteo$Wind.Direction, dfmap_meteo$NOx203)
+plot(dfmap_meteo$Wind.Direction, dfmap_meteo$NOx452)
+plot(dfmap_meteo$Wind.Direction, dfmap_meteo$NOx463)
 ```
 
 ```{r}
-traffic$Date.Time <- lubridate::as_datetime(traffic$Date.Time)
-airqual$Date.Time <- lubridate::as_datetime(airqual$Date.Time)
-stpauls$Date.Time <- lubridate::as_datetime(stpauls$Date.Time)
-unique(traffic$Count.Device.ID) ##some locations have two devices
+library(spatstat)
+wd <- dfmap_meteo$Wind.Direction
+windrose <- rose(wd,unit="degree", clockwise = T, start = 180, main = "Wind Direction")
+```
+consider binning into SW/not?
 
-traffic16 <- traffic %>%
- filter(Count.Device.ID == 16) %>% select(Date.Time, Hourly.Flow)
-traffic454 <- traffic %>%
- filter(Count.Device.ID == 454)%>% select(Date.Time, Hourly.Flow)
-traffic494 <- traffic %>%
- filter(Count.Device.ID == 494)%>% select(Date.Time, Hourly.Flow)
-traffic380 <- traffic %>%
- filter(Count.Device.ID == 380)%>% select(Date.Time, Hourly.Flow)
-traffic566 <- traffic %>%
- filter(Count.Device.ID == 566)%>% select(Date.Time, Hourly.Flow)
-devices <- list(traffic16,traffic454,traffic494,traffic380,traffic566)
-traffic_names <- c("traffic16","traffic454","traffic494","traffic380","traffic566")
+
+inspect weekend/day effect
+```{r}
+plot(wday(dfmap_meteo$day, label = T), dfmap_meteo$NOx463)
 ```
 
+
+process weather, deal with direction(?), add weekend indicator? or weekday factor?
 ```{r}
-df <- inner_join(weather_trim, airqual, by="Date.Time")
-df <- inner_join(df, stpauls, by = "Date.Time")
-for(i in 1:length(devices)){
-  df <- inner_join(df, devices[[i]], by = "Date.Time", copy=T)
+weather$Date.Time <- lubridate::as_datetime(weather$Date.Time) #+ 10 *60 ##align
+#weather_trim <- weather %>%
+# filter(minute(Date.Time) == 0) ##select on the hour
+weatherdaily <- weather %>%
+  mutate(day = floor_date(Date.Time, "day")) %>%
+           group_by(day) %>%
+           summarise_at(2:6,mean, na.rm=T)##daily mean
+Max.Wind.Speed<- weather %>%
+            mutate(day = floor_date(Date.Time, "day")) %>%
+           group_by(day) %>%
+           summarise_at(3,max, na.rm=T) ##max windspeed
+
+weatherdaily <- weatherdaily %>% mutate(Max.Wind.Speed = Max.Wind.Speed$Wind.Speed)
+colnames(weatherdaily)[3] <- "Mean.Wind.Speed"
+
+#weatherdaily <- weatherdaily %>% 
+#  mutate(SinWindDirection = sin(Wind.Direction),CosWindDirection = cos(Wind.Direction))
+
+#weatherdaily <- weatherdaily %>% mutate(Weekend = (wday(day) == 1 |wday(day) == 7 ) ) ##weekend indicator
+weatherdaily <- weatherdaily %>% mutate(Weekday = as.factor(wday(day)) )
+
+season <- function(xmonth){
+  case_when(
+    xmonth %in% c(12,1,2) ~ "Winter",
+    xmonth %in% 3:5 ~ "Spring",
+    xmonth %in% 6:8 ~ "Summer",
+    xmonth %in% 9:11 ~ "Autumn"
+  )
 }
-colnames(df)[11:15] <- traffic_names
-head(df) ## these are in descending time order
-df <- df %>% arrange(Date.Time)
-head(df)
+#season(month(weatherdaily$day[1:5]))
+weatherdaily <- weatherdaily %>% mutate(Season = as.factor( season(month(day))) )
+
+head(weatherdaily)
+plot.ts(weatherdaily[,2:7]) #take logs of these?
 ```
+
+
+
+Incorporate meteorological data as exogenous regressors
 ```{r}
-plot.ts(df[,2:5])
-plot.ts(df[,c(6:8,10)])
-plot.ts(df[,10:14])
+dfmap_meteo <- inner_join(dfdaily, weatherdaily, by="day")   ##add meteo data
+head(dfmap_meteo)
+#logdfmap <- dfmap_meteo %>% select( -c(Wind.Chill.Temperature, Wind.Chill.Temperature.1, Visibility, Dewpoint.Temperature) )
+#logdfmap[,2:6] <- log(dfmap_meteo[,2:6]) 
+#head(logdfmap)
 ```
 
 ```{r}
-df_na <- na.omit(df)
-## some NOx, PM10 readings are <0
-df_na$NOx[which(df_na$NOx <= 0)] <- 1
-df_na$PM10[which(df_na$PM10 <= 0)] <- 1
-dim(df_na)
-sum(is.na.data.frame(df_na))
-df_na[is.na.data.frame(df_na)] <- 1
-df_na$NOx <- log(df_na$NOx)##get log transforms
-df_na$PM10 <- log(df_na$PM10)
+colSums(is.na(dfmap_meteo))
+#library(zoo)
+#logdfmap$Wind.Direction <- na.approx(logdfmap$Wind.Direction) ##interpolate wind direction
+dfmap_meteo<- na.omit(dfmap_meteo)
+plot.ts(dfmap_meteo[,2:6], main =" " ) #"Hourly NOx Meter Readings (μg/m3), October 2019 - October 2020, Bristol"
+#logdfmap$NOx501[which(is.na(logdfmap$NOx501))] <- 0
+colSums(is.na( data.frame(dfmap_meteo) ))
+any(is.na( data.frame(dfmap_meteo) ))
+which(dfmap_meteo < -1000)
+
 ```
+
+
+
+```{r}
+#traffic$Date.Time <- lubridate::as_datetime(traffic$Date.Time)
+#stpauls$Date.Time <- lubridate::as_datetime(stpauls$Date.Time)
+#unique(traffic$Count.Device.ID) ##some locations have two devices
+
+# traffic16 <- traffic %>%
+#  filter(Count.Device.ID == 16) %>% select(Date.Time, Hourly.Flow)
+# traffic454 <- traffic %>%
+#  filter(Count.Device.ID == 454)%>% select(Date.Time, Hourly.Flow)
+# traffic494 <- traffic %>%
+#  filter(Count.Device.ID == 494)%>% select(Date.Time, Hourly.Flow)
+# traffic380 <- traffic %>%
+#  filter(Count.Device.ID == 380)%>% select(Date.Time, Hourly.Flow)
+# traffic566 <- traffic %>%
+#  filter(Count.Device.ID == 566)%>% select(Date.Time, Hourly.Flow)
+# devices <- list(traffic16,traffic454,traffic494,traffic380,traffic566)
+# traffic_names <- c("traffic16","traffic454","traffic494","traffic380","traffic566")
+```
+
+```{r}
+# df <- inner_join(weather_trim, airqual, by="Date.Time")
+# df <- inner_join(df, stpauls, by = "Date.Time")
+# for(i in 1:length(devices)){
+#   df <- inner_join(df, devices[[i]], by = "Date.Time", copy=T)
+# }
+# colnames(df)[11:15] <- traffic_names
+# head(df) ## these are in descending time order
+# df <- df %>% arrange(Date.Time)
+# head(df)
+```
+
+
 
 
 build regression model
 
 ```{r}
-airqualmodel <- lm(NOx ~ ., df_na[,c(2:6,10:15)])
-summary(airqualmodel)
-## do some lasso-based model selection here?
-library(glmnet)
-
-
-airqual_lasso_cv <-cv.glmnet(y= df_na$NOx, x= as.matrix(df_na[,c(2:5,10:15)]) )
-airqual_lasso <- glmnet(y= df_na$NOx, x= as.matrix(df_na[,c(2:5,10:15)]), lambda = airqual_lasso_cv$lambda.1se)
-print(airqual_lasso)
-coef(airqual_lasso)
-```
-
-are traffic readings correlated
-```{r}
-cor(df[,10:14])
-```
-
-
-```{r}
-
-df_model <- df_na %>% select("NOx",rownames(coef(airqual_lasso))[c(2:11)] ) #select("NOx","Temperature", "Wind.Speed", "Atmospheric.Pressure","Relative.Humidity", "traffic16","traffic454","traffic494","traffic380")
-library(tidyr)
-#df_model <- coalesce(df_model, (0) )
-sum(is.na(df_model))
-#df_model[is.na(df_model)] <- 0
-#sum(is.na(df_model))
-plot.ts(df_model, main = "Air Quality")
-
+# airqualmodel <- lm(NOx ~ ., df_na[,c(2:6,10:15)])
+# summary(airqualmodel)
+# ## do some lasso-based model selection here?
+# library(glmnet)
+# 
+# 
+# airqual_lasso_cv <-cv.glmnet(y= df_na$NOx, x= as.matrix(df_na[,c(2:5,10:15)]) )
+# airqual_lasso <- glmnet(y= df_na$NOx, x= as.matrix(df_na[,c(2:5,10:15)]), lambda = airqual_lasso_cv$lambda.1se)
+# print(airqual_lasso)
+# coef(airqual_lasso)
 ```
 
 
 
-## change point analysis
-
-use `alpha=0.01` significance level given frequent change points
-
-24 (hours/day) * 28 (days/month) = 672 (hours/month) as G
-
 ```{r}
-ms_airqual <-  mosum_sub_fixed(as.matrix(df_model),G= 2*672, method = "Score", kap=1, alpha = 0.01) ##month-long stationarity
-axis(side = 1, at = 1:nrow(df_model), labels = lubridate::as_date( df_na$Date.Time))
+# 
+# df_model <- df_na %>% select("NOx",rownames(coef(airqual_lasso))[c(2:11)] ) #select("NOx","Temperature", "Wind.Speed", "Atmospheric.Pressure","Relative.Humidity", "traffic16","traffic454","traffic494","traffic380")
+# library(tidyr)
+# #df_model <- coalesce(df_model, (0) )
+# sum(is.na(df_model))
+# #df_model[is.na(df_model)] <- 0
+# #sum(is.na(df_model))
+# plot.ts(df_model, main = "Air Quality")
 
-ms_airqual_wald <- mosum_sub_fixed(as.matrix(df_model) ,G= 2*672, method = "Wald", kap=1,  alpha = 0.01)
-axis(side = 1, at = 1:nrow(df_model), labels = lubridate::as_date( df_na$Date.Time))
-```
-## VAR
-
-```{r}
-airqualmap <- read.csv("air-quality-around-bristol.csv")
-head(airqualmap)
-airqualmap$Date.Time <- lubridate::as_datetime(airqualmap$Date.Time)
-unique(airqualmap$SiteID)
-library("lubridate")
-library(dplyr)
-airqualmap203 <- airqualmap %>%
- filter(SiteID == 203) %>% select(Date.Time, NOx)
-airqualmap215 <- airqualmap %>%
- filter(SiteID == 215) %>% select(Date.Time, NOx)
-airqualmap270 <- airqualmap %>%
- filter(SiteID == 270) %>% select(Date.Time, NOx)
-airqualmap452 <- airqualmap %>%
- filter(SiteID == 452) %>% select(Date.Time, NOx)
-airqualmap501 <- airqualmap %>%
- filter(SiteID == 501) %>% select(Date.Time, NOx)
-dfmap <-airqualmap203
-for(i in list(airqualmap215,airqualmap270,airqualmap452,airqualmap501)){
-  dfmap <- inner_join(dfmap, i, by = "Date.Time", copy=T)
-}
-dfmap <- dfmap %>% arrange(Date.Time) # in order
-## first 156 readings are missing
-dfmap <- dfmap[157:nrow(dfmap),]
-colnames(dfmap)[2:6] <- c("NOx215","NOx270","NOx452","NOx501","NOx203") 
-dfmap <- na.omit(dfmap)
-head(dfmap)
-logdfmap <- cbind(dfmap$Date.Time, log(dfmap[,2:6]) )
-head(logdfmap)
 ```
 
+### regression models
+
+compare marginal plot for wind direction
 ```{r}
-plot.ts(logdfmap[,2:6], main =" " ) #"Hourly NOx Meter Readings (μg/m3), October 2019 - October 2020, Bristol"
-sum(is.na(logdfmap))
-logdfmap$NOx501[which(is.na(logdfmap$NOx501))] <- 0
+winddir_model <- lm(NOx215  ~ Temperature + Mean.Wind.Speed +Atmospheric.Pressure + Relative.Humidity + Weekday +Season, #SinWindDirection + CosWindDirection
+    data = as.data.frame(dfmap_meteo) )
+plot(dfmap_meteo$Wind.Direction,winddir_model$residuals); abline(v = c(180,290), col="red")
+```
+for season
+```{r}
+season_model <- lm(NOx215  ~ Temperature + Mean.Wind.Speed +Atmospheric.Pressure + Relative.Humidity + Weekday + Wind.Direction, #SinWindDirection + CosWindDirection
+    data = as.data.frame(dfmap_meteo) )
+plot(dfmap_meteo$Season,season_model$residuals)
 ```
 
 
-```{r}
-ardfmap <- ar.ols(logdfmap[,2:6], AIC=T, intercept = T)
-plot(ardfmap$aic) ##choose p=3?
-```
-24 hrs * 7 days * 6 weeks =  1008
 
+final model
 ```{r}
-airqual_mosum_wald <-  mosum_sub(as.matrix(logdfmap[,2:6]), p=3, G= 1008, method = "Wald", criterion = "eta")
-airqual_mosum_wald
-logdfmap$`dfmap$Date.Time`[airqual_mosum_wald$cps]
+meteo_models <- lm(cbind(NOx215,NOx270,NOx452,NOx463,NOx203)  ~ Temperature + Mean.Wind.Speed  + Wind.Direction +Atmospheric.Pressure + Relative.Humidity + Weekday +Season, #SinWindDirection + CosWindDirection + Max.Wind.Speed
+    data = as.data.frame(dfmap_meteo) )#cbind(NOx215,NOx270,NOx452,NOx463,NOx203)
+
+summary(meteo_models)
 ```
 
+
+
+
+
+
+### residual time series
+
 ```{r}
-airqual_mosum_score <- mosum_sub(as.matrix(logdfmap[,2:6]), p=3, G= 1008, method = "Score", criterion = "eta", nu = 0.25)
-airqual_mosum_score
-logdfmap$`dfmap$Date.Time`[airqual_mosum_score$cps]
+plot.ts(meteo_models$residuals, main = " ")
+#par(mfrow = c(3,1))
+acf(meteo_models$residuals[,1], lag.max = 28, axes=F, main= " " );axis(1,7*(0:4));axis(2); # abline(v = 7*(1:3), col="green" )
+acf(meteo_models$residuals[,1], lag.max = 28*4, axes=F, main= " "); axis(1,28*(0:4));axis(2) ##monthly
+acf(meteo_models$residuals[,1], lag.max = 28*12*4, axes=F, main= " "); axis(1,365*(0:4));axis(2)  ##yearly seasonality
+```
+
+```{r}
+ardfmap <- ar.ols(meteo_models$residuals, AIC=T, intercept = T) ## this is actually overspecified - try AIC on post-segments
+plot(ardfmap$aic) ##choose p=4?
+```
+
+```{r}
+library(Rcpp)
+library(RcppParallel)
+library(RcppArmadillo)
+library(Matrix)
+sourceCpp(file = "/home/do16317/Documents/Changepoints/Wald_RcppParallel.cpp")
+sourceCpp(file = "/home/do16317/Documents/Changepoints/Score_Rcpp.cpp")
+```
+
+7 days * 40 weeks =  280
+
+```{r}
+airqual_mosum_wald <-  test_Wald_new(meteo_models$residuals, p=2, G= 7*52, criterion = "eta", nu = 0.3)
+airqual_mosum_wald$plot
+#mosum_sub(meteo_models$residuals, p=2, G= 7*52, method = "Wald", criterion = "eta", kap = 1/(52*7))
+#logdfmap$`dfmap$Date.Time`[airqual_mosum_wald$cps]
+dfmap_meteo$day[airqual_mosum_wald$cps]
+airqual_mosum_wald$cps
+```
+
+```{r}
+airqual_mosum_score <- test_Score_new(meteo_models$residuals, p=2, G= 7*52, criterion = "eta", nu = 0.3)
+airqual_mosum_score$plot
+#mosum_sub(meteo_models$residuals, p=3, G= 7*52, method = "Score", criterion = "eta")
+#logdfmap$`dfmap$Date.Time`[airqual_mosum_score$cps]
+```
+
+acf comparison
+```{r}
+longest_segment <- meteo_models$residuals[882:1188,1]
+acf(longest_segment, main = "")
+```
+```{r}
+airqual_mosum_wald$cps
+par(mfrow = c(4,2), mar = 2*c(1, 2, 1, 1))
+acf(meteo_models$residuals[1:370,1], main = "", xlab = "", ylab = 1, lag.max = 7)
+acf(meteo_models$residuals[371:881,1] , main = "", xlab = "", ylab = 2, lag.max = 7)
+acf(meteo_models$residuals[882:1187,1], main = "", xlab = "", ylab = 3, lag.max = 7)
+acf(meteo_models$residuals[1188:1513,1], main = "", xlab = "", ylab = 4, lag.max = 7)
+acf(meteo_models$residuals[1514:2042,1], main = "", xlab = "", ylab = 5, lag.max = 7)
+acf(meteo_models$residuals[2043:2408,1], main = "", xlab = "", ylab = 6, lag.max = 7)
+acf(meteo_models$residuals[2409:2703,1], main = "", xlab = "", ylab = 7, lag.max = 7)
+acf(meteo_models$residuals[2704:3164,1], main = "", xlab = "", ylab = 8, lag.max = 7)
+```
+### model diagnostics
+```{r}
+norm( ar.ols(meteo_models$residuals, order.max = 2, aic = F)$var.pred, "F" )
+norm( ar.ols(meteo_models$residuals[1:370,], order.max = 2, aic = F)$var.pred, "F" )
+norm(  ar.ols(meteo_models$residuals[371:881,], order.max = 2, aic = F)$var.pred, "F" )
+norm(  ar.ols(meteo_models$residuals[882:1187,], order.max = 2, aic = F)$var.pred, "F" )
+norm(  ar.ols(meteo_models$residuals[1188:1513,], order.max = 2, aic = F)$var.pred, "F" )
+norm(  ar.ols(meteo_models$residuals[1514:2042,], order.max = 2, aic = F)$var.pred, "F" )
+norm(  ar.ols(meteo_models$residuals[2043:2408,], order.max = 2, aic = F)$var.pred, "F" )
+norm(  ar.ols(meteo_models$residuals[2409:2703,], order.max = 2, aic = F)$var.pred, "F" )
+norm(  ar.ols(meteo_models$residuals[2704:3164,], order.max = 2, aic = F)$var.pred, "F" )
+
+
+acf(meteo_models$residuals[1:370,1])
+acf(meteo_models$residuals[371:881,1])
+acf(meteo_models$residuals[882:1187,1])
+acf(meteo_models$residuals[1188:1513,1])
+acf(meteo_models$residuals[1514:2042,1])
+acf(meteo_models$residuals[2043:2408,1])
+acf(meteo_models$residuals[2409:2703,1])
+acf(meteo_models$residuals[2704:3164,1])
+```
+
+```{r}
+#compare sSIC
+fit_out_model(meteo_models$residuals, cps=c())$sSIC
+fit_out_model(meteo_models$residuals, cps=airqual_mosum_wald$cps)$sSIC
+fit_out_model(meteo_models$residuals, cps=airqual_mosum_score$cps)$sSIC
 ```
 

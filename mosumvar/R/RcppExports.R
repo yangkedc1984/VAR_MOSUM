@@ -5,12 +5,24 @@ getH_ik_RCPP <- function(x, i, k, p, Phi, eps) {
     .Call(`_mosumvar_H_ik`, x, i, k, p, Phi, eps)
 }
 
+getH_ik_univ <- function(x, i, k, p, Phi, eps) {
+    .Call(`_mosumvar_H_ik_univ`, x, i, k, p, Phi, eps)
+}
+
 makeH_k_RCPP <- function(x, k, p, Phi, eps) {
     .Call(`_mosumvar_H_k`, x, k, p, Phi, eps)
 }
 
+makeH_k_univ <- function(x, k, p, PhiList, eps) {
+    .Call(`_mosumvar_H_k_univ`, x, k, p, PhiList, eps)
+}
+
 makeH_all_RCPP <- function(x, p, G, Phi, eps) {
     .Call(`_mosumvar_H_all`, x, p, G, Phi, eps)
+}
+
+makeH_all_univ <- function(x, p, G, PhiList, eps) {
+    .Call(`_mosumvar_H_all_univ`, x, p, G, PhiList, eps)
 }
 
 get_DiagH_RCPP <- function(x, k, G, p, h_all) {
@@ -41,12 +53,12 @@ get_DiagC_RCPP <- function(x, p, sigma_d, k, G) {
     .Call(`_mosumvar_DiagC`, x, p, sigma_d, k, G)
 }
 
-get_Tkn_RCPP <- function(x, k, p, G, Phi, eps, h_all, estim, var_estim) {
-    .Call(`_mosumvar_Tkn`, x, k, p, G, Phi, eps, h_all, estim, var_estim)
+get_Tkn_RCPP <- function(x, k, p, G, Phi, eps, h_all, estim, var_estim, sgd, univariate = 0L) {
+    .Call(`_mosumvar_Tkn`, x, k, p, G, Phi, eps, h_all, estim, var_estim, sgd, univariate)
 }
 
-get_T_RCPP <- function(x, p, G, Phi, eps, estim = "DiagC", var_estim = "Local") {
-    .Call(`_mosumvar_T`, x, p, G, Phi, eps, estim, var_estim)
+get_T_RCPP <- function(x, p, G, Phi, eps, PhiList, estim = "DiagC", var_estim = "Local", univariate = 0L) {
+    .Call(`_mosumvar_T`, x, p, G, Phi, eps, PhiList, estim, var_estim, univariate)
 }
 
 test_Score_RCPP <- function(x, p, G, Phi, eps, alpha = 0.05, estim = "DiagC") {

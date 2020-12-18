@@ -32,22 +32,22 @@ arma::vec H_ik(arma::mat& x, int i, int k, int p, arma::mat Phi, arma::mat eps)
 
 
 // [[Rcpp::export(getH_ik_univ)]] //getH_ik
-vec H_ik_univ(mat& x, int i, int k, int p, mat Phi, mat eps)
+arma::vec H_ik_univ(arma::mat& x, int i, int k, int p, arma::mat Phi, arma::mat eps)
 {
   int n = x.n_rows;
   int d = x.n_cols;
-  vec ai = Phi.t(); //intercept - index
+  arma::vec ai = Phi.t(); //intercept - index
   
-  mat X = x( span(k-p-1,k-1-1), i-1) ; //depends on self only
+  arma::mat X = x( span(k-p-1,k-1-1), i-1) ; //depends on self only
   
-  vec V = vectorise(flipud(X),1).t(); //time order
-  vec O = ones(1); //intercept
-  vec VV = join_cols(O,V);
+  arma::vec V = vectorise(flipud(X),1).t(); //time order
+  arma::vec O = ones(1); //intercept
+  arma::vec VV = join_cols(O,V);
   
   double y = x(k-1,i-1); //double aV = dot(ai, VV);
   double  e = eps(k-1,i-1);  // y - aV;  //residual
   
-  vec  out = - y*VV +  VV*VV.t()*ai - e*VV ;
+  arma::vec  out = - y*VV +  VV*VV.t()*ai - e*VV ;
   
   return out;
   
@@ -69,10 +69,10 @@ arma::vec H_k(arma::mat& x, int k, int p, arma::mat Phi, arma::mat eps)
 
 
 // [[Rcpp::export(makeH_k_univ)]] //makeH_k
-vec H_k_univ(mat& x, int k, int p,  arma::field<arma::mat> PhiList, mat eps)
+arma::vec H_k_univ(arma::mat& x, int k, int p,  arma::field<arma::mat> PhiList, arma::mat eps)
 {
   int d = x.n_cols;
-  vec H = zeros(d+  d*p); //accounts for intercept
+  arma::vec H = zeros(d+  d*p); //accounts for intercept
   
   for (int ii=1; ii< d+1; ii++) {
     H.subvec((ii-1)*(p+1), (ii-1)*(p+1)+ (p+1)-1  )= H_ik_univ(x,ii,k,p,PhiList(ii-1),eps) ;
@@ -98,13 +98,13 @@ arma::mat H_all(arma::mat& x,  int p, int G, arma::mat Phi, arma::mat eps)
 
 
 // [[Rcpp::export(makeH_all_univ)]] //makeH_all
-mat H_all_univ(mat& x,  int p, int G, arma::field<arma::mat> PhiList, mat eps)
+arma::mat H_all_univ(arma::mat& x,  int p, int G, arma::field<arma::mat> PhiList, arma::mat eps)
 {
   int n = x.n_rows;
   int d = x.n_cols;
   int nr = d+ d*p;
   //int nc = u-l+1;
-  mat H; H.zeros(nr,n); mat xx;  //matrix of H values #accounts for intercept
+  arma::mat H; H.zeros(nr,n); mat xx;  //matrix of H values #accounts for intercept
   for (int t=p+1; t <(n-p); t++ ) {
     mat xin =x;
     H.col(t) = H_k_univ(xin, t, p, PhiList, eps) ;//-1-1
@@ -165,7 +165,7 @@ arma::sp_mat blockDiag( arma::field<arma::mat>& xlist ) {
     dimen += dimvec(i) ;
   }
 
-  sp_mat X(dimen,dimen);
+  arma::sp_mat X(dimen,dimen);
   int idx=0;
 
   for(unsigned int i=0; i<n; i++) {
@@ -223,7 +223,7 @@ arma::sp_mat DiagH(arma::mat x, int k, int G,int p, arma::mat h_all)//sp_arma::m
 {
   int n = x.n_rows;
   int d = x.n_cols;
-  field<arma::mat> H_list(d);
+  arma::field<arma::mat> H_list(d);
   arma::mat H_u_i; arma::mat H_l_i; arma::mat H_out;
   arma::vec Hbar_u; arma::vec Hbar_l;
   arma::vec evals; arma::mat evecs;
@@ -376,6 +376,42 @@ arma::mat DiagC(arma::mat x, int p, arma::mat sigma_d, int k, int G)
   arma::mat out = kron(S_, C_);
   return out;
 }
+
+
+// [[Rcpp::export(get_DiagC_univ)]] //get_DiagC
+arma::mat DiagC_univ(arma::mat x, int p, arma::mat sigma_d, int k, int G)
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+  arma::mat xk(2*G,d*p+d, fill::ones) ;
+  //mat O = ones(2*G,1) ;
+  for(int t=0; t<2*G ; t++){
+    for(int ii=0; ii<d; ii++){
+      xk(t, span( (ii)*(p+1) + 1, (ii)*(p+1) +p ) ) = x( span(k- G + t,k- G + t+p-1),  ii ).t()  ;
+    }
+  }
+  
+  arma::mat C =  xk.t() * xk /(2*G -1); //works as intended
+  arma::mat S = repelem(sigma_d, p+1, p+1);
+  arma::mat out = pinv(S % C);
+  // //eigen decomposition
+  // eig_sym(evals,evecs,C);
+  // mat C_ = evecs * diagmat( 1/(evals) )*  evecs.t(); //now returns inverse Sigma
+  // eig_sym(evalS,evecS,sigma_d);
+  // mat S_ = evecS * diagmat( 1/(evalS) )*  evecS.t();
+  // 
+  // //mat evecKron = kron(evecs, evecS);
+  // 
+  // //eig_sym(evals,evecs,kron(sigma_d,C));
+  // //mat out = evecs * diagmat( pow(evals, -0.5) )*  evecs.t();
+  // //mat out = evecKron * kron(diagmat( pow(evals, -0.5) ), diagmat( pow(evalS, -0.5) )) * evecKron.t();
+  // mat out = kron(S_, C_);
+  return out;
+}
+
+
+
+
 
 
 

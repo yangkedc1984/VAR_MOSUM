@@ -53,6 +53,10 @@ get_DiagC_RCPP <- function(x, p, sigma_d, k, G) {
     .Call(`_mosumvar_DiagC`, x, p, sigma_d, k, G)
 }
 
+get_DiagC_univ <- function(x, p, sigma_d, k, G) {
+    .Call(`_mosumvar_DiagC_univ`, x, p, sigma_d, k, G)
+}
+
 get_Tkn_RCPP <- function(x, k, p, G, Phi, eps, h_all, estim, var_estim, sgd, univariate = 0L) {
     .Call(`_mosumvar_Tkn`, x, k, p, G, Phi, eps, h_all, estim, var_estim, sgd, univariate)
 }

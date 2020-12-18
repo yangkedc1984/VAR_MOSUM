@@ -9,21 +9,21 @@ mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Lo
   }  
   if(rm_cross_terms) x <- remove_cross_terms(x, p, d)
   ##Test setup----------------------------
-  mod <- Phi <- as.list(1:d)
+  mod <- PhiList <- as.list(1:d)
   eps <- matrix(0, nrow = n, ncol = d)
   for(i in 1:d){ ##fit univariate score models
     mod[[i]] <- ar(x[,i], order.max = p, demean = T, method = "ols", aic = F)
-    Phi[[i]] <- mod[[i]]$x.intercept
+    PhiList[[i]] <- mod[[i]]$x.intercept
     if(global_resids){
       eps[,i] <- eps_global[,i]
     } else {
       eps[,i] <- as.matrix(mod[[i]]$resid);
     }
     eps[,i][1:p] <- 1e-4 ##solve NA
-    if(p==1) Phi[[i]] <- matrix(c(Phi[[i]],mod[[i]]$ar[,,1]),1,2 ) #cbind(Phi,  matrix( mod$ar, nrow=d, ncol=d))
+    if(p==1) PhiList[[i]] <- matrix(c(PhiList[[i]],mod[[i]]$ar[,,1]),1,2 ) #cbind(Phi,  matrix( mod$ar, nrow=d, ncol=d))
     if(p>1){ 
       for (jj in 1:p){ #collect parameters into mat
-        Phi[[i]] <- cbind(Phi[[i]],  mod[[i]]$ar[jj,,])
+        PhiList[[i]] <- cbind(Phi[[i]],  mod[[i]]$ar[jj,,])
       } 
     } 
   }
@@ -81,7 +81,7 @@ mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Lo
   }
   if(method == "Score"){
   #if(global_resids) eps_global <-  (ar(x, order.max = p, demean = T, method = "ols", aic = F)$resid)
-    stat <- get_T_RCPP(as.matrix(x), p, G, Phi = matrix(0), eps, PhiList = Phi, var_estim = varEstim, univariate = T )
+    stat <- get_T_RCPP(as.matrix(x), p, G, Phi = matrix(0), as.matrix(eps), PhiList = Phi, var_estim = varEstim, univariate = T )
   }
   
   cps <- c() #empty changepoint vector

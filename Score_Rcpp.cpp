@@ -469,6 +469,7 @@ vec T(mat x, int p, int G, mat Phi, mat eps,arma::field<mat> PhiList, String est
   } else {
     h_all  = H_all(x, p, G, Phi, eps);
   }
+  
  // mat sigma_d;
   vec out(n, fill::zeros);
   // if(var_estim == "Local"){
@@ -484,6 +485,23 @@ vec T(mat x, int p, int G, mat Phi, mat eps,arma::field<mat> PhiList, String est
   return out;
 }
 
+
+// [[Rcpp::export(get_T_multiplier)]] //get_T
+vec T_multiplier(mat x, int p, int G, mat Phi, mat eps, mat h_all, String estim = "DiagC",  String var_estim = "Local")
+{
+  int n = x.n_rows;
+  
+ //h_all = bs_vec * h_all;
+
+  vec out(n, fill::zeros);
+
+  mat sgd;
+  if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
+  for (int k=G+ p+1; k< n-G-p; k++) {
+    out(k) = Tkn(x,k,p,G,Phi,eps,h_all ,estim, var_estim, sgd, 1);
+  }
+  return out;
+}
 
 
 vec cps(vec Wn, double D_n, int G, double nu = 0.25)
@@ -572,34 +590,59 @@ List MFA(mat x, int p, vec Gset, mat Phi, mat eps, String estim = "DiagC", doubl
 
 // [[Rcpp::export]]
 arma::uvec sample_index(const int &size, const int &n_tilde){
+  // return uvec containing size-many samples from 1:n_tilde
   arma::uvec sequence = arma::linspace<arma::uvec>(0, n_tilde-1, n_tilde);
   arma::uvec out = Rcpp::RcppArmadillo::sample(sequence, size, true);
   return out;
 }
 
 // [[Rcpp::export(bootstrap)]]
-vec bootstrap(mat x, int p, int G, field<mat> bsPhi, mat bsResid, int n_tilde, int M, String estim, String var_estim){
+vec bootstrap(mat x, int p, int G, field<mat> bsPhi, mat bsResid, int n_tilde, int M, String estim, String var_estim, bool univariate = 1){
   int n = x.n_rows;
   int d = x.n_cols;
   uvec s;  uvec i;
   vec stat_m(n); vec max_m(M);
-  vec epsi;
-
+  mat epsi;
 
   for(int m = 0; m < M; m++){
     s = sample_index(n, n_tilde); //randi(n, distr_param(0, n_tilde-1));
-    stat_m = zeros(n);
-    for(int ii = 0; ii < d; ii++ ){
-      i = ii;
-      epsi = bsResid.submat(s, i);
-      mat Phi = bsPhi(ii);
-      stat_m = stat_m + T(x.col(ii), p, G, Phi, epsi, arma::field<mat>(0), estim, var_estim);
-    }
+    // stat_m = zeros(n);
+    // for(int ii = 0; ii < d; ii++ ){
+    //   i = ii; //uvec conversion
+       epsi = bsResid.rows(s); //bsResid.submat(s, i);
+    //   mat Phi = bsPhi(ii);
+    //   stat_m = stat_m + T(x.col(ii), p, G, Phi, epsi, arma::field<mat>(0), estim, var_estim);
+    // }
+  stat_m = T(x, p, G, bsPhi(0), epsi, bsPhi, estim, var_estim, univariate)  ;
   max_m(m) = max(stat_m);
   }
 
   return max_m;
 }
 
+// [[Rcpp::export(multiplier_bootstrap)]]
+vec multiplier_bootstrap(mat x, int p, int G, field<mat> PhiList, mat eps, vec cps, int L, int M, String estim, String var_estim){
+  int n = x.n_rows;
+  int d = x.n_cols;
+  vec stat_m(n); vec max_m(M); 
+  vec perturb; vec perturb_new;
+  int K = n/L; int remainder = n - K*L;
+  vec scaled_cps =  cps  * ( (double) L/n ) ; 
+  vec lshift = scaled_cps - (double) 1.0; vec rshift = scaled_cps + (double) 1.0;
+  scaled_cps = join_cols(lshift, scaled_cps, rshift); //adjacent blocks to 0
+  uvec u_cps = conv_to<uvec>::from(scaled_cps);
 
-
+  mat h_all = H_all_univ(x,p,G,PhiList,eps);
+  mat h_temp;
+  for(int m = 0; m < M; m++){
+    perturb = randn(L);
+    perturb(u_cps) = zeros(u_cps.n_elem);
+    perturb_new = repelem(perturb, K,1);
+    if(remainder>0) perturb_new.insert_rows(L*K, remainder ); //pad
+    h_temp = h_all.each_row() % perturb_new.t();
+    stat_m = T_multiplier(x, p, G, PhiList(0),  eps, h_temp, estim, var_estim)  ;
+    max_m(m) = max(stat_m);
+  }
+  
+  return max_m;
+}

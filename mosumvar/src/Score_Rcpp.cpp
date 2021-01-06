@@ -480,6 +480,23 @@ arma::vec T(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps,arma::field<
 }
 
 
+// [[Rcpp::export(get_T_multiplier)]] //get_T
+arma::vec T_multiplier(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, arma::mat h_all, String estim = "DiagC",  String var_estim = "Local")
+{
+  int n = x.n_rows;
+  
+  //h_all = bs_vec * h_all;
+  
+  arma::vec out(n, fill::zeros);
+  
+  arma::mat sgd;
+  if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
+  for (int k=G+ p+1; k< n-G-p; k++) {
+    out(k) = Tkn(x,k,p,G,Phi,eps,h_all ,estim, var_estim, sgd, 1);
+  }
+  return out;
+}
+
 
 arma::vec cps(arma::vec Wn, double D_n, int G, double nu = 0.25)
 {
@@ -563,6 +580,33 @@ List MFA_Score(arma::mat x, int p, arma::vec Gset, arma::mat Phi, arma::mat eps,
   return(List::create(Named("Reject") = Reject, _["ChangePoints"]=cps, _["q"] = cps.size() ));
 }
 
+
+// [[Rcpp::export(multiplier_bootstrap)]]
+arma::vec multiplier_bootstrap(arma::mat x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps, arma::vec cps, int L, int M, String estim, String var_estim){
+  int n = x.n_rows;
+  int d = x.n_cols;
+  arma::vec stat_m(n); arma::vec max_m(M); 
+  arma::vec perturb; arma::vec perturb_new;
+  int K = n/L; int remainder = n - K*L;
+  arma::vec scaled_cps =  cps  * ( (double) L/n ) ; 
+  arma::vec lshift = scaled_cps - (double) 1.0; arma::vec rshift = scaled_cps + (double) 1.0;
+  scaled_cps = join_cols(lshift, scaled_cps, rshift); //adjacent blocks to 0
+  arma::uvec u_cps = conv_to<arma::uvec>::from(scaled_cps);
+  
+  arma::mat h_all = H_all_univ(x,p,G,PhiList,eps);
+  arma::mat h_temp;
+  for(int m = 0; m < M; m++){
+    perturb = randn(L);
+    perturb(u_cps) = zeros(u_cps.n_elem);
+    perturb_new = repelem(perturb, K,1);
+    if(remainder>0) perturb_new.insert_rows(L*K, remainder ); //pad
+    h_temp = h_all.each_row() % perturb_new.t();
+    stat_m = T_multiplier(x, p, G, PhiList(0),  eps, h_temp, estim, var_estim)  ;
+    max_m(m) = max(stat_m);
+  }
+  
+  return max_m;
+}
 
 
 

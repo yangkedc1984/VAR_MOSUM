@@ -65,12 +65,20 @@ get_T_RCPP <- function(x, p, G, Phi, eps, PhiList, estim = "DiagC", var_estim = 
     .Call(`_mosumvar_T`, x, p, G, Phi, eps, PhiList, estim, var_estim, univariate)
 }
 
+get_T_multiplier <- function(x, p, G, Phi, eps, h_all, estim = "DiagC", var_estim = "Local") {
+    .Call(`_mosumvar_T_multiplier`, x, p, G, Phi, eps, h_all, estim, var_estim)
+}
+
 test_Score_RCPP <- function(x, p, G, Phi, eps, alpha = 0.05, estim = "DiagC") {
     .Call(`_mosumvar_test_Score`, x, p, G, Phi, eps, alpha, estim)
 }
 
 MFA_Score <- function(x, p, Gset, Phi, eps, estim = "DiagC", alpha = 0.05) {
     .Call(`_mosumvar_MFA_Score`, x, p, Gset, Phi, eps, estim, alpha)
+}
+
+multiplier_bootstrap <- function(x, p, G, PhiList, eps, cps, L, M, estim, var_estim) {
+    .Call(`_mosumvar_multiplier_bootstrap`, x, p, G, PhiList, eps, cps, L, M, estim, var_estim)
 }
 
 VAR_sim <- function(n, mu, Sigma, coeffs, error_dist, P1, Q1, df = 1L) {

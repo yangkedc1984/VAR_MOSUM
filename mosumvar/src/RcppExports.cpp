@@ -252,6 +252,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// T_multiplier
+arma::vec T_multiplier(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, arma::mat h_all, String estim, String var_estim);
+RcppExport SEXP _mosumvar_T_multiplier(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiSEXP, SEXP epsSEXP, SEXP h_allSEXP, SEXP estimSEXP, SEXP var_estimSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type p(pSEXP);
+    Rcpp::traits::input_parameter< int >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Phi(PhiSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type h_all(h_allSEXP);
+    Rcpp::traits::input_parameter< String >::type estim(estimSEXP);
+    Rcpp::traits::input_parameter< String >::type var_estim(var_estimSEXP);
+    rcpp_result_gen = Rcpp::wrap(T_multiplier(x, p, G, Phi, eps, h_all, estim, var_estim));
+    return rcpp_result_gen;
+END_RCPP
+}
 // test_Score
 List test_Score(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, double alpha, String estim);
 RcppExport SEXP _mosumvar_test_Score(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiSEXP, SEXP epsSEXP, SEXP alphaSEXP, SEXP estimSEXP) {
@@ -283,6 +301,26 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< String >::type estim(estimSEXP);
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     rcpp_result_gen = Rcpp::wrap(MFA_Score(x, p, Gset, Phi, eps, estim, alpha));
+    return rcpp_result_gen;
+END_RCPP
+}
+// multiplier_bootstrap
+arma::vec multiplier_bootstrap(arma::mat x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps, arma::vec cps, int L, int M, String estim, String var_estim);
+RcppExport SEXP _mosumvar_multiplier_bootstrap(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiListSEXP, SEXP epsSEXP, SEXP cpsSEXP, SEXP LSEXP, SEXP MSEXP, SEXP estimSEXP, SEXP var_estimSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type p(pSEXP);
+    Rcpp::traits::input_parameter< int >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::field<arma::mat> >::type PhiList(PhiListSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type cps(cpsSEXP);
+    Rcpp::traits::input_parameter< int >::type L(LSEXP);
+    Rcpp::traits::input_parameter< int >::type M(MSEXP);
+    Rcpp::traits::input_parameter< String >::type estim(estimSEXP);
+    Rcpp::traits::input_parameter< String >::type var_estim(var_estimSEXP);
+    rcpp_result_gen = Rcpp::wrap(multiplier_bootstrap(x, p, G, PhiList, eps, cps, L, M, estim, var_estim));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -585,8 +623,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mosumvar_DiagC_univ", (DL_FUNC) &_mosumvar_DiagC_univ, 5},
     {"_mosumvar_Tkn", (DL_FUNC) &_mosumvar_Tkn, 11},
     {"_mosumvar_T", (DL_FUNC) &_mosumvar_T, 9},
+    {"_mosumvar_T_multiplier", (DL_FUNC) &_mosumvar_T_multiplier, 8},
     {"_mosumvar_test_Score", (DL_FUNC) &_mosumvar_test_Score, 7},
     {"_mosumvar_MFA_Score", (DL_FUNC) &_mosumvar_MFA_Score, 7},
+    {"_mosumvar_multiplier_bootstrap", (DL_FUNC) &_mosumvar_multiplier_bootstrap, 10},
     {"_mosumvar_VAR_sim", (DL_FUNC) &_mosumvar_VAR_sim, 8},
     {"_mosumvar_H_ik_Wald", (DL_FUNC) &_mosumvar_H_ik_Wald, 5},
     {"_mosumvar_H_k_Wald", (DL_FUNC) &_mosumvar_H_k_Wald, 4},

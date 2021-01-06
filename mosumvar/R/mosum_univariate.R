@@ -1,6 +1,6 @@
 
 mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local",  alpha = 0.05, criterion="eps", nu=.25,
-                       rm_cross_terms =F, do_bootstrap = F, M = 1000, global_resids = F){
+                       rm_cross_terms =F, do_bootstrap = "regression", M = 1000, global_resids = F){
   n <- dim(x)[1]
   d <- dim(x)[2] 
   if(global_resids) {
@@ -9,79 +9,81 @@ mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Lo
   }  
   if(rm_cross_terms) x <- remove_cross_terms(x, p, d)
   ##Test setup----------------------------
-  mod <- PhiList <- as.list(1:d)
+  mod <- Phi <- as.list(1:d)
   eps <- matrix(0, nrow = n, ncol = d)
   for(i in 1:d){ ##fit univariate score models
     mod[[i]] <- ar(x[,i], order.max = p, demean = T, method = "ols", aic = F)
-    PhiList[[i]] <- mod[[i]]$x.intercept
+    Phi[[i]] <- mod[[i]]$x.intercept
     if(global_resids){
       eps[,i] <- eps_global[,i]
     } else {
       eps[,i] <- as.matrix(mod[[i]]$resid);
     }
     eps[,i][1:p] <- 1e-4 ##solve NA
-    if(p==1) PhiList[[i]] <- matrix(c(PhiList[[i]],mod[[i]]$ar[,,1]),1,2 ) #cbind(Phi,  matrix( mod$ar, nrow=d, ncol=d))
+    if(p==1) Phi[[i]] <- matrix(c(Phi[[i]],mod[[i]]$ar[,,1]),1,2 ) #cbind(Phi,  matrix( mod$ar, nrow=d, ncol=d))
     if(p>1){ 
       for (jj in 1:p){ #collect parameters into mat
-        PhiList[[i]] <- cbind(PhiList[[i]],  mod[[i]]$ar[jj,,])
+        Phi[[i]] <- cbind(Phi[[i]],  mod[[i]]$ar[jj,,])
       } 
     } 
   }
-
-  if(do_bootstrap){ ## RUN BOOTSTRAP
-    # bsmod <- bsPhi <- as.list(1:d)  
-    # #N <- 250
-    # bsResid <- matrix(0, nrow = 2*G, ncol = d)
-    # for(i in 1:d){ ##obtain residuals from start and end G-segments
-    #   bsResid[,i] <- rbind( as.matrix(ar(x[1:G,i], order.max = p, demean = T, method = "ols", aic = F)$resid),
-    #                       as.matrix(ar(x[(n-G+1):n,i], order.max = p, demean = T, method = "ols", aic = F)$resid)  )
+  
+  if(do_bootstrap == "regression"){ ## RUN BOOTSTRAP
+    #bsmod <- bsPhi <- as.list(1:d)
+    #N <- 250
+    bsResid <- matrix(0, nrow = 2*G, ncol = d)
+    for(i in 1:d){ ##obtain residuals from start and end G-segments
+      #bsResid[,i] <- rbind( as.matrix(ar(x[1:G,i], order.max = p, demean = T, method = "ols", aic = F)$resid),
+      #                    as.matrix(ar(x[(n-G+1):n,i], order.max = p, demean = T, method = "ols", aic = F)$resid)  ) ##model on start/end
+      temp_resids <- as.matrix(ar(x[,i], order.max = p, demean = T, method = "ols", aic = F)$resid)
+      bsResid[,i] <- temp_resids[c(1:G, (n-G+1):n)]
+    }
+    bsResid <- na.omit(bsResid)
+    n_tilde <- nrow(bsResid)
+    # for(i in 1:d){
+    #   bsPhi[[i]] <- bsmod[[i]]$x.intercept
+    #   if(p==1) bsPhi[[i]] <- matrix(c(bsPhi[[i]],bsmod[[i]]$ar[,,1]),1,2 ) #cbind(Phi,  matrix( mod$ar, nrow=d, ncol=d))
+    #   if(p>1){
+    #     for (jj in 1:p){ #collect parameters into mat
+    #       bsPhi[[i]] <- cbind(bsPhi[[i]],  bsmod[[i]]$ar[jj,,])
+    #     }
+    #   }
     # }
-    # bsResid <- na.omit(bsResid)
-    # n_tilde <- nrow(bsResid)
-    # # for(i in 1:d){      
-    # #   bsPhi[[i]] <- bsmod[[i]]$x.intercept
-    # #   if(p==1) bsPhi[[i]] <- matrix(c(bsPhi[[i]],bsmod[[i]]$ar[,,1]),1,2 ) #cbind(Phi,  matrix( mod$ar, nrow=d, ncol=d))
-    # #   if(p>1){ 
-    # #     for (jj in 1:p){ #collect parameters into mat
-    # #       bsPhi[[i]] <- cbind(bsPhi[[i]],  bsmod[[i]]$ar[jj,,])
-    # #     } 
-    # #   }
-    # # }
-    # #M <- 1000 
-    # 
-    # 
-    # #max_m <- rep(0,M)
-    # # interval <- 1:n_tilde
-    # # for (m in 1:M) {
-    # #   s <- sample(interval, size = n, replace = T)
-    # #   stat_m <- rep(0,n)
-    # #   for (i in 1:d) {
-    # #     epsi <- as.matrix(bsmod[[i]]$resid[s])
-    # #     stat_m <- stat_m +  get_T_RCPP(as.matrix(x[,i]),p,G, bsPhi[[i]], epsi, estim)
-    # #   }
-    # #   max_m[m] <- max(stat_m) 
-    # # }  
-    # max_m <- bootstrap(x,p,G,Phi,bsResid , n_tilde, M, estim, varEstim)
-    # D_n <- quantile(max_m, 1-alpha)
+    #M <- 1000
+    
+    
+    #max_m <- rep(0,M)
+    # interval <- 1:n_tilde
+    # for (m in 1:M) {
+    #   s <- sample(interval, size = n, replace = T)
+    #   stat_m <- rep(0,n)
+    #   for (i in 1:d) {
+    #     epsi <- as.matrix(bsmod[[i]]$resid[s])
+    #     stat_m <- stat_m +  get_T_RCPP(as.matrix(x[,i]),p,G, bsPhi[[i]], epsi, estim)
+    #   }
+    #   max_m[m] <- max(stat_m)
+    # }
+    max_m <- bootstrap(x,p,G, Phi,bsResid , n_tilde, M, estim, varEstim)
+    D_n <- quantile(max_m, 1-alpha)
   } else {
-  c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
-  a <- sqrt(2*log(n/G)) #test transform multipliers
-  b <- 2*log(n/G) + (d*p+1)/2 * log(log(n/G)) - log(2/3 * gamma( (d*p+1)/2)) ##CORRECTED
-  D_n <- (b+c_alpha)/a #threshold
-  D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
+    c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
+    a <- sqrt(2*log(n/G)) #test transform multipliers
+    b <- 2*log(n/G) + (d*p+1)/2 * log(log(n/G)) - log(2/3 * gamma( (d*p+1)/2)) ##CORRECTED
+    D_n <- (b+c_alpha)/a #threshold
+    D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   }
   Reject <- FALSE
   ##Run test-----------------------------
   stat <- rep(0, n) #initialise statistic vector
-
+  
   if(method == "Wald"){
     for (i in 1:d) {
       stat <- stat +  get_W_RCPP( as.matrix(x[,i]),p,G,estim)#W[,i] <- 
     }
   }
   if(method == "Score"){
-  #if(global_resids) eps_global <-  (ar(x, order.max = p, demean = T, method = "ols", aic = F)$resid)
-    stat <- get_T_RCPP(as.matrix(x), p, G, Phi = matrix(0), as.matrix(eps), PhiList = PhiList, var_estim = varEstim, univariate = T )
+    #if(global_resids) eps_global <-  (ar(x, order.max = p, demean = T, method = "ols", aic = F)$resid)
+    stat <- get_T_RCPP(as.matrix(x), p, G, Phi = matrix(0), eps, PhiList = Phi, var_estim = varEstim, univariate = T )
   }
   
   cps <- c() #empty changepoint vector
@@ -90,6 +92,21 @@ mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Lo
     cps <- get_cps(stat,D_n,G, nu=nu, criterion)
     if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
   } 
+  
+  ##Multiplier Bootstrap--------------------------
+  if (do_bootstrap == "multiplier"){
+    if( is.null(cps)) cps <- c(0)
+    mbs <- multiplier_bootstrap(x, p, G, Phi, eps, cps, L = floor(n/4), M, estim, varEstim)
+    D_n <- quantile(mbs, 1-alpha) ##overwrite threshold with bootstrap quantile 
+    if(max(stat) > D_n){ #compare test stat with new threshold
+      Reject <- TRUE
+      cps <- get_cps(stat,D_n,G, nu=nu, criterion)
+      if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
+    } 
+  }
+  
+  
+  
   ##Plot------------------------------------
   plot.ts(stat, ylab = "Statistic") # plot test statistic
   abline(h = D_n, col = "blue") #add threshold
@@ -103,9 +120,9 @@ mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Lo
 
 # mosum_univ(dp2_change, p=2, G=200)
 # mosum_univ(dp2_change, p=2, G=200, method = "Score")
-# mosum_univ(dp2_change, p=2, G=200, method = "Score", rm_cross_terms = T, do_bootstrap = T)
+# mosum_univ(dp2_change, p=2, G=200, method = "Score", rm_cross_terms = T, do_bootstrap = "multiplier")
 # 
-# mosum_univ(dp2_change, p=2, G=200, method = "Score", rm_cross_terms = F, do_bootstrap = T)
+# mosum_univ(dp2_change, p=2, G=200, method = "Score", rm_cross_terms = F, do_bootstrap = "multiplier")
 
 
 remove_cross_terms <- function(x,p,d){
@@ -162,5 +179,6 @@ remove_cross_terms <- function(x,p,d){
 #   return(bs)
 # }
 
-
+# mbps_list <- list( matrix(c(0,0.5), 1,2 ),matrix(c(0,0.5), 1,2 ), matrix(c(0,0.5), 1,2 ))
+##multiplier_bootstrap(dp2_change, 1, 200, mbps_list, dp2_eps, c(1), 100, 100, "DiagC", "Local")
 

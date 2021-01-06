@@ -86,7 +86,7 @@ test_Score_new <- function(x, p, G, Phi=NULL, eps=NULL, alpha = 0.05, estim="Dia
   D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
   Reject <- FALSE
   ##Run test-----------------------------
-  Tn <- ts(get_T_RCPP(as.matrix(x),p,G,as.matrix(Phi), as.matrix(eps),estim,var_estim)) #evaluate statistic at each time k
+  Tn <- ts(get_T_RCPP(as.matrix(x),p,G,as.matrix(Phi), as.matrix(eps),PhiList = list(), estim,var_estim)) #evaluate statistic at each time k
   test_stat <- max(Tn)
   cps <- c() #empty changepoint vector
   if(test_stat > D_n){ #compare test stat with threshold

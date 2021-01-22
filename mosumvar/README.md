@@ -12,6 +12,7 @@ All methods use Moving Sum (MOSUM) statistics for segmentation, and dependence p
 You can install the released version of mosumvar from [github](https://github.com/) with:
 
 ``` r
+library(devtools)
 devtools::install_github("https://github.com/Dom-Owens-UoB/VAR_MOSUM", subdir = "mosumvar")
 ```
 
@@ -43,8 +44,12 @@ mf
 #bs
 
 ## Dimension Reduction
-dr <- mosum_univ( as.matrix(voldata[,2:8]), p=1, G=250, method = "Score")
+dr <- mosum_univ( as.matrix(voldata[,2:8]), p=1, G=250, method = "Score", rm_cross_terms = T, global_resids = T)
 dr
+
+## Dimension Reduction with Multiplier Bootstrap
+dr_mb <- mosum_univ( as.matrix(voldata[,2:8]), p=1, G=250, method = "Score", rm_cross_terms = T, global_resids = T, do_bootstrap = "multiplier")
+dr_mb
 
 ## Simulate VAR data
 n <- 1000

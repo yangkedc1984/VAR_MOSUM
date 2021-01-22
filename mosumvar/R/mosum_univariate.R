@@ -1,6 +1,6 @@
 
 mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local",  alpha = 0.05, criterion="eps", nu=.25,
-                       rm_cross_terms =F, do_bootstrap = "regression", M = 1000, global_resids = F){
+                       rm_cross_terms =F, do_bootstrap = "multiplier", M = 1000, global_resids = F){
   n <- dim(x)[1]
   d <- dim(x)[2] 
   if(global_resids) {

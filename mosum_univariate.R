@@ -182,3 +182,24 @@ remove_cross_terms <- function(x,p,d){
 # mbps_list <- list( matrix(c(0,0.5), 1,2 ),matrix(c(0,0.5), 1,2 ), matrix(c(0,0.5), 1,2 ))
 ##multiplier_bootstrap(dp2_change, 1, 200, mbps_list, dp2_eps, c(1), 100, 100, "DiagC", "Local")
 
+sim_bootstrap <- function(x, p, G, method = "Score", estim = "DiagC", varEstim = "Local",  alpha = 0.05, criterion="eps", nu=.25,
+                          rm_cross_terms =F, do_bootstrap = "regression", M = 1000, global_resids = F){
+  model <- (ar.ols(x, F, p))
+  model_list <- list()
+  for (i in 1:p) {
+    model_list[[i]] <-  (model$ar[i,,])
+  }
+  n <- nrow(x)
+  d <- ncol(x)
+  
+  
+  TM <- rep(0, M)
+  r0 <- rep(0,d)
+  Sigma <- model$var.pred #diag(1, d,d)
+  for (m in 1:M) {
+    xm <- VAR_sim(n, r0, Sigma,model_list, "normal", as.matrix(1), as.matrix(1)) #+ model$x.intercept
+    TM[m] <- max(mosum_univ(xm, p, G, "Score")$stat)
+  }
+  return(TM)
+}
+sim_bootstrap(dp2_change, 2, 100, M = 20)

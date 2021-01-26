@@ -23,7 +23,7 @@ dim_warning <- function(n, G, d, p, method) {
   Wlarge <- "Large dimensions: consider `option = univariate`\n"
 
 
-  if(G < dim & method == "Wald") warning(paste0("Not enough degrees of freedom for Wald method: set G > d(dp + 1) + d(d+1)/2 = ", dim, "\n"))
+  if(G < dim & method == "Wald") warning(paste0("Not enough degrees of freedom for Wald method: set G > d(dp + 1) + d(d+1)/2 = ", d*(d*p + 1)* log(d*(d*p + 1)), "\n"))
   if(G < dimScore & method == "Score")warning(paste0("Not enough degrees of freedom for Score method: set G > d(dp + 1)/2 + d(d+1)/2 = ", dimScore, "\n"))
   if(G < d*(d*p + 1)* log(d*(d*p + 1)) ) warning(W3dim)
   if(G < fl ) warning(Wfl)
@@ -114,7 +114,7 @@ mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Loc
         #interval.sort <- sort( union(interval-p,interval))
         #stat[(min(tlist[[i]])):(max(tlist[[i]]))] <- get_T_RCPP( as.matrix(x[interval,]),p,G,Phi= as.matrix(mod_a), eps=as.matrix(eps),estim = estim) #overwrite statistic
         stat[interval[(1*G):(length(interval)-1*G )]] <- get_T_RCPP(
-          as.matrix(x[interval,]),p,G,Phi= as.matrix(mod_a), eps=as.matrix(eps),estim = estim)[(1*G):(length(interval)-1*G )] #overwrite statistic
+          as.matrix(x[interval,]),p,G,Phi= as.matrix(mod_a), eps=as.matrix(eps), PhiList = list(), estim = estim)[(1*G):(length(interval)-1*G )] #overwrite statistic
       }
     }
   }
@@ -133,8 +133,8 @@ mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Loc
           a <- cbind(a,matrix( mod$ar[pp,,], nrow=d, ncol=d) ) ##append lagged parameters
         }
       }
-      eps <- mod$resid; eps[1:p,] <- 1e-4 ##solve NA
-      Tk <- get_T_RCPP(x[subsample,], p,G-p-1,a,eps,estim,var_estim = varEstim) ##calculate statistic on subsample
+      eps <- mod$resid ; eps[1:p,] <- 1e-4 ##solve NA
+      Tk <- get_T_RCPP( x[subsample,], p,G-p-1, Phi = a, eps, PhiList = list(), estim,var_estim = varEstim) ##calculate statistic on subsample
       stat[k] <- max(Tk) ##collect into output vector
       if(stat[k] > D_n ){ ##if passes threshold locally
         Reject <- TRUE
@@ -144,7 +144,7 @@ mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Loc
           for(t in 1:(ee-ss) ){
             newresids[t,] <- predict(mod,x[ss - 1 + (t-p):t,], se.fit=F)
           }
-          Tt <-  get_T_RCPP(x[ss:ee,], p,G-p-1,a,newresids,estim,var_estim = varEstim) ##evaluate G-window locally
+          Tt <-  get_T_RCPP(x[ss:ee,], p,G-p-1,a,newresids, PhiList = list(), estim,var_estim = varEstim) ##evaluate G-window locally
           stat[subsample] <- pmax(stat[subsample], Tt[G:(3*G)]) ##select max at each value
         }
       }
@@ -216,7 +216,7 @@ MBS_RECUR <- function(x, p, d, s, e, D, G, estim = "DiagC", var_estim = "Local",
         mod_a <- cbind(mod_a,  mod$ar[jj,,])
       }
     }
-    sub_vector <- get_T_RCPP(x[s:e,], p,G-p-1,mod_a,eps,estim,var_estim) ##calculate statistic on subsample ##index here
+    sub_vector <- get_T_RCPP(x[s:e,], p,G-p-1,mod_a,eps, PhiList = list(), estim,var_estim) ##calculate statistic on subsample ##index here
     stat[[iter]][(s+G):(e-G)] <- sub_vector[G:(e-s-G)]
     statW <- max(sub_vector) ##collect into output vector ##[which(ind==k)]
     if(statW> D){ #test

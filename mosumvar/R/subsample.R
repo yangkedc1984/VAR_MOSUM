@@ -17,15 +17,15 @@ dim_warning <- function(n, G, d, p, method) {
   fl <- floor(n^(2/3))
 
 
-  W3dim <- paste0("Bandwidth too small relative to model dimensions: set G > d(dp + 1) * log(d(dp + 1)) = ", d*(d*p + 1)* log(d(dp + 1)),
+  W3dim <- paste0("Bandwidth too small relative to model dimensions: set G > d(dp + 1) * log(d(dp + 1)) = ", d*(d*p + 1)* log(d*(d*p + 1)),
                   "\n")
-  Wfl <- paste0("Bandwidth too small relative to sample size: set G > floor(n^(2/3)) = ", fl, "\n" )
+  Wfl <- paste0("Bandwidth small relative to sample size: consider setting G > floor(n^(2/3)) = ", fl, "\n" )
   Wlarge <- "Large dimensions: consider `option = univariate`\n"
 
 
   if(G < dim & method == "Wald") warning(paste0("Not enough degrees of freedom for Wald method: set G > d(dp + 1) + d(d+1)/2 = ", dim, "\n"))
   if(G < dimScore & method == "Score")warning(paste0("Not enough degrees of freedom for Score method: set G > d(dp + 1)/2 + d(d+1)/2 = ", dimScore, "\n"))
-  if(G < 3*dim) warning(W3dim)
+  if(G < d*(d*p + 1)* log(d*(d*p + 1)) ) warning(W3dim)
   if(G < fl ) warning(Wfl)
   if(d*(d*p + 1 ) > 30) warning(Wlarge)
 

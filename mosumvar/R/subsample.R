@@ -7,31 +7,7 @@
 # sourceCpp(file = "Score_Rcpp.cpp")
 # ##
 
-###################
-# WARNING MESSAGE #
-###################
 
-dim_warning <- function(n, G, d, p, method) {
-  dim <- d*(d*p + 1 ) + d*(d+1)/2
-  dimScore <- d*(d*p + 1 )/2 + d*(d+1)/2
-  fl <- floor(n^(2/3))
-
-
-  W3dim <- paste0("Bandwidth too small relative to model dimensions: set G > d(dp + 1) * log(d(dp + 1)) = ", d*(d*p + 1)* log(d*(d*p + 1)),
-                  "\n")
-  Wfl <- paste0("Bandwidth small relative to sample size: consider setting G > floor(n^(2/3)) = ", fl, "\n" )
-  Wlarge <- "Large dimensions: consider `option = univariate`\n"
-
-
-  if(G < dim & method == "Wald") warning(paste0("Not enough degrees of freedom for Wald method: set G > d(dp + 1) + d(d+1)/2 = ", d*(d*p + 1)* log(d*(d*p + 1)), "\n"))
-  if(G < dimScore & method == "Score")warning(paste0("Not enough degrees of freedom for Score method: set G > d(dp + 1)/2 + d(d+1)/2 = ", dimScore, "\n"))
-  if(G < d*(d*p + 1)* log(d*(d*p + 1)) ) warning(W3dim)
-  if(G < fl ) warning(Wfl)
-  if(d*(d*p + 1 ) > 30) warning(Wlarge)
-
-}
-# dim_warning(100, 10, 5,5)
-# dim_warning(100, 145, 5,5)
 
 
 index <- function(n, G, p, kap){ #define grid
@@ -71,6 +47,25 @@ get_local_maxima <- function(Tn, D_n, G, nu = 1/4) {
 
 ##get subsample change point estimates
 
+
+#' MOSUM subsampling procedure for multiple time series
+#'
+#' @param x data matrix
+#' @param p integer VAR model order
+#' @param G integer MOSUM bandwidth
+#' @param method string indicating which of `Wald` or `Score` to use
+#' @param estim string estimation method
+#' @param varEstim string variance estimation method
+#' @param kap Numeric subsampling resolution constant
+#' @param alpha Numeric significance level
+#' @param criterion string location procedure
+#' @param nu Numeric location procedure hyperparameter
+#' @return list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
+#'  Numeric vector of test statistic `mosum`, Integer vector of estimated changepoints `cps`, Plot `plot`, 
+#'  String of input estimator `estim`
+#' @examples
+#' data(voldata)
+#' mosum_sub(voldata[,2:5], 1, 250)
 mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local", kap = 1,  alpha = 0.05, criterion="eps", nu=.25){
   n <- dim(x)[1]
   d <- dim(x)[2]
@@ -152,7 +147,7 @@ mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Loc
   }
 
   cps1 <- cps2 <- c() ##assign empty cps
-  if(criterion %in% c("eps","union") ){
+  if(criterion == "eps" ){
     sub_pairs <- get_sub_pairs(stat,D_n,G,kap=kap,nu=nu) #get_sub_pairs
     q <- dim(sub_pairs)[1]
     if(q==0) Reject <- FALSE
@@ -164,7 +159,7 @@ mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Loc
       }
     }
   }
-  if(criterion %in% c("eta","union") ){
+  if(criterion == "eta" ){
     cps2 <- get_local_maxima(stat,D_n,G,nu=2*nu)
     q <- length(cps2)
     if(q==0) Reject <- FALSE
@@ -204,7 +199,7 @@ mosum_sub <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Loc
 ##################################################
 
 
-MBS_RECUR <- function(x, p, d, s, e, D, G, estim = "DiagC", var_estim = "Local", cps, stat = list(), nu=0.25, iter =1){
+MBS_RECUR <- function(x, p, d, s, e, D, G, estim = "DiagC", var_estim = "Local", cps, stat = list(), iter =1, criterion="eps", nu=.25){
   if(e-s>2*G + p && iter < length(stat)){ ## segment is long enough, and recursion is shallow
     iter <- iter +1
     mod <- ar.ols(x, aic=F, order.max = p)
@@ -236,7 +231,24 @@ MBS_RECUR <- function(x, p, d, s, e, D, G, estim = "DiagC", var_estim = "Local",
 
 #MBS_RECUR(dp2_change, p=2, d=3, s=100,e=400,D=2, G=100, cps = c(), stat = list(rep(0,2000),rep(0,2000),rep(0,2000)) )
 
-MOSUMBS <- function(x, p, G, estim = "DiagC", varEstim = "Local",  alpha = 0.05){
+
+#' MOSUM Binary Segmentation procedure for multiple time series
+#'
+#' @param x data matrix
+#' @param p integer VAR model order
+#' @param G integer MOSUM bandwidth
+#' @param estim string estimation method
+#' @param varEstim string variance estimation method
+#' @param alpha Numeric significance level
+#' @param criterion string location procedure
+#' @param nu Numeric location procedure hyperparameter
+#' @return list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
+#'  Numeric vector of test statistic `mosum`, Integer vector of estimated change points `cps`, Plot `plot`, 
+#'  String of input estimator `estim`
+#' @examples
+#' data(voldata)
+#' mosum_sub(voldata[,2:5], 1, 250)
+MOSUMBS <- function(x, p, G, estim = "DiagC", varEstim = "Local",  alpha = 0.05, criterion = "eps", nu =.25){
   n <- dim(x)[1]
   d <- dim(x)[2]
   dim_warning(n,G,d,p, "Score")
@@ -254,7 +266,7 @@ MOSUMBS <- function(x, p, G, estim = "DiagC", varEstim = "Local",  alpha = 0.05)
     stat[[ii]] <- rep(0,n)
   }
   ##
-  callBS <- MBS_RECUR(x,p,d,s=1,e=n,D=D_n,G,cps = c(), stat=stat, iter=0)
+  callBS <- MBS_RECUR(x,p,d,s=1,e=n,D=D_n,G,cps = c(), stat=stat, iter=0, criterion, nu)
   cps <- callBS$cps[-c(1, length(callBS$cps))]
   #par(mfrow = c(max_iter,1))
   plot.ts(callBS$stat[[1]], ylab="Statistic") # plot test statistic

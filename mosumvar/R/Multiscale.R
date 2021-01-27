@@ -41,7 +41,22 @@
 
 #MFA_RCPP(x=dp2_change, p=2,Gset=c(200,300), estim = "DiagC")
 
-MFA <- function(x, p, Gset, test = c("Wald","Score"), estim = "DiagC",  alpha = 0.05){
+#' MOSUM procedure for multiple time series at multiple scales
+#'
+#' @param x data matrix
+#' @param p integer VAR model order
+#' @param Gset integer vector of MOSUM bandwidths
+#' @param method string indicating which of `Wald` or `Score` to use
+#' @param estim string estimation method
+#' @param varEstim string variance estimation method
+#' @param alpha Numeric significance level
+#' @return list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
+#'  Numeric vector of test statistic `mosum`, Integer vector of estimated changepoints `cps`, Plot `plot`, 
+#'  String of input estimator `estim`
+#' @examples
+#' data(voldata)
+#' MFA(voldata[,2:5], 1, c(100, 250, 400) )
+MFA <- function(x, p, Gset, test = c("Wald","Score")[1], estim = "DiagC",  alpha = 0.05){
  if(test=="Wald") out <- MFA_Wald(x,p,Gset,estim,alpha)
  if(test=="Score"){
    mod <- ar(x, order.max = p, demean = T, method = "ols", aic = F)

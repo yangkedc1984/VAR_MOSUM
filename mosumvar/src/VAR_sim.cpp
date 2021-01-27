@@ -7,6 +7,11 @@ using namespace Rcpp;
 using namespace arma;
 using namespace std;
 
+//' Simulates VAR data
+//' Internal function wrapped by ...
+//'  
+//'  
+//' @return Product of v1 and v2
 // [[Rcpp::export(VAR_sim)]]
 arma::mat VAR_sim(int n, arma::vec mu, arma::mat Sigma, arma::field<arma::mat> coeffs, std::string error_dist, arma::mat P1 , arma::mat Q1, int df = 1)
 {

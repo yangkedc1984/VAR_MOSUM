@@ -1,6 +1,27 @@
 
+#' MOSUM procedure using dimension reduction
+#'
+#' @param x data matrix
+#' @param p integer VAR model order
+#' @param G integer MOSUM bandwidth
+#' @param method string indicating which of `Wald` or `Score` to use
+#' @param estim string estimation method
+#' @param varEstim string variance estimation method
+#' @param alpha Numeric significance level
+#' @param criterion string location procedure
+#' @param nu Numeric location procedure hyperparameter
+#' @param rm_cross_terms Boolean perform dimension reduction
+#' @param do_bootstrap string threshold bootstrap method, `multiplier`
+#' @param M integer number of simulations for `do_bootstrap`
+#' @param global_resids Boolean use 
+#' @return list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
+#'  Numeric vector of test statistic `mosum`, Integer vector of estimated changepoints `cps`, Plot `plot`, 
+#'  String of input estimator `estim`
+#' @examples
+#' data(voldata)
+#' mosum_univ(voldata[,2:5], 1, 250)
 mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local",  alpha = 0.05, criterion="eps", nu=.25,
-                       rm_cross_terms =F, do_bootstrap = "multiplier", M = 1000, global_resids = F){
+                       rm_cross_terms =F, do_bootstrap = F, M = 1000, global_resids = F){
   n <- dim(x)[1]
   d <- dim(x)[2] 
   if(global_resids) {

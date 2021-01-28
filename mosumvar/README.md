@@ -2,6 +2,7 @@
 # mosumvar
 
 <!-- badges: start -->
+[![Build Status](https://travis-ci.org/Dom-Owens-UoB/VAR_MOSUM.svg?branch=master)](https://travis-ci.org/Dom-Owens-UoB/VAR_MOSUM)
 <!-- badges: end -->
 
 A variety of methods for the analysis of multiple change points in time series data. 

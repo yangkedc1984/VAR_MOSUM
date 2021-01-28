@@ -1,3 +1,10 @@
 language: R
-rvm:
- - 4.0
+r:
+  - oldrel
+  - release
+  - devel
+cache: packages
+install:
+  - Rscript -e 'install.packages("devtools"); devtools::install_deps("mosumvar")'
+script:
+  - Rscript -e 'devtools::check("mosumvar")'

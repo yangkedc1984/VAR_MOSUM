@@ -61,12 +61,16 @@ get_Tkn_RCPP <- function(x, k, p, G, Phi, eps, h_all, estim, var_estim, sgd, uni
     .Call(`_mosumvar_Tkn`, x, k, p, G, Phi, eps, h_all, estim, var_estim, sgd, univariate)
 }
 
+get_Tkn_RCPP <- function(x, k, p, G, Phi, eps, h_all, DCcube) {
+    .Call(`_mosumvar_Tkn_bootstrap`, x, k, p, G, Phi, eps, h_all, DCcube)
+}
+
 get_T_RCPP <- function(x, p, G, Phi, eps, PhiList, estim = "DiagC", var_estim = "Local", univariate = 0L) {
     .Call(`_mosumvar_T`, x, p, G, Phi, eps, PhiList, estim, var_estim, univariate)
 }
 
-get_T_multiplier <- function(x, p, G, Phi, eps, h_all, estim = "DiagC", var_estim = "Local") {
-    .Call(`_mosumvar_T_multiplier`, x, p, G, Phi, eps, h_all, estim, var_estim)
+get_T_multiplier <- function(x, p, G, Phi, eps, h_all, DCcube) {
+    .Call(`_mosumvar_T_multiplier`, x, p, G, Phi, eps, h_all, DCcube)
 }
 
 test_Score_RCPP <- function(x, p, G, Phi, eps, alpha = 0.05, estim = "DiagC") {

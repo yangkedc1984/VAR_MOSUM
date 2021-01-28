@@ -20,8 +20,11 @@
 #' @examples
 #' data(voldata)
 #' mosum_univ(voldata[,2:5], 1, 250)
-mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local",  alpha = 0.05, criterion="eps", nu=.25,
-                       rm_cross_terms =F, do_bootstrap = F, M = 1000, global_resids = F){
+mosum_univ <- function(x, p, G,  method = c("Wald","Score")[1], estim = c("DiagC","DiagH")[1], varEstim = c("Local","Global")[1],  alpha = 0.05,  criterion= c("eps","eta")[1], nu=.25,
+                       rm_cross_terms =F, do_bootstrap = c(F,"mutliplier","regression")[1], M = 1000, global_resids = F){
+  x <- as.matrix(x)
+  p <- integer(p)
+  out <- NULL
   n <- dim(x)[1]
   d <- dim(x)[2] 
   if(global_resids) {

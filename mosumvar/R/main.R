@@ -42,7 +42,10 @@ dim_warning <- function(n, G, d, p, method) {
 #' @examples
 #' data(voldata)
 #' mosumvar(voldata[,2:5], 1, 250)
-mosumvar <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local",  alpha = 0.05, criterion="eps", nu=.25){
+mosumvar <- function(x, p, G, method = c("Wald","Score")[1], estim = c("DiagC","DiagH")[1], varEstim = c("Local","Global")[1],  
+                     alpha = 0.05, criterion= c("eps","eta")[1], nu=.25){
+  x <- as.matrix(x)
+  p <- integer(p)
   out <- NULL
   if(method== "Wald"){
     out <- test_Wald_new(x, p, G, alpha = alpha, estim= estim, criterion = criterion, nu=nu)

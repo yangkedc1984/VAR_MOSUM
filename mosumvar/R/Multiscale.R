@@ -56,7 +56,10 @@
 #' @examples
 #' data(voldata)
 #' MFA(voldata[,2:5], 1, c(100, 250, 400) )
-MFA <- function(x, p, Gset, test = c("Wald","Score")[1], estim = "DiagC",  alpha = 0.05){
+MFA <- function(x, p, Gset, test = c("Wald","Score")[1],  estim = c("DiagC","DiagH")[1],  alpha = 0.05){
+   x <- as.matrix(x)
+   p <- integer(p)
+   out <- NULL
  if(test=="Wald") out <- MFA_Wald(x,p,Gset,estim,alpha)
  if(test=="Score"){
    mod <- ar(x, order.max = p, demean = T, method = "ols", aic = F)

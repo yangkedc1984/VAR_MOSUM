@@ -81,6 +81,11 @@ multiplier_bootstrap <- function(x, p, G, PhiList, eps, cps, L, M, estim, var_es
     .Call(`_mosumvar_multiplier_bootstrap`, x, p, G, PhiList, eps, cps, L, M, estim, var_estim)
 }
 
+#' Simulates VAR data
+#' Internal function wrapped by ...
+#'  
+#'  
+#' @return Product of v1 and v2
 VAR_sim <- function(n, mu, Sigma, coeffs, error_dist, P1, Q1, df = 1L) {
     .Call(`_mosumvar_VAR_sim`, n, mu, Sigma, coeffs, error_dist, P1, Q1, df)
 }

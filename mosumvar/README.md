@@ -24,11 +24,11 @@ library(mosumvar)
 data(voldata)
 
 ## Score test
-ts <- test_Score_new(voldata[,2:5], p=1, G=250)
+ts <- mosumvar(voldata[,2:5], p=1, G=250, method = "Score")
 ts
 
 ## Wald test
-tw <- test_Wald_new(voldata[,2:5], p=1, G=250)
+tw <- mosumvar(voldata[,2:5], p=1, G=250, method = "Wald")
 tw
 
 ## Multiple Filtre
@@ -54,10 +54,8 @@ dr_mb
 ## Simulate VAR data
 n <- 1000
 d <- 5
-mu <- rep(0, d)
-Sigma <- diag(1, d)
 A <- diag(0.5, d) + rnorm(d^2, 0, 0.1)
-simdata <-  VAR_sim(n, mu, Sigma, coeffs = list(A), "normal", matrix(1),  matrix(1))
-simdata
+simdata <-  VAR.sim(n,coeffs = A)
+plot.ts(simdata)
 ```
 

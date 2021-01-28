@@ -497,7 +497,7 @@ arma::vec T(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps,arma::field<
 
 
 // [[Rcpp::export(get_T_multiplier)]] //get_T
-arma::vec T_multiplier(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, arma::mat h_all, arma::mat DCcube)
+arma::vec T_multiplier(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, arma::mat h_all, arma::cube DCcube)
 {
   int n = x.n_rows;
   arma::vec out(n, fill::zeros);

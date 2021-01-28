@@ -400,18 +400,6 @@ mat DiagC_univ(mat x, int p, mat sigma_d, int k, int G)
   mat C =  xk.t() * xk /(2*G -1); //works as intended
   mat S = repelem(sigma_d, p+1, p+1);
   mat out = pinv(S % C);
-  // //eigen decomposition
-  // eig_sym(evals,evecs,C);
-  // mat C_ = evecs * diagmat( 1/(evals) )*  evecs.t(); //now returns inverse Sigma
-  // eig_sym(evalS,evecS,sigma_d);
-  // mat S_ = evecS * diagmat( 1/(evalS) )*  evecS.t();
-  // 
-  // //mat evecKron = kron(evecs, evecS);
-  // 
-  // //eig_sym(evals,evecs,kron(sigma_d,C));
-  // //mat out = evecs * diagmat( pow(evals, -0.5) )*  evecs.t();
-  // //mat out = evecKron * kron(diagmat( pow(evals, -0.5) ), diagmat( pow(evalS, -0.5) )) * evecKron.t();
-  // mat out = kron(S_, C_);
   return out;
 }
 
@@ -438,21 +426,34 @@ double Tkn(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , String est
     mat prod = A.t() * Sig_ * A;
     out = sqrt( prod(0,0) ) /sqrt(16*G) ;//out = norm(Sig_ * A)  WHY is it scaling like this? undoing estimator scaling?
   } else{
-   // if(estim == "DiagH") {
-   //   sp_mat Sig_ = DiagH(x,k,G,p,h_all); //DiagH estimator for Sigma
-   //   out = pow(2*G, -0.5) * norm(Sig_ * A, "fro");
-   // }
     if(estim == "FullH") {
       mat Sig_ = FullH(x,k,G,h_all);  //FullH estimator
       out = norm(Sig_ * A) / (sqrt(8*G)); //2*
     }
-
   }
   //------------------------------
   return out;
 }
-// 
-// 
+
+
+// [[Rcpp::export(get_Tkn_RCPP)]] //get_Tkn
+double Tkn_bootstrap(mat x, int k, int p,  int G, mat Phi, mat eps, mat h_all , cube DCcube)
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+  double out;
+  mat A = getA(x,k,G,p,eps,h_all);
+
+  //Sigma estimator options------
+    mat Sig_ = DCcube.slice(k);
+    mat prod = A.t() * Sig_ * A;
+    out = sqrt( prod(0,0) ) /sqrt(16*G) ;//out = norm(Sig_ * A)  WHY is it scaling like this? undoing estimator scaling?
+  return out;
+}
+
+
+
+
 // double floop(int k) {
 //   mat x; int p; int G; String estim;
 //   return Wkn(x,p,k,G,estim);
@@ -487,18 +488,12 @@ vec T(mat x, int p, int G, mat Phi, mat eps,arma::field<mat> PhiList, String est
 
 
 // [[Rcpp::export(get_T_multiplier)]] //get_T
-vec T_multiplier(mat x, int p, int G, mat Phi, mat eps, mat h_all, String estim = "DiagC",  String var_estim = "Local")
+vec T_multiplier(mat x, int p, int G, mat Phi, mat eps, mat h_all, cube DCcube)
 {
   int n = x.n_rows;
-  
- //h_all = bs_vec * h_all;
-
   vec out(n, fill::zeros);
-
-  mat sgd;
-  if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
   for (int k=G+ p+1; k< n-G-p; k++) {
-    out(k) = Tkn(x,k,p,G,Phi,eps,h_all ,estim, var_estim, sgd, 1);
+    out(k) = Tkn_bootstrap( x,  k,  p,   G,  Phi,  eps,  h_all ,  DCcube);
   }
   return out;
 }
@@ -603,7 +598,7 @@ vec bootstrap(mat x, int p, int G, field<mat> bsPhi, mat bsResid, int n_tilde, i
   uvec s;  uvec i;
   vec stat_m(n); vec max_m(M);
   mat epsi;
-
+  
   for(int m = 0; m < M; m++){
     s = sample_index(n, n_tilde); //randi(n, distr_param(0, n_tilde-1));
     // stat_m = zeros(n);
@@ -632,6 +627,12 @@ vec multiplier_bootstrap(mat x, int p, int G, field<mat> PhiList, mat eps, vec c
   scaled_cps = join_cols(lshift, scaled_cps, rshift); //adjacent blocks to 0
   uvec u_cps = conv_to<uvec>::from(scaled_cps);
 
+  cube DCcube(d*p+d, d*p+d, n);
+  for(int k=G+ p+1; k< n-G-p; k++) {
+    mat sgd = getsigma_dLocal(eps, k, p, G);
+    DCcube.slice(k) = DiagC_univ( x,  p,  sgd,  k,  G);
+  }
+  
   mat h_all = H_all_univ(x,p,G,PhiList,eps);
   mat h_temp;
   for(int m = 0; m < M; m++){
@@ -640,7 +641,7 @@ vec multiplier_bootstrap(mat x, int p, int G, field<mat> PhiList, mat eps, vec c
     perturb_new = repelem(perturb, K,1);
     if(remainder>0) perturb_new.insert_rows(L*K, remainder ); //pad
     h_temp = h_all.each_row() % perturb_new.t();
-    stat_m = T_multiplier(x, p, G, PhiList(0),  eps, h_temp, estim, var_estim)  ;
+    stat_m = T_multiplier(x, p, G, PhiList(0),  eps, h_temp, DCcube)  ;
     max_m(m) = max(stat_m);
   }
   

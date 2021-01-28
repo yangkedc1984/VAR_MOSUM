@@ -454,6 +454,22 @@ double Tkn(arma::mat x, int k, int p,  int G, arma::mat Phi, arma::mat eps, arma
 // } //wrapper
 //
 
+// [[Rcpp::export(get_Tkn_RCPP)]] //get_Tkn
+double Tkn_bootstrap(arma::mat x, int k, int p,  int G, arma::mat Phi, arma::mat eps, arma::mat h_all , arma::cube DCcube)
+{
+  int n = x.n_rows;
+  int d = x.n_cols;
+  double out;
+  arma::mat A = getA(x,k,G,p,eps,h_all);
+  
+  //Sigma estimator options------
+  arma::mat Sig_ = DCcube.slice(k);
+  arma::mat prod = A.t() * Sig_ * A;
+  out = sqrt( prod(0,0) ) /sqrt(16*G) ;//out = norm(Sig_ * A)  WHY is it scaling like this? undoing estimator scaling?
+  return out;
+}
+
+
 // [[Rcpp::export(get_T_RCPP)]] //get_T
 arma::vec T(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps,arma::field<arma::mat> PhiList, String estim = "DiagC",  String var_estim = "Local", bool univariate = 0)
 {
@@ -481,18 +497,12 @@ arma::vec T(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps,arma::field<
 
 
 // [[Rcpp::export(get_T_multiplier)]] //get_T
-arma::vec T_multiplier(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, arma::mat h_all, String estim = "DiagC",  String var_estim = "Local")
+arma::vec T_multiplier(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, arma::mat h_all, arma::mat DCcube)
 {
   int n = x.n_rows;
-  
-  //h_all = bs_vec * h_all;
-  
   arma::vec out(n, fill::zeros);
-  
-  arma::mat sgd;
-  if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
   for (int k=G+ p+1; k< n-G-p; k++) {
-    out(k) = Tkn(x,k,p,G,Phi,eps,h_all ,estim, var_estim, sgd, 1);
+    out(k) = Tkn_bootstrap( x,  k,  p,   G,  Phi,  eps,  h_all ,  DCcube);
   }
   return out;
 }
@@ -593,6 +603,12 @@ arma::vec multiplier_bootstrap(arma::mat x, int p, int G, arma::field<arma::mat>
   scaled_cps = join_cols(lshift, scaled_cps, rshift); //adjacent blocks to 0
   arma::uvec u_cps = conv_to<arma::uvec>::from(scaled_cps);
   
+  arma::cube DCcube(d*p+d, d*p+d, n);
+  for(int k=G+ p+1; k< n-G-p; k++) {
+    arma::mat sgd = getsigma_dLocal(eps, k, p, G);
+    DCcube.slice(k) = DiagC_univ( x,  p,  sgd,  k,  G);
+  }
+  
   arma::mat h_all = H_all_univ(x,p,G,PhiList,eps);
   arma::mat h_temp;
   for(int m = 0; m < M; m++){
@@ -601,7 +617,7 @@ arma::vec multiplier_bootstrap(arma::mat x, int p, int G, arma::field<arma::mat>
     perturb_new = repelem(perturb, K,1);
     if(remainder>0) perturb_new.insert_rows(L*K, remainder ); //pad
     h_temp = h_all.each_row() % perturb_new.t();
-    stat_m = T_multiplier(x, p, G, PhiList(0),  eps, h_temp, estim, var_estim)  ;
+    stat_m = T_multiplier(x, p, G, PhiList(0),  eps, h_temp, DCcube)  ;
     max_m(m) = max(stat_m);
   }
   

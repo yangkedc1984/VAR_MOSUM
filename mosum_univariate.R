@@ -1,6 +1,6 @@
 
 mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local",  alpha = 0.05, criterion="eps", nu=.25,
-                       rm_cross_terms =F, do_bootstrap = "regression", M = 1000, global_resids = F){
+                       rm_cross_terms =F, do_bootstrap = F, M = 1000, global_resids = F){
   n <- dim(x)[1]
   d <- dim(x)[2] 
   if(global_resids) {
@@ -40,29 +40,6 @@ mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Lo
     }
     bsResid <- na.omit(bsResid)
     n_tilde <- nrow(bsResid)
-    # for(i in 1:d){
-    #   bsPhi[[i]] <- bsmod[[i]]$x.intercept
-    #   if(p==1) bsPhi[[i]] <- matrix(c(bsPhi[[i]],bsmod[[i]]$ar[,,1]),1,2 ) #cbind(Phi,  matrix( mod$ar, nrow=d, ncol=d))
-    #   if(p>1){
-    #     for (jj in 1:p){ #collect parameters into mat
-    #       bsPhi[[i]] <- cbind(bsPhi[[i]],  bsmod[[i]]$ar[jj,,])
-    #     }
-    #   }
-    # }
-    #M <- 1000
-
-
-    #max_m <- rep(0,M)
-    # interval <- 1:n_tilde
-    # for (m in 1:M) {
-    #   s <- sample(interval, size = n, replace = T)
-    #   stat_m <- rep(0,n)
-    #   for (i in 1:d) {
-    #     epsi <- as.matrix(bsmod[[i]]$resid[s])
-    #     stat_m <- stat_m +  get_T_RCPP(as.matrix(x[,i]),p,G, bsPhi[[i]], epsi, estim)
-    #   }
-    #   max_m[m] <- max(stat_m)
-    # }
     max_m <- bootstrap(x,p,G, Phi,bsResid , n_tilde, M, estim, varEstim)
     D_n <- quantile(max_m, 1-alpha)
   } else {

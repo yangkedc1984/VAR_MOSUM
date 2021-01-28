@@ -131,7 +131,7 @@ remove_cross_terms <- function(x,p,d){
   
   xlist <- as.list(1:p) 
   for (jj in 1:p){ #
-    aa <- matrix(mod$ar[jj,,], d,d)
+    aa <- matrix(mod$ar[,,jj], d,d)
     diag(aa) <- rep(0, d)
     xt <-  x %*% t(aa)
     xt <- xt[-(1:jj),]

@@ -69,7 +69,7 @@ get_local_maxima <- function(Tn, D_n, G, nu = 1/4) {
 mosum_sub <- function(x, p, G, method = c("Wald","Score")[1], estim = c("DiagC","DiagH")[1], varEstim = c("Local","Global")[1],
                       kap = 1,  alpha = 0.05, criterion= c("eps","eta")[1], nu=.25){
   x <- as.matrix(x)
-  p <- integer(p)
+  p <- as.integer(p)
   out <- NULL
   n <- dim(x)[1]
   d <- dim(x)[2]
@@ -254,7 +254,7 @@ MBS_RECUR <- function(x, p, d, s, e, D, G, estim = "DiagC", var_estim = "Local",
 #' mosum_sub(voldata[,2:5], 1, 250)
 MOSUMBS <- function(x, p, G, estim = c("DiagC","DiagH")[1], varEstim = c("Local","Global")[1],  alpha = 0.05,criterion= c("eps","eta")[1], nu =.25){
   x <- as.matrix(x)
-  p <- integer(p)
+  p <- as.integer(p)
   out <- NULL
   n <- dim(x)[1]
   d <- dim(x)[2]

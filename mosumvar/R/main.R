@@ -45,7 +45,7 @@ dim_warning <- function(n, G, d, p, method) {
 mosumvar <- function(x, p, G, method = c("Wald","Score")[1], estim = c("DiagC","DiagH")[1], varEstim = c("Local","Global")[1],  
                      alpha = 0.05, criterion= c("eps","eta")[1], nu=.25){
   x <- as.matrix(x)
-  p <- integer(p)
+  p <- as.integer(p)
   out <- NULL
   if(method== "Wald"){
     out <- test_Wald_new(x, p, G, alpha = alpha, estim= estim, criterion = criterion, nu=nu)
@@ -63,7 +63,7 @@ mosumvar <- function(x, p, G, method = c("Wald","Score")[1], estim = c("DiagC","
 #' @param n integer data length
 #' @param mu Numeric vector of means, defaults to zero 
 #' @param Sigma error covariance matrix, defaults to identity
-#' @param coeffs list or matrix of VAR coefficients
+#' @param coeffs list or matrix of VAR coefficients; dimension `d` and lag `p` are inferred from this
 #' @param error_dist string of error distribution
 #' @param P1 Matrix for BEKK
 #' @param Q1 Matrix for BEKK

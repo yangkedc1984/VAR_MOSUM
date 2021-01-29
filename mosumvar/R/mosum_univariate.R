@@ -23,7 +23,7 @@
 mosum_univ <- function(x, p, G,  method = c("Wald","Score")[1], estim = c("DiagC","DiagH")[1], varEstim = c("Local","Global")[1],  alpha = 0.05,  criterion= c("eps","eta")[1], nu=.25,
                        rm_cross_terms =F, do_bootstrap = c(F,"mutliplier","regression")[1], M = 1000, global_resids = F){
   x <- as.matrix(x)
-  p <- integer(p)
+  p <- as.integer(p)
   out <- NULL
   n <- dim(x)[1]
   d <- dim(x)[2] 
@@ -131,7 +131,7 @@ remove_cross_terms <- function(x,p,d){
   
   xlist <- as.list(1:p) 
   for (jj in 1:p){ #
-    aa <- matrix(mod$ar[,,jj], d,d)
+    aa <- matrix(mod$ar[jj,,], d,d)
     diag(aa) <- rep(0, d)
     xt <-  x %*% t(aa)
     xt <- xt[-(1:jj),]

@@ -1,3 +1,11 @@
+library(Rcpp)
+library(RcppParallel)
+library(RcppArmadillo)
+library(Matrix)
+sourceCpp(file = "Wald_RcppParallel.cpp")
+sourceCpp(file = "Score_Rcpp.cpp")
+sourceCpp(file = "VAR_sim.cpp")
+
 
 mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Local",  alpha = 0.05, criterion="eps", nu=.25,
                        rm_cross_terms =F, do_bootstrap = F, M = 1000, global_resids = F){
@@ -99,8 +107,8 @@ mosum_univ <- function(x, p, G, method = "Wald", estim = "DiagC", varEstim = "Lo
 # mosum_univ(dp2_change, p=2, G=200, method = "Score")
 # mosum_univ(dp2_change, p=2, G=200, method = "Score", rm_cross_terms = T, do_bootstrap = "multiplier")
 # 
-# mosum_univ(dp2_change, p=2, G=200, method = "Score", rm_cross_terms = F, do_bootstrap = "multiplier")
-
+# mosum_univ(dp2_change, p=2, G=200, method = "Score", rm_cross_terms = T, global_resids = T, do_bootstrap = "multiplier", M=10)
+# mosum_univ(marketmodel$residuals, p=1, G=200, method = "Score", rm_cross_terms = T, global_resids = T, do_bootstrap = "multiplier", M=10)
 
 remove_cross_terms <- function(x,p,d){
   mod <- ar(x, order.max = p, demean = T, method = "ols", aic = F)

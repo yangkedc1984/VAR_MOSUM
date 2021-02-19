@@ -14,20 +14,20 @@ arma::vec H_ik(arma::mat& x, int i, int k, int p, arma::mat Phi, arma::mat eps)
   int n = x.n_rows;
   int d = x.n_cols;
   arma::vec ai = Phi.row(i-1).t(); //intercept - index
-
+  
   arma::mat X = x.rows( span(k-p-1,k-1-1)) ;
-
+  
   arma::vec V = arma::vectorise(flipud(X),1).t();
   arma::vec O = ones(1);
   arma::vec VV = join_cols(O,V);
-
+  
   double y = x(k-1,i-1); //double aV = dot(ai, VV);
   double  e = eps(k-1,i-1);  // y - aV;  //residual
-
+  
   arma::vec  out = - y*VV +  VV*VV.t()*ai - e*VV ;
-
+  
   return out;
-
+  
 }
 
 
@@ -60,7 +60,7 @@ arma::vec H_k(arma::mat& x, int k, int p, arma::mat Phi, arma::mat eps)
 {
   int d = x.n_cols;
   arma::vec H = zeros(d+  d*d*p); //accounts for intercept
-
+  
   for (int ii=1; ii< d+1; ii++) {
     H.subvec((ii-1)*(d*p+1)+1-1, (ii-1)*(d*p+1)+ d*p +1-1 )= H_ik(x,ii,k,p,Phi,eps) ;
   };
@@ -153,21 +153,21 @@ arma::mat H_all_univ(arma::mat& x,  int p, int G, arma::field<arma::mat> PhiList
 
 // // [[Rcpp::export]]
 arma::sp_mat blockDiag( arma::field<arma::mat>& xlist ) {
-
+  
   //xlist: list of arma::matrices
-
+  
   unsigned int n = xlist.n_rows ;
   int dimen = 0 ;
   arma::vec dimvec(n) ;
-
+  
   for(unsigned int i=0; i<n; i++) {
     dimvec(i) = xlist(i,0).n_rows ;
     dimen += dimvec(i) ;
   }
-
+  
   arma::sp_mat X(dimen,dimen);
   int idx=0;
-
+  
   for(unsigned int i=0; i<n; i++) {
     X.submat( idx, idx, idx + dimvec(i) - 1, idx + dimvec(i) - 1 ) = xlist(i,0) ;
     idx = idx + dimvec(i) ;
@@ -257,7 +257,7 @@ arma::mat FullH(arma::mat x, int k, int G, arma::mat h_all)
   arma::mat H_out;
   arma::vec Hbar_u; arma::vec Hbar_l;
   arma::vec evals; arma::mat evecs;
-
+  
   Hbar_u = mean(H_u,1) ;
   H_u.each_col() -= Hbar_u ;//H_u_centred
   Hbar_l = mean(H_l,1) ;
@@ -266,8 +266,8 @@ arma::mat FullH(arma::mat x, int k, int G, arma::mat h_all)
   //eigen decomposition
   eig_sym(evals,evecs,H_out);
   H_out = evecs * diagmat(pow(evals/(2*G),-0.5))*  evecs.t();
-
-
+  
+  
   //DEAL WITH OVERFLOW
   // int n = x.n_rows;
   // int d = x.n_cols;
@@ -291,12 +291,12 @@ arma::mat FullH(arma::mat x, int k, int G, arma::mat h_all)
 }
 
 // [[Rcpp::export(getA_RCPP)]] //getA
-arma::vec getA(arma::mat x, int k, int G,int p, arma::mat eps, arma::mat h_all)
+arma::vec getA(arma::mat x, int k, int G,int p,  arma::mat h_all)
 {
   int d = x.n_cols;
   arma::mat r = h_all.cols( (k+1-1),(k+G-1) );
   arma::mat l = h_all.cols( (k-G+1-1), (k-1) ); //left/right of window
-
+  
   arma::vec A = sum(r,1) - sum(l,1) ;
   return A;
 }
@@ -333,7 +333,7 @@ arma::mat getsigma_dLocal(arma::mat eps, int k, int p, int G){ //CURRENTLY WORKS
   arma::mat sigma_d = (cov(eps.rows(k,k+G-1), 1) + cov(eps.rows(k-G,k-1),1)) /2 ; // should this be /(2)
   //arma::mat upper = eps.rows(k,k+G-1); arma::mat lower = eps.rows(k-G,k-1);
   //arma::mat upper_c = upper - mean(upper,0); arma::mat lower_c = lower- mean(lower,0);
- // arma::mat sigma_d = (upper_c.t() * upper_c + lower_c.t() * lower_c) / (2*G);
+  // arma::mat sigma_d = (upper_c.t() * upper_c + lower_c.t() * lower_c) / (2*G);
   return sigma_d;
 }
 
@@ -367,9 +367,9 @@ arma::mat DiagC(arma::mat x, int p, arma::mat sigma_d, int k, int G)
   arma::mat C_ = evecs * diagmat( 1/(evals) )*  evecs.t(); //now returns inverse Sigma
   eig_sym(evalS,evecS,sigma_d);
   arma::mat S_ = evecS * diagmat( 1/(evalS) )*  evecS.t();
-
+  
   //arma::mat earma::vecKron = kron(earma::vecs, earma::vecS);
-
+  
   //eig_sym(evals,earma::vecs,kron(sigma_d,C));
   //arma::mat out = earma::vecs * diagarma::mat( pow(evals, -0.5) )*  earma::vecs.t();
   //arma::mat out = earma::vecKron * kron(diagarma::mat( pow(evals, -0.5) ), diagarma::mat( pow(evalS, -0.5) )) * earma::vecKron.t();
@@ -379,7 +379,7 @@ arma::mat DiagC(arma::mat x, int p, arma::mat sigma_d, int k, int G)
 
 
 // [[Rcpp::export(get_DiagC_univ)]] //get_DiagC
-arma::mat DiagC_univ(arma::mat x, int p, arma::mat sigma_d, int k, int G)
+arma::mat DiagC_univ(arma::mat x, int p, arma::mat sigma_d, int k, int G, bool root = false)
 {
   int n = x.n_rows;
   int d = x.n_cols;
@@ -393,7 +393,10 @@ arma::mat DiagC_univ(arma::mat x, int p, arma::mat sigma_d, int k, int G)
   
   arma::mat C =  xk.t() * xk /(2*G -1); //works as intended
   arma::mat S = repelem(sigma_d, p+1, p+1);
-  arma::mat out = pinv(S % C);
+  arma::mat out = ( pinv(S % C) );
+  if(root){
+    out = real(sqrtmat(out));
+  } 
   // //eigen decomposition
   // eig_sym(evals,evecs,C);
   // mat C_ = evecs * diagmat( 1/(evals) )*  evecs.t(); //now returns inverse Sigma
@@ -421,7 +424,7 @@ double Tkn(arma::mat x, int k, int p,  int G, arma::mat Phi, arma::mat eps, arma
   int n = x.n_rows;
   int d = x.n_cols;
   double out;
-  arma::mat A = getA(x,k,G,p,eps,h_all);
+  arma::mat A = getA(x,k,G,p,h_all);
   //double v;
   //Sigma estimator options------
   if(estim == "DiagC"){
@@ -455,17 +458,17 @@ double Tkn(arma::mat x, int k, int p,  int G, arma::mat Phi, arma::mat eps, arma
 //
 
 // [[Rcpp::export(get_Tkn_RCPP)]] //get_Tkn
-double Tkn_bootstrap(arma::mat x, int k, int p,  int G, arma::mat Phi, arma::mat eps, arma::mat h_all , arma::cube DCcube)
+double Tkn_bootstrap(arma::mat x, int k, int p,  int G, arma::vec perturb , arma::cube &SHcube)
 {
   int n = x.n_rows;
   int d = x.n_cols;
   double out;
-  arma::mat A = getA(x,k,G,p,eps,h_all);
   
-  //Sigma estimator options------
-  arma::mat Sig_ = DCcube.slice(k);
-  arma::mat prod = A.t() * Sig_ * A;
-  out = sqrt( prod(0,0) ) /sqrt(16*G) ;//out = norm(Sig_ * A)  WHY is it scaling like this? undoing estimator scaling?
+  //arma::mat Sig_ = DCcube.slice(k);
+  arma::mat prod =  SHcube.slice(k);
+  prod.each_row() %= perturb.subvec(k-G,k+G-1).t(); //A.t() * Sig_ * A;
+  arma::mat A = getA(x,G,G,p,prod);
+  out = norm( A ) /sqrt(16*G) ;//out = norm(Sig_ * A)  WHY is it scaling like this? undoing estimator scaling?
   return out;
 }
 
@@ -497,12 +500,12 @@ arma::vec T(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps,arma::field<
 
 
 // [[Rcpp::export(get_T_multiplier)]] //get_T
-arma::vec T_multiplier(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, arma::mat h_all, arma::cube DCcube)
+arma::vec T_multiplier(arma::mat x, int p, int G, arma::vec perturb, arma::cube &SHcube)
 {
   int n = x.n_rows;
   arma::vec out(n, fill::zeros);
   for (int k=G+ p+1; k< n-G-p; k++) {
-    out(k) = Tkn_bootstrap( x,  k,  p,   G,  Phi,  eps,  h_all ,  DCcube);
+    out(k) = Tkn_bootstrap( x,  k,  p,   G,  perturb,  SHcube);
   }
   return out;
 }
@@ -516,7 +519,7 @@ arma::vec cps(arma::vec Wn, double D_n, int G, double nu = 0.25)
   arma::uvec over = find(Wn >D_n); //indices are greater than D_n?
   arma::uvec lunder = find(lshift < D_n);
   arma::uvec v = intersect(over, lunder); //lowers
-
+  
   arma::uvec runder = find(rshift < D_n);
   arma::uvec w = intersect(over, runder); //uppers
   arma::uvec nu_remove = find(w-v >= nu*G); //(epsilon) test for distance between
@@ -603,21 +606,24 @@ arma::vec multiplier_bootstrap(arma::mat x, int p, int G, arma::field<arma::mat>
   scaled_cps = join_cols(lshift, scaled_cps, rshift); //adjacent blocks to 0
   arma::uvec u_cps = conv_to<arma::uvec>::from(scaled_cps);
   
+  arma::mat h_all = H_all_univ(x,p,G,PhiList,eps);
+  
   arma::cube DCcube(d*p+d, d*p+d, n);
+  arma::cube SHcube(d*p+d,2*G,  n); // pre multiply and store
   for(int k=G+ p+1; k< n-G-p; k++) {
     arma::mat sgd = getsigma_dLocal(eps, k, p, G);
-    DCcube.slice(k) = DiagC_univ( x,  p,  sgd,  k,  G);
-  }
+    DCcube.slice(k) = DiagC_univ( x,  p,  sgd,  k,  G, true); //matrix inverse sqrt
+    SHcube.slice(k) = DCcube.slice(k) * h_all.cols(k-G,k+G-1)  ;
+  } 
   
-  arma::mat h_all = H_all_univ(x,p,G,PhiList,eps);
   arma::mat h_temp;
   for(int m = 0; m < M; m++){
     perturb = randn(L);
     perturb(u_cps) = zeros(u_cps.n_elem);
     perturb_new = repelem(perturb, K,1);
     if(remainder>0) perturb_new.insert_rows(L*K, remainder ); //pad
-    h_temp = h_all.each_row() % perturb_new.t();
-    stat_m = T_multiplier(x, p, G, PhiList(0),  eps, h_temp, DCcube)  ;
+    //h_temp = h_all.each_row() % perturb_new.t();
+    stat_m = T_multiplier(x, p, G, perturb_new, SHcube); //(x, p, G, PhiList(0),  eps, h_temp, DCcube)  ;
     max_m(m) = max(stat_m);
   }
   

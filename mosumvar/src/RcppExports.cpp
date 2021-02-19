@@ -128,8 +128,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // getA
-arma::vec getA(arma::mat x, int k, int G, int p, arma::mat eps, arma::mat h_all);
-RcppExport SEXP _mosumvar_getA(SEXP xSEXP, SEXP kSEXP, SEXP GSEXP, SEXP pSEXP, SEXP epsSEXP, SEXP h_allSEXP) {
+arma::vec getA(arma::mat x, int k, int G, int p, arma::mat h_all);
+RcppExport SEXP _mosumvar_getA(SEXP xSEXP, SEXP kSEXP, SEXP GSEXP, SEXP pSEXP, SEXP h_allSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -137,9 +137,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
     Rcpp::traits::input_parameter< int >::type G(GSEXP);
     Rcpp::traits::input_parameter< int >::type p(pSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type eps(epsSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type h_all(h_allSEXP);
-    rcpp_result_gen = Rcpp::wrap(getA(x, k, G, p, eps, h_all));
+    rcpp_result_gen = Rcpp::wrap(getA(x, k, G, p, h_all));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -198,8 +197,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // DiagC_univ
-arma::mat DiagC_univ(arma::mat x, int p, arma::mat sigma_d, int k, int G);
-RcppExport SEXP _mosumvar_DiagC_univ(SEXP xSEXP, SEXP pSEXP, SEXP sigma_dSEXP, SEXP kSEXP, SEXP GSEXP) {
+arma::mat DiagC_univ(arma::mat x, int p, arma::mat sigma_d, int k, int G, bool root);
+RcppExport SEXP _mosumvar_DiagC_univ(SEXP xSEXP, SEXP pSEXP, SEXP sigma_dSEXP, SEXP kSEXP, SEXP GSEXP, SEXP rootSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -208,7 +207,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type sigma_d(sigma_dSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
     Rcpp::traits::input_parameter< int >::type G(GSEXP);
-    rcpp_result_gen = Rcpp::wrap(DiagC_univ(x, p, sigma_d, k, G));
+    Rcpp::traits::input_parameter< bool >::type root(rootSEXP);
+    rcpp_result_gen = Rcpp::wrap(DiagC_univ(x, p, sigma_d, k, G, root));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -234,8 +234,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // Tkn_bootstrap
-double Tkn_bootstrap(arma::mat x, int k, int p, int G, arma::mat Phi, arma::mat eps, arma::mat h_all, arma::cube DCcube);
-RcppExport SEXP _mosumvar_Tkn_bootstrap(SEXP xSEXP, SEXP kSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiSEXP, SEXP epsSEXP, SEXP h_allSEXP, SEXP DCcubeSEXP) {
+double Tkn_bootstrap(arma::mat x, int k, int p, int G, arma::vec perturb, arma::cube& SHcube);
+RcppExport SEXP _mosumvar_Tkn_bootstrap(SEXP xSEXP, SEXP kSEXP, SEXP pSEXP, SEXP GSEXP, SEXP perturbSEXP, SEXP SHcubeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -243,11 +243,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
     Rcpp::traits::input_parameter< int >::type p(pSEXP);
     Rcpp::traits::input_parameter< int >::type G(GSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type Phi(PhiSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type eps(epsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type h_all(h_allSEXP);
-    Rcpp::traits::input_parameter< arma::cube >::type DCcube(DCcubeSEXP);
-    rcpp_result_gen = Rcpp::wrap(Tkn_bootstrap(x, k, p, G, Phi, eps, h_all, DCcube));
+    Rcpp::traits::input_parameter< arma::vec >::type perturb(perturbSEXP);
+    Rcpp::traits::input_parameter< arma::cube& >::type SHcube(SHcubeSEXP);
+    rcpp_result_gen = Rcpp::wrap(Tkn_bootstrap(x, k, p, G, perturb, SHcube));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -271,19 +269,17 @@ BEGIN_RCPP
 END_RCPP
 }
 // T_multiplier
-arma::vec T_multiplier(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, arma::mat h_all, arma::cube DCcube);
-RcppExport SEXP _mosumvar_T_multiplier(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiSEXP, SEXP epsSEXP, SEXP h_allSEXP, SEXP DCcubeSEXP) {
+arma::vec T_multiplier(arma::mat x, int p, int G, arma::vec perturb, arma::cube& SHcube);
+RcppExport SEXP _mosumvar_T_multiplier(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP perturbSEXP, SEXP SHcubeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
     Rcpp::traits::input_parameter< int >::type p(pSEXP);
     Rcpp::traits::input_parameter< int >::type G(GSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type Phi(PhiSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type eps(epsSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type h_all(h_allSEXP);
-    Rcpp::traits::input_parameter< arma::cube >::type DCcube(DCcubeSEXP);
-    rcpp_result_gen = Rcpp::wrap(T_multiplier(x, p, G, Phi, eps, h_all, DCcube));
+    Rcpp::traits::input_parameter< arma::vec >::type perturb(perturbSEXP);
+    Rcpp::traits::input_parameter< arma::cube& >::type SHcube(SHcubeSEXP);
+    rcpp_result_gen = Rcpp::wrap(T_multiplier(x, p, G, perturb, SHcube));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -632,16 +628,16 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mosumvar_H_all_univ", (DL_FUNC) &_mosumvar_H_all_univ, 5},
     {"_mosumvar_DiagH", (DL_FUNC) &_mosumvar_DiagH, 5},
     {"_mosumvar_FullH", (DL_FUNC) &_mosumvar_FullH, 4},
-    {"_mosumvar_getA", (DL_FUNC) &_mosumvar_getA, 6},
+    {"_mosumvar_getA", (DL_FUNC) &_mosumvar_getA, 5},
     {"_mosumvar_getsigma_iGlobal", (DL_FUNC) &_mosumvar_getsigma_iGlobal, 3},
     {"_mosumvar_getsigma_dGlobal", (DL_FUNC) &_mosumvar_getsigma_dGlobal, 2},
     {"_mosumvar_getsigma_dLocal", (DL_FUNC) &_mosumvar_getsigma_dLocal, 4},
     {"_mosumvar_DiagC", (DL_FUNC) &_mosumvar_DiagC, 5},
-    {"_mosumvar_DiagC_univ", (DL_FUNC) &_mosumvar_DiagC_univ, 5},
+    {"_mosumvar_DiagC_univ", (DL_FUNC) &_mosumvar_DiagC_univ, 6},
     {"_mosumvar_Tkn", (DL_FUNC) &_mosumvar_Tkn, 11},
-    {"_mosumvar_Tkn_bootstrap", (DL_FUNC) &_mosumvar_Tkn_bootstrap, 8},
+    {"_mosumvar_Tkn_bootstrap", (DL_FUNC) &_mosumvar_Tkn_bootstrap, 6},
     {"_mosumvar_T", (DL_FUNC) &_mosumvar_T, 9},
-    {"_mosumvar_T_multiplier", (DL_FUNC) &_mosumvar_T_multiplier, 7},
+    {"_mosumvar_T_multiplier", (DL_FUNC) &_mosumvar_T_multiplier, 5},
     {"_mosumvar_test_Score", (DL_FUNC) &_mosumvar_test_Score, 7},
     {"_mosumvar_MFA_Score", (DL_FUNC) &_mosumvar_MFA_Score, 7},
     {"_mosumvar_multiplier_bootstrap", (DL_FUNC) &_mosumvar_multiplier_bootstrap, 10},

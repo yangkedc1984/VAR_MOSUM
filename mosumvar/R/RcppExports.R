@@ -33,8 +33,8 @@ get_FullH_RCPP <- function(x, k, G, h_all) {
     .Call(`_mosumvar_FullH`, x, k, G, h_all)
 }
 
-getA_RCPP <- function(x, k, G, p, eps, h_all) {
-    .Call(`_mosumvar_getA`, x, k, G, p, eps, h_all)
+getA_RCPP <- function(x, k, G, p, h_all) {
+    .Call(`_mosumvar_getA`, x, k, G, p, h_all)
 }
 
 getsigma_iGlobal_RCPP <- function(eps, p, i) {
@@ -53,24 +53,24 @@ get_DiagC_RCPP <- function(x, p, sigma_d, k, G) {
     .Call(`_mosumvar_DiagC`, x, p, sigma_d, k, G)
 }
 
-get_DiagC_univ <- function(x, p, sigma_d, k, G) {
-    .Call(`_mosumvar_DiagC_univ`, x, p, sigma_d, k, G)
+get_DiagC_univ <- function(x, p, sigma_d, k, G, root = FALSE) {
+    .Call(`_mosumvar_DiagC_univ`, x, p, sigma_d, k, G, root)
 }
 
 get_Tkn_RCPP <- function(x, k, p, G, Phi, eps, h_all, estim, var_estim, sgd, univariate = 0L) {
     .Call(`_mosumvar_Tkn`, x, k, p, G, Phi, eps, h_all, estim, var_estim, sgd, univariate)
 }
 
-get_Tkn_RCPP <- function(x, k, p, G, Phi, eps, h_all, DCcube) {
-    .Call(`_mosumvar_Tkn_bootstrap`, x, k, p, G, Phi, eps, h_all, DCcube)
+get_Tkn_RCPP <- function(x, k, p, G, perturb, SHcube) {
+    .Call(`_mosumvar_Tkn_bootstrap`, x, k, p, G, perturb, SHcube)
 }
 
 get_T_RCPP <- function(x, p, G, Phi, eps, PhiList, estim = "DiagC", var_estim = "Local", univariate = 0L) {
     .Call(`_mosumvar_T`, x, p, G, Phi, eps, PhiList, estim, var_estim, univariate)
 }
 
-get_T_multiplier <- function(x, p, G, Phi, eps, h_all, DCcube) {
-    .Call(`_mosumvar_T_multiplier`, x, p, G, Phi, eps, h_all, DCcube)
+get_T_multiplier <- function(x, p, G, perturb, SHcube) {
+    .Call(`_mosumvar_T_multiplier`, x, p, G, perturb, SHcube)
 }
 
 test_Score_RCPP <- function(x, p, G, Phi, eps, alpha = 0.05, estim = "DiagC") {

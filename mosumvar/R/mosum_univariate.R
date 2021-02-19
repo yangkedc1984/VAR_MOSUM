@@ -21,7 +21,7 @@
 #' data(voldata)
 #' mosum_univ(voldata[,2:5], 1, 250)
 mosum_univ <- function(x, p, G,  method = c("Wald","Score")[1], estim = c("DiagC","DiagH")[1], varEstim = c("Local","Global")[1],  alpha = 0.05,  criterion= c("eps","eta")[1], nu=.25,
-                       rm_cross_terms =F, do_bootstrap = c(F,"mutliplier","regression")[1], M = 1000, global_resids = F){
+                       rm_cross_terms =F, do_bootstrap = c(F,"multiplier","regression")[1], M = 1000, global_resids = F){
   x <- as.matrix(x)
   p <- as.integer(p)
   out <- NULL

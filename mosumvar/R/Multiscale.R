@@ -56,12 +56,12 @@
 #' @examples
 #' data(voldata)
 #' MFA(voldata[,2:5], 1, c(100, 250, 400) )
-MFA <- function(x, p, Gset, test = c("Wald","Score")[1],  estim = c("DiagC","DiagH")[1],  alpha = 0.05){
+MFA <- function(x, p, Gset, method = c("Wald","Score")[1],  estim = c("DiagC","DiagH")[1],  alpha = 0.05){
    x <- as.matrix(x)
    p <- as.integer(p)
    out <- NULL
- if(test=="Wald") out <- MFA_Wald(x,p,Gset,estim,alpha)
- if(test=="Score"){
+ if(method=="Wald") out <- MFA_Wald(x,p,Gset,estim,alpha)
+ if(method=="Score"){
    mod <- ar(x, order.max = p, demean = T, method = "ols", aic = F)
    Phi <- mod$x.intercept
    eps <- mod$resid; eps[1:p,] <- 1e-4 ##solve NA
@@ -73,7 +73,7 @@ MFA <- function(x, p, Gset, test = c("Wald","Score")[1],  estim = c("DiagC","Dia
    }
    out <- MFA_Score(x,p,Gset, Phi, eps, estim,alpha)
  }
- plot.ts(x)
+ ts.plot(x)
  if(out$Reject) abline(v = out$ChangePoints, col = "red")  #if rejecting H0, add estimated cps
  out$Changepoints <- sort(out$Changepoints)
  #pl <- recordPlot()

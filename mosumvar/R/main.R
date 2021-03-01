@@ -80,3 +80,34 @@ VAR.sim <- function(n, mu = NULL, Sigma = NULL, coeffs, error_dist = c("normal",
   if(is.null(Q1)) Q1 <- matrix(1)
   return( VAR_sim(n, mu, Sigma, coeffs, error_dist, P1, Q1, df) )
 } 
+
+
+#' Fit piecewise VAR model to data
+#'
+#' @param x data matrix
+#' @param cps change point vector
+#' @param p integer VAR model order (optional, uses AIC otherwise)
+#' @param pen penalty scalarl; defaults to sSIC with exponent 1.01
+#' @return list of model list and cost 
+#' @examples
+#' data(voldata)
+#' run_mosum <- mosumvar(voldata[,2:5], 1, 250)
+#' fit_out_model(voldata[,2:5],run_mosum$cps, p=1)
+fit_out_model <- function(x,cps, p=NULL, pen = log(nrow(x))^1.01 ){
+  n <- nrow(x)
+  d <- ncol(x)
+  starts <- c(0, cps); ends <- c(cps, n)
+  
+  q <- length(cps)
+  RSS <- 0
+  out <- as.list(1:(q+1) )
+  for (ii in 1:(q+1)) {
+    out[[ii]] <- ar.ols(x[(starts[ii]+1):ends[ii],] , order.max = p)
+    #out[[ii]]$resid <- na.omit(out[[ii]]$resid) 
+    #V <- out[[ii]]$var.pred
+    RSS <- RSS + (ends[ii] - starts[ii]+1) *  norm( out[[ii]]$var.pred , type="F")^2 #   sum(diag( t(V) %*% V ))  
+  }
+  
+  sSIC <- pen*q + (n/2) * log(RSS / n)
+  return(list(model = out, sSIC = sSIC))
+}

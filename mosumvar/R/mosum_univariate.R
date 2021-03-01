@@ -15,7 +15,7 @@
 #' @param M integer number of simulations for `do_bootstrap`
 #' @param global_resids Boolean use 
 #' @return list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
-#'  Numeric vector of test statistic `mosum`, Integer vector of estimated changepoints `cps`, Plot `plot`, 
+#'  Numeric vector of test statistic `mosum`, Integer vector of estimated change points `cps`, Plot `plot`, 
 #'  String of input estimator `estim`
 #' @examples
 #' data(voldata)

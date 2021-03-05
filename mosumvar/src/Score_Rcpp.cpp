@@ -32,7 +32,7 @@ arma::vec H_ik(arma::mat& x, int i, int k, int p, arma::mat Phi, arma::mat eps)
 
 
 // [[Rcpp::export(getH_ik_univ)]] //getH_ik
-arma::vec H_ik_univ(arma::mat& x, int i, int k, int p, arma::mat Phi, arma::mat eps)
+arma::vec H_ik_univ(arma::mat& z, arma::mat& x, int i, int k, int p, arma::mat Phi, arma::mat eps)
 {
   int n = x.n_rows;
   int d = x.n_cols;
@@ -44,7 +44,7 @@ arma::vec H_ik_univ(arma::mat& x, int i, int k, int p, arma::mat Phi, arma::mat 
   arma::vec O = ones(1); //intercept
   arma::vec VV = join_cols(O,V);
   
-  double y = x(k-1,i-1); //double aV = dot(ai, VV);
+  double y = z(k-1,i-1); //double aV = dot(ai, VV);
   double  e = eps(k-1,i-1);  // y - aV;  //residual
   
   arma::vec  out = - y*VV +  VV*VV.t()*ai - e*VV ;
@@ -69,13 +69,13 @@ arma::vec H_k(arma::mat& x, int k, int p, arma::mat Phi, arma::mat eps)
 
 
 // [[Rcpp::export(makeH_k_univ)]] //makeH_k
-arma::vec H_k_univ(arma::mat& x, int k, int p,  arma::field<arma::mat> PhiList, arma::mat eps)
+arma::vec H_k_univ(arma::mat& z, arma::mat& x, int k, int p,  arma::field<arma::mat> PhiList, arma::mat eps)
 {
   int d = x.n_cols;
   arma::vec H = zeros(d+  d*p); //accounts for intercept
   
   for (int ii=1; ii< d+1; ii++) {
-    H.subvec((ii-1)*(p+1), (ii-1)*(p+1)+ (p+1)-1  )= H_ik_univ(x,ii,k,p,PhiList(ii-1),eps) ;
+    H.subvec((ii-1)*(p+1), (ii-1)*(p+1)+ (p+1)-1  )= H_ik_univ(z, x,ii,k,p,PhiList(ii-1),eps) ;
   };
   return H;
 }
@@ -98,16 +98,16 @@ arma::mat H_all(arma::mat& x,  int p, int G, arma::mat Phi, arma::mat eps)
 
 
 // [[Rcpp::export(makeH_all_univ)]] //makeH_all
-arma::mat H_all_univ(arma::mat& x,  int p, int G, arma::field<arma::mat> PhiList, arma::mat eps)
+arma::mat H_all_univ(arma::mat& z, arma::mat& x,  int p, int G, arma::field<arma::mat> PhiList, arma::mat eps)
 {
   int n = x.n_rows;
   int d = x.n_cols;
   int nr = d+ d*p;
   //int nc = u-l+1;
-  arma::mat H; H.zeros(nr,n); mat xx;  //matrix of H values #accounts for intercept
+  arma::mat H; H.zeros(nr,n);  //matrix of H values #accounts for intercept
   for (int t=p+1; t <(n-p); t++ ) {
-    mat xin =x;
-    H.col(t) = H_k_univ(xin, t, p, PhiList, eps) ;//-1-1
+    //mat xin =x;
+    H.col(t) = H_k_univ(z, x, t, p, PhiList, eps) ;//-1-1
   };
   return H;
 }
@@ -479,7 +479,7 @@ arma::vec T(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps,arma::field<
   int n = x.n_rows;
   arma::mat h_all;
   if(univariate){
-    h_all  = H_all_univ(x, p, G, PhiList, eps);
+    //h_all  = H_all_univ(x, p, G, PhiList, eps);
   } else {
     h_all  = H_all(x, p, G, Phi, eps);
   }
@@ -494,6 +494,28 @@ arma::vec T(arma::mat x, int p, int G, arma::mat Phi, arma::mat eps,arma::field<
   if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
   for (int k=G+ p+1; k< n-G-p; k++) {
     out(k) = Tkn(x,k,p,G,Phi,eps,h_all ,estim, var_estim, sgd, univariate);
+  }
+  return out;
+}
+
+// [[Rcpp::export(get_T_univ)]] //get_T
+arma::vec T_univ(arma::mat z, arma::mat x, int p, int G, arma::mat Phi, arma::mat eps,arma::field<arma::mat> PhiList, String estim = "DiagC",  String var_estim = "Local")
+{
+  int n = x.n_rows;
+  arma::mat h_all;
+  h_all  = H_all_univ(z, x, p, G, PhiList, eps);
+
+  // mat sigma_d;
+  arma::vec out(n, fill::zeros);
+  // if(var_estim == "Local"){
+  //   sigma_d = getsigma_dLocal(eps,p,G);
+  // } else if(var_estim == "Global"){ 
+  //     sigma_d = getsigma_dGlobal(eps,p);
+  // }
+  arma::mat sgd;
+  if (var_estim == "Global") sgd = cov(eps.rows(p+1,n-1) );
+  for (int k=G+ p+1; k< n-G-p; k++) {
+    out(k) = Tkn(x,k,p,G,Phi,eps,h_all ,estim, var_estim, sgd,1);
   }
   return out;
 }
@@ -595,7 +617,7 @@ List MFA_Score(arma::mat x, int p, arma::vec Gset, arma::mat Phi, arma::mat eps,
 
 
 // [[Rcpp::export(multiplier_bootstrap)]]
-arma::vec multiplier_bootstrap(arma::mat x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps, arma::vec cps, int L, int M, String estim, String var_estim){
+arma::vec multiplier_bootstrap(arma::mat z, arma::mat x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps, arma::vec cps, int L, int M, String estim, String var_estim){
   int n = x.n_rows;
   int d = x.n_cols;
   arma::vec stat_m(n); arma::vec max_m(M); 
@@ -606,7 +628,7 @@ arma::vec multiplier_bootstrap(arma::mat x, int p, int G, arma::field<arma::mat>
   scaled_cps = join_cols(lshift, scaled_cps, rshift); //adjacent blocks to 0
   arma::uvec u_cps = conv_to<arma::uvec>::from(scaled_cps);
   
-  arma::mat h_all = H_all_univ(x,p,G,PhiList,eps);
+  arma::mat h_all = H_all_univ(z, x,p,G,PhiList,eps);
   
   arma::cube DCcube(d*p+d, d*p+d, n);
   arma::cube SHcube(d*p+d,2*G,  n); // pre multiply and store

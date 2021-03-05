@@ -5,24 +5,24 @@ getH_ik_RCPP <- function(x, i, k, p, Phi, eps) {
     .Call(`_mosumvar_H_ik`, x, i, k, p, Phi, eps)
 }
 
-getH_ik_univ <- function(x, i, k, p, Phi, eps) {
-    .Call(`_mosumvar_H_ik_univ`, x, i, k, p, Phi, eps)
+getH_ik_univ <- function(z, x, i, k, p, Phi, eps) {
+    .Call(`_mosumvar_H_ik_univ`, z, x, i, k, p, Phi, eps)
 }
 
 makeH_k_RCPP <- function(x, k, p, Phi, eps) {
     .Call(`_mosumvar_H_k`, x, k, p, Phi, eps)
 }
 
-makeH_k_univ <- function(x, k, p, PhiList, eps) {
-    .Call(`_mosumvar_H_k_univ`, x, k, p, PhiList, eps)
+makeH_k_univ <- function(z, x, k, p, PhiList, eps) {
+    .Call(`_mosumvar_H_k_univ`, z, x, k, p, PhiList, eps)
 }
 
 makeH_all_RCPP <- function(x, p, G, Phi, eps) {
     .Call(`_mosumvar_H_all`, x, p, G, Phi, eps)
 }
 
-makeH_all_univ <- function(x, p, G, PhiList, eps) {
-    .Call(`_mosumvar_H_all_univ`, x, p, G, PhiList, eps)
+makeH_all_univ <- function(z, x, p, G, PhiList, eps) {
+    .Call(`_mosumvar_H_all_univ`, z, x, p, G, PhiList, eps)
 }
 
 get_DiagH_RCPP <- function(x, k, G, p, h_all) {
@@ -69,6 +69,10 @@ get_T_RCPP <- function(x, p, G, Phi, eps, PhiList, estim = "DiagC", var_estim = 
     .Call(`_mosumvar_T`, x, p, G, Phi, eps, PhiList, estim, var_estim, univariate)
 }
 
+get_T_univ <- function(z, x, p, G, Phi, eps, PhiList, estim = "DiagC", var_estim = "Local") {
+    .Call(`_mosumvar_T_univ`, z, x, p, G, Phi, eps, PhiList, estim, var_estim)
+}
+
 get_T_multiplier <- function(x, p, G, perturb, SHcube) {
     .Call(`_mosumvar_T_multiplier`, x, p, G, perturb, SHcube)
 }
@@ -81,8 +85,8 @@ MFA_Score <- function(x, p, Gset, Phi, eps, estim = "DiagC", alpha = 0.05) {
     .Call(`_mosumvar_MFA_Score`, x, p, Gset, Phi, eps, estim, alpha)
 }
 
-multiplier_bootstrap <- function(x, p, G, PhiList, eps, cps, L, M, estim, var_estim) {
-    .Call(`_mosumvar_multiplier_bootstrap`, x, p, G, PhiList, eps, cps, L, M, estim, var_estim)
+multiplier_bootstrap <- function(z, x, p, G, PhiList, eps, cps, L, M, estim, var_estim) {
+    .Call(`_mosumvar_multiplier_bootstrap`, z, x, p, G, PhiList, eps, cps, L, M, estim, var_estim)
 }
 
 #' Simulates VAR data

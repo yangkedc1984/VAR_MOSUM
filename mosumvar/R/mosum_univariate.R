@@ -31,27 +31,39 @@ mosum_univ <- function(x, p, G,  method = c("Wald","Score")[1], estim = c("DiagC
     eps_global <-  (ar(x, order.max = p, demean = T, method = "ols", aic = F)$resid)
     #varEstim <- "Global"
   }  
-  if(rm_cross_terms) x <- remove_cross_terms(x, p, d)
-  ##Test setup----------------------------
-  mod <- Phi <- as.list(1:d)
-  eps <- matrix(0, nrow = n, ncol = d)
-  for(i in 1:d){ ##fit univariate score models
-    mod[[i]] <- ar(x[,i], order.max = p, demean = T, method = "ols", aic = F)
-    Phi[[i]] <- mod[[i]]$x.intercept
-    if(global_resids){
-      eps[,i] <- eps_global[,i]
-    } else {
-      eps[,i] <- as.matrix(mod[[i]]$resid);
+  if(rm_cross_terms) {
+    z <- remove_cross_terms(x, p, d)
+    Phi <- as.list(1:d)
+    for (ii in 1:d) {
+      xi <- c()
+      for (jj in 1:p) {
+        interv <- (p-1+jj):(n-jj)
+        xi <- cbind(xi,x[interv,ii])
+      }
+      Phi[[ii]] <- t(as.matrix(lm(z[-(1:p),ii] ~ xi)$coefficients))
     }
-    eps[,i][1:p] <- 1e-4 ##solve NA
-    if(p==1) Phi[[i]] <- matrix(c(Phi[[i]],mod[[i]]$ar[,,1]),1,2 ) #cbind(Phi,  matrix( mod$ar, nrow=d, ncol=d))
-    if(p>1){ 
-      for (jj in 1:p){ #collect parameters into mat
-        Phi[[i]] <- cbind(Phi[[i]],  mod[[i]]$ar[jj,,])
+    eps <- (ar(x, order.max = p, demean = T, method = "ols", aic = F)$resid)
+  } else {
+  ##Test setup----------------------------
+    mod <- Phi <- as.list(1:d)
+    eps <- matrix(0, nrow = n, ncol = d)
+    for(i in 1:d){ ##fit univariate score models
+      mod[[i]] <- ar(x[,i], order.max = p, demean = T, method = "ols", aic = F)
+      Phi[[i]] <- mod[[i]]$x.intercept
+      if(global_resids){
+        eps[,i] <- eps_global[,i]
+      } else {
+        eps[,i] <- as.matrix(mod[[i]]$resid);
+      }
+      eps[,i][1:p] <- 1e-4 ##solve NA
+      if(p==1) Phi[[i]] <- matrix(c(Phi[[i]],mod[[i]]$ar[,,1]),1,2 ) #cbind(Phi,  matrix( mod$ar, nrow=d, ncol=d))
+      if(p>1){ 
+        for (jj in 1:p){ #collect parameters into mat
+          Phi[[i]] <- cbind(Phi[[i]],  mod[[i]]$ar[jj,,])
+        } 
       } 
-    } 
+    }
   }
-  
   if(do_bootstrap == "regression"){ ## RUN BOOTSTRAP
     #bsmod <- bsPhi <- as.list(1:d)
     #N <- 250
@@ -84,7 +96,7 @@ mosum_univ <- function(x, p, G,  method = c("Wald","Score")[1], estim = c("DiagC
   }
   if(method == "Score"){
     #if(global_resids) eps_global <-  (ar(x, order.max = p, demean = T, method = "ols", aic = F)$resid)
-    stat <- get_T_RCPP(as.matrix(x), p, G, Phi = matrix(0), eps, PhiList = Phi, var_estim = varEstim, univariate = T )
+    stat <- get_T_univ(as.matrix(z), as.matrix(x), p, G, Phi = matrix(0), eps, PhiList = Phi, var_estim = varEstim)#, univariate = T )
   }
   
   cps <- c() #empty changepoint vector
@@ -97,7 +109,7 @@ mosum_univ <- function(x, p, G,  method = c("Wald","Score")[1], estim = c("DiagC
   ##Multiplier Bootstrap--------------------------
   if (do_bootstrap == "multiplier"){
     if( is.null(cps)) cps <- c(0)
-    mbs <- multiplier_bootstrap(x, p, G, Phi, eps, cps, L = floor(n/4), M, estim, varEstim)
+    mbs <- multiplier_bootstrap(z, x, p, G, Phi, eps, cps, L = floor(n/4), M, estim, varEstim)
     D_n <- quantile(mbs, 1-alpha) ##overwrite threshold with bootstrap quantile 
     if(max(stat) > D_n){ #compare test stat with new threshold
       Reject <- TRUE
@@ -120,7 +132,7 @@ mosum_univ <- function(x, p, G,  method = c("Wald","Score")[1], estim = c("DiagC
 }
 
 # mosum_univ(dp2_change, p=2, G=200)
-# mosum_univ(dp2_change, p=2, G=200, method = "Score")
+# mosum_univ(dp2_change, p=2, G=200, method = "Score", rm_cross_terms = T)
 # mosum_univ(dp2_change, p=2, G=200, method = "Score", rm_cross_terms = T, do_bootstrap = "multiplier")
 # 
 # mosum_univ(dp2_change, p=2, G=200, method = "Score", rm_cross_terms = F, do_bootstrap = "multiplier")

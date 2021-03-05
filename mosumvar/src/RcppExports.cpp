@@ -23,18 +23,19 @@ BEGIN_RCPP
 END_RCPP
 }
 // H_ik_univ
-arma::vec H_ik_univ(arma::mat& x, int i, int k, int p, arma::mat Phi, arma::mat eps);
-RcppExport SEXP _mosumvar_H_ik_univ(SEXP xSEXP, SEXP iSEXP, SEXP kSEXP, SEXP pSEXP, SEXP PhiSEXP, SEXP epsSEXP) {
+arma::vec H_ik_univ(arma::mat& z, arma::mat& x, int i, int k, int p, arma::mat Phi, arma::mat eps);
+RcppExport SEXP _mosumvar_H_ik_univ(SEXP zSEXP, SEXP xSEXP, SEXP iSEXP, SEXP kSEXP, SEXP pSEXP, SEXP PhiSEXP, SEXP epsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat& >::type z(zSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type x(xSEXP);
     Rcpp::traits::input_parameter< int >::type i(iSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
     Rcpp::traits::input_parameter< int >::type p(pSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type Phi(PhiSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type eps(epsSEXP);
-    rcpp_result_gen = Rcpp::wrap(H_ik_univ(x, i, k, p, Phi, eps));
+    rcpp_result_gen = Rcpp::wrap(H_ik_univ(z, x, i, k, p, Phi, eps));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -54,17 +55,18 @@ BEGIN_RCPP
 END_RCPP
 }
 // H_k_univ
-arma::vec H_k_univ(arma::mat& x, int k, int p, arma::field<arma::mat> PhiList, arma::mat eps);
-RcppExport SEXP _mosumvar_H_k_univ(SEXP xSEXP, SEXP kSEXP, SEXP pSEXP, SEXP PhiListSEXP, SEXP epsSEXP) {
+arma::vec H_k_univ(arma::mat& z, arma::mat& x, int k, int p, arma::field<arma::mat> PhiList, arma::mat eps);
+RcppExport SEXP _mosumvar_H_k_univ(SEXP zSEXP, SEXP xSEXP, SEXP kSEXP, SEXP pSEXP, SEXP PhiListSEXP, SEXP epsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat& >::type z(zSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type x(xSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
     Rcpp::traits::input_parameter< int >::type p(pSEXP);
     Rcpp::traits::input_parameter< arma::field<arma::mat> >::type PhiList(PhiListSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type eps(epsSEXP);
-    rcpp_result_gen = Rcpp::wrap(H_k_univ(x, k, p, PhiList, eps));
+    rcpp_result_gen = Rcpp::wrap(H_k_univ(z, x, k, p, PhiList, eps));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -84,17 +86,18 @@ BEGIN_RCPP
 END_RCPP
 }
 // H_all_univ
-arma::mat H_all_univ(arma::mat& x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps);
-RcppExport SEXP _mosumvar_H_all_univ(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiListSEXP, SEXP epsSEXP) {
+arma::mat H_all_univ(arma::mat& z, arma::mat& x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps);
+RcppExport SEXP _mosumvar_H_all_univ(SEXP zSEXP, SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiListSEXP, SEXP epsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat& >::type z(zSEXP);
     Rcpp::traits::input_parameter< arma::mat& >::type x(xSEXP);
     Rcpp::traits::input_parameter< int >::type p(pSEXP);
     Rcpp::traits::input_parameter< int >::type G(GSEXP);
     Rcpp::traits::input_parameter< arma::field<arma::mat> >::type PhiList(PhiListSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type eps(epsSEXP);
-    rcpp_result_gen = Rcpp::wrap(H_all_univ(x, p, G, PhiList, eps));
+    rcpp_result_gen = Rcpp::wrap(H_all_univ(z, x, p, G, PhiList, eps));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -268,6 +271,25 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// T_univ
+arma::vec T_univ(arma::mat z, arma::mat x, int p, int G, arma::mat Phi, arma::mat eps, arma::field<arma::mat> PhiList, String estim, String var_estim);
+RcppExport SEXP _mosumvar_T_univ(SEXP zSEXP, SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiSEXP, SEXP epsSEXP, SEXP PhiListSEXP, SEXP estimSEXP, SEXP var_estimSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type z(zSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type p(pSEXP);
+    Rcpp::traits::input_parameter< int >::type G(GSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type Phi(PhiSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< arma::field<arma::mat> >::type PhiList(PhiListSEXP);
+    Rcpp::traits::input_parameter< String >::type estim(estimSEXP);
+    Rcpp::traits::input_parameter< String >::type var_estim(var_estimSEXP);
+    rcpp_result_gen = Rcpp::wrap(T_univ(z, x, p, G, Phi, eps, PhiList, estim, var_estim));
+    return rcpp_result_gen;
+END_RCPP
+}
 // T_multiplier
 arma::vec T_multiplier(arma::mat x, int p, int G, arma::vec perturb, arma::cube& SHcube);
 RcppExport SEXP _mosumvar_T_multiplier(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP perturbSEXP, SEXP SHcubeSEXP) {
@@ -318,11 +340,12 @@ BEGIN_RCPP
 END_RCPP
 }
 // multiplier_bootstrap
-arma::vec multiplier_bootstrap(arma::mat x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps, arma::vec cps, int L, int M, String estim, String var_estim);
-RcppExport SEXP _mosumvar_multiplier_bootstrap(SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiListSEXP, SEXP epsSEXP, SEXP cpsSEXP, SEXP LSEXP, SEXP MSEXP, SEXP estimSEXP, SEXP var_estimSEXP) {
+arma::vec multiplier_bootstrap(arma::mat z, arma::mat x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps, arma::vec cps, int L, int M, String estim, String var_estim);
+RcppExport SEXP _mosumvar_multiplier_bootstrap(SEXP zSEXP, SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiListSEXP, SEXP epsSEXP, SEXP cpsSEXP, SEXP LSEXP, SEXP MSEXP, SEXP estimSEXP, SEXP var_estimSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type z(zSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
     Rcpp::traits::input_parameter< int >::type p(pSEXP);
     Rcpp::traits::input_parameter< int >::type G(GSEXP);
@@ -333,7 +356,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type M(MSEXP);
     Rcpp::traits::input_parameter< String >::type estim(estimSEXP);
     Rcpp::traits::input_parameter< String >::type var_estim(var_estimSEXP);
-    rcpp_result_gen = Rcpp::wrap(multiplier_bootstrap(x, p, G, PhiList, eps, cps, L, M, estim, var_estim));
+    rcpp_result_gen = Rcpp::wrap(multiplier_bootstrap(z, x, p, G, PhiList, eps, cps, L, M, estim, var_estim));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -621,11 +644,11 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_mosumvar_H_ik", (DL_FUNC) &_mosumvar_H_ik, 6},
-    {"_mosumvar_H_ik_univ", (DL_FUNC) &_mosumvar_H_ik_univ, 6},
+    {"_mosumvar_H_ik_univ", (DL_FUNC) &_mosumvar_H_ik_univ, 7},
     {"_mosumvar_H_k", (DL_FUNC) &_mosumvar_H_k, 5},
-    {"_mosumvar_H_k_univ", (DL_FUNC) &_mosumvar_H_k_univ, 5},
+    {"_mosumvar_H_k_univ", (DL_FUNC) &_mosumvar_H_k_univ, 6},
     {"_mosumvar_H_all", (DL_FUNC) &_mosumvar_H_all, 5},
-    {"_mosumvar_H_all_univ", (DL_FUNC) &_mosumvar_H_all_univ, 5},
+    {"_mosumvar_H_all_univ", (DL_FUNC) &_mosumvar_H_all_univ, 6},
     {"_mosumvar_DiagH", (DL_FUNC) &_mosumvar_DiagH, 5},
     {"_mosumvar_FullH", (DL_FUNC) &_mosumvar_FullH, 4},
     {"_mosumvar_getA", (DL_FUNC) &_mosumvar_getA, 5},
@@ -637,10 +660,11 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mosumvar_Tkn", (DL_FUNC) &_mosumvar_Tkn, 11},
     {"_mosumvar_Tkn_bootstrap", (DL_FUNC) &_mosumvar_Tkn_bootstrap, 6},
     {"_mosumvar_T", (DL_FUNC) &_mosumvar_T, 9},
+    {"_mosumvar_T_univ", (DL_FUNC) &_mosumvar_T_univ, 9},
     {"_mosumvar_T_multiplier", (DL_FUNC) &_mosumvar_T_multiplier, 5},
     {"_mosumvar_test_Score", (DL_FUNC) &_mosumvar_test_Score, 7},
     {"_mosumvar_MFA_Score", (DL_FUNC) &_mosumvar_MFA_Score, 7},
-    {"_mosumvar_multiplier_bootstrap", (DL_FUNC) &_mosumvar_multiplier_bootstrap, 10},
+    {"_mosumvar_multiplier_bootstrap", (DL_FUNC) &_mosumvar_multiplier_bootstrap, 11},
     {"_mosumvar_VAR_sim", (DL_FUNC) &_mosumvar_VAR_sim, 8},
     {"_mosumvar_H_ik_Wald", (DL_FUNC) &_mosumvar_H_ik_Wald, 5},
     {"_mosumvar_H_k_Wald", (DL_FUNC) &_mosumvar_H_k_Wald, 4},

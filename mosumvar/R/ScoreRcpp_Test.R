@@ -60,7 +60,8 @@
 
 
 ##Score-type test
-test_Score_new <- function(x, p, G, Phi=NULL, eps=NULL, alpha = 0.05, estim="DiagC",var_estim = "Local", criterion="eps", nu=0.25){
+test_Score_new <- function(x, p, G, Phi=NULL, eps=NULL, alpha = 0.05, estim="DiagC",var_estim = "Local", criterion="eps", nu=0.25, 
+                           do_bootstrap = c(F,"multiplier","regression")[1], M=1000){
   if(is.null(dim(x)) || dim(x)[2] == 1 ) {x <- matrix(x); Phi <- matrix(Phi); eps <- matrix(eps)} #handle univariate case
   n <- dim(x)[1] #dimensions
   d <- dim(x)[2]
@@ -93,6 +94,17 @@ test_Score_new <- function(x, p, G, Phi=NULL, eps=NULL, alpha = 0.05, estim="Dia
     Reject <- TRUE
     cps <- get_cps(Tn,D_n,G, nu=nu, criterion)
     if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
+  }
+  ##Multiplier Bootstrap--------------------------
+  if (do_bootstrap == "multiplier"){
+    if( is.null(cps)) cps <- c(0)
+    mbs <- multiplier_bootstrap(x, x, p, G, list(Phi), eps, cps, L = floor(n/4), M, estim, var_estim, univ=FALSE)
+    D_n <- quantile(mbs, 1-alpha) ##overwrite threshold with bootstrap quantile 
+    if(test_stat > D_n){ #compare test stat with new threshold
+      Reject <- TRUE
+      cps <- get_cps(Tn,D_n,G, nu=nu, criterion)
+      if( is.null(cps) ) Reject <- FALSE #doesn't pass nu-test
+    } 
   }
   ##Plot------------------------------------
   plot(Tn, ylab = "Tn") # plot test statistic

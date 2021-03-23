@@ -185,8 +185,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // DiagC
-arma::mat DiagC(arma::mat x, int p, arma::mat sigma_d, int k, int G);
-RcppExport SEXP _mosumvar_DiagC(SEXP xSEXP, SEXP pSEXP, SEXP sigma_dSEXP, SEXP kSEXP, SEXP GSEXP) {
+arma::mat DiagC(arma::mat x, int p, arma::mat sigma_d, int k, int G, bool root);
+RcppExport SEXP _mosumvar_DiagC(SEXP xSEXP, SEXP pSEXP, SEXP sigma_dSEXP, SEXP kSEXP, SEXP GSEXP, SEXP rootSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -195,7 +195,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type sigma_d(sigma_dSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
     Rcpp::traits::input_parameter< int >::type G(GSEXP);
-    rcpp_result_gen = Rcpp::wrap(DiagC(x, p, sigma_d, k, G));
+    Rcpp::traits::input_parameter< bool >::type root(rootSEXP);
+    rcpp_result_gen = Rcpp::wrap(DiagC(x, p, sigma_d, k, G, root));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -340,8 +341,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // multiplier_bootstrap
-arma::vec multiplier_bootstrap(arma::mat z, arma::mat x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps, arma::vec cps, int L, int M, String estim, String var_estim);
-RcppExport SEXP _mosumvar_multiplier_bootstrap(SEXP zSEXP, SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiListSEXP, SEXP epsSEXP, SEXP cpsSEXP, SEXP LSEXP, SEXP MSEXP, SEXP estimSEXP, SEXP var_estimSEXP) {
+arma::vec multiplier_bootstrap(arma::mat z, arma::mat x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps, arma::vec cps, int L, int M, String estim, String var_estim, bool univ);
+RcppExport SEXP _mosumvar_multiplier_bootstrap(SEXP zSEXP, SEXP xSEXP, SEXP pSEXP, SEXP GSEXP, SEXP PhiListSEXP, SEXP epsSEXP, SEXP cpsSEXP, SEXP LSEXP, SEXP MSEXP, SEXP estimSEXP, SEXP var_estimSEXP, SEXP univSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -356,7 +357,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type M(MSEXP);
     Rcpp::traits::input_parameter< String >::type estim(estimSEXP);
     Rcpp::traits::input_parameter< String >::type var_estim(var_estimSEXP);
-    rcpp_result_gen = Rcpp::wrap(multiplier_bootstrap(z, x, p, G, PhiList, eps, cps, L, M, estim, var_estim));
+    Rcpp::traits::input_parameter< bool >::type univ(univSEXP);
+    rcpp_result_gen = Rcpp::wrap(multiplier_bootstrap(z, x, p, G, PhiList, eps, cps, L, M, estim, var_estim, univ));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -655,7 +657,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mosumvar_getsigma_iGlobal", (DL_FUNC) &_mosumvar_getsigma_iGlobal, 3},
     {"_mosumvar_getsigma_dGlobal", (DL_FUNC) &_mosumvar_getsigma_dGlobal, 2},
     {"_mosumvar_getsigma_dLocal", (DL_FUNC) &_mosumvar_getsigma_dLocal, 4},
-    {"_mosumvar_DiagC", (DL_FUNC) &_mosumvar_DiagC, 5},
+    {"_mosumvar_DiagC", (DL_FUNC) &_mosumvar_DiagC, 6},
     {"_mosumvar_DiagC_univ", (DL_FUNC) &_mosumvar_DiagC_univ, 6},
     {"_mosumvar_Tkn", (DL_FUNC) &_mosumvar_Tkn, 11},
     {"_mosumvar_Tkn_bootstrap", (DL_FUNC) &_mosumvar_Tkn_bootstrap, 6},
@@ -664,7 +666,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mosumvar_T_multiplier", (DL_FUNC) &_mosumvar_T_multiplier, 5},
     {"_mosumvar_test_Score", (DL_FUNC) &_mosumvar_test_Score, 7},
     {"_mosumvar_MFA_Score", (DL_FUNC) &_mosumvar_MFA_Score, 7},
-    {"_mosumvar_multiplier_bootstrap", (DL_FUNC) &_mosumvar_multiplier_bootstrap, 11},
+    {"_mosumvar_multiplier_bootstrap", (DL_FUNC) &_mosumvar_multiplier_bootstrap, 12},
     {"_mosumvar_VAR_sim", (DL_FUNC) &_mosumvar_VAR_sim, 8},
     {"_mosumvar_H_ik_Wald", (DL_FUNC) &_mosumvar_H_ik_Wald, 5},
     {"_mosumvar_H_k_Wald", (DL_FUNC) &_mosumvar_H_k_Wald, 4},

@@ -36,6 +36,8 @@ dim_warning <- function(n, G, d, p, method) {
 #' @param alpha Numeric significance level
 #' @param criterion string location procedure
 #' @param nu Numeric location procedure hyperparameter
+#' @param do_bootstrap Bootstrap procedure to use (For Score procedure only)
+#' @param M Integer; number of bootstrap replicates
 #' @return list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
 #'  Numeric vector of test statistic `mosum`, Integer vector of estimated changepoints `cps`, Plot `plot`, 
 #'  String of input estimator `estim`
@@ -43,7 +45,7 @@ dim_warning <- function(n, G, d, p, method) {
 #' data(voldata)
 #' mosumvar(voldata[,2:5], 1, 250)
 mosumvar <- function(x, p, G, method = c("Wald","Score")[1], estim = c("DiagC","DiagH")[1], varEstim = c("Local","Global")[1],  
-                     alpha = 0.05, criterion= c("eps","eta")[1], nu=.25){
+                     alpha = 0.05, criterion= c("eps","eta")[1], nu=.25, do_bootstrap = c(F,"multiplier","regression")[1], M=1000){
   x <- as.matrix(x)
   p <- as.integer(p)
   out <- NULL
@@ -51,7 +53,7 @@ mosumvar <- function(x, p, G, method = c("Wald","Score")[1], estim = c("DiagC","
     out <- test_Wald_new(x, p, G, alpha = alpha, estim= estim, criterion = criterion, nu=nu)
   }
   if(method== "Score"){
-    out <- test_Score_new(x, p, G, alpha = alpha, estim= estim, criterion = criterion, nu=nu)
+    out <- test_Score_new(x, p, G, alpha = alpha, estim= estim, criterion = criterion, nu=nu, do_bootstrap = do_bootstrap, M =M)
   }
   
   return(out)

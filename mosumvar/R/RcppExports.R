@@ -49,8 +49,8 @@ getsigma_dLocal_RCPP <- function(eps, k, p, G) {
     .Call(`_mosumvar_getsigma_dLocal`, eps, k, p, G)
 }
 
-get_DiagC_RCPP <- function(x, p, sigma_d, k, G) {
-    .Call(`_mosumvar_DiagC`, x, p, sigma_d, k, G)
+get_DiagC_RCPP <- function(x, p, sigma_d, k, G, root = FALSE) {
+    .Call(`_mosumvar_DiagC`, x, p, sigma_d, k, G, root)
 }
 
 get_DiagC_univ <- function(x, p, sigma_d, k, G, root = FALSE) {
@@ -85,8 +85,8 @@ MFA_Score <- function(x, p, Gset, Phi, eps, estim = "DiagC", alpha = 0.05) {
     .Call(`_mosumvar_MFA_Score`, x, p, Gset, Phi, eps, estim, alpha)
 }
 
-multiplier_bootstrap <- function(z, x, p, G, PhiList, eps, cps, L, M, estim, var_estim) {
-    .Call(`_mosumvar_multiplier_bootstrap`, z, x, p, G, PhiList, eps, cps, L, M, estim, var_estim)
+multiplier_bootstrap <- function(z, x, p, G, PhiList, eps, cps, L, M, estim, var_estim, univ = TRUE) {
+    .Call(`_mosumvar_multiplier_bootstrap`, z, x, p, G, PhiList, eps, cps, L, M, estim, var_estim, univ)
 }
 
 #' Simulates VAR data

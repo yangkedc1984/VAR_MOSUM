@@ -340,7 +340,7 @@ arma::mat getsigma_dLocal(arma::mat eps, int k, int p, int G){ //CURRENTLY WORKS
 
 
 // [[Rcpp::export(get_DiagC_RCPP)]] //get_DiagC
-arma::mat DiagC(arma::mat x, int p, arma::mat sigma_d, int k, int G)
+arma::mat DiagC(arma::mat x, int p, arma::mat sigma_d, int k, int G, bool root = false)
 {
   int n = x.n_rows;
   int d = x.n_cols;
@@ -374,6 +374,9 @@ arma::mat DiagC(arma::mat x, int p, arma::mat sigma_d, int k, int G)
   //arma::mat out = earma::vecs * diagarma::mat( pow(evals, -0.5) )*  earma::vecs.t();
   //arma::mat out = earma::vecKron * kron(diagarma::mat( pow(evals, -0.5) ), diagarma::mat( pow(evalS, -0.5) )) * earma::vecKron.t();
   arma::mat out = kron(S_, C_);
+  if(root){
+    out = real(sqrtmat(out));
+  } 
   return out;
 }
 
@@ -617,7 +620,7 @@ List MFA_Score(arma::mat x, int p, arma::vec Gset, arma::mat Phi, arma::mat eps,
 
 
 // [[Rcpp::export(multiplier_bootstrap)]]
-arma::vec multiplier_bootstrap(arma::mat z, arma::mat x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps, arma::vec cps, int L, int M, String estim, String var_estim){
+arma::vec multiplier_bootstrap(arma::mat z, arma::mat x, int p, int G, arma::field<arma::mat> PhiList, arma::mat eps, arma::vec cps, int L, int M, String estim, String var_estim, bool univ = true){
   int n = x.n_rows;
   int d = x.n_cols;
   arma::vec stat_m(n); arma::vec max_m(M); 
@@ -628,16 +631,36 @@ arma::vec multiplier_bootstrap(arma::mat z, arma::mat x, int p, int G, arma::fie
   scaled_cps = join_cols(lshift, scaled_cps, rshift); //adjacent blocks to 0
   arma::uvec u_cps = conv_to<arma::uvec>::from(scaled_cps);
   
-  arma::mat h_all = H_all_univ(z, x,p,G,PhiList,eps);
+  arma::mat h_all;
+  if(univ){
+    h_all = H_all_univ(z, x,p,G,PhiList,eps);
+  } else {
+    h_all =  H_all(x, p, G, PhiList(0), eps); //H_all_univ(z, x,p,G,PhiList,eps);
+  }
+
+  arma::cube DCcube;
+  arma::cube SHcube;
+  if(univ){
+    arma::cube dc(d*p+d, d*p+d, n);
+    arma::cube sh(d*p+d,2*G,  n); // pre multiply and store
+    DCcube = dc; SHcube =sh;
+  } else {
+    arma::cube dc(d*d*p+d, d*d*p+d, n);
+    arma::cube sh(d*d*p+d,2*G,  n); // pre multiply and store
+    DCcube = dc; SHcube =sh;
+  }
   
-  arma::cube DCcube(d*p+d, d*p+d, n);
-  arma::cube SHcube(d*p+d,2*G,  n); // pre multiply and store
+
   for(int k=G+ p+1; k< n-G-p; k++) {
     arma::mat sgd = getsigma_dLocal(eps, k, p, G);
-    DCcube.slice(k) = DiagC_univ( x,  p,  sgd,  k,  G, true); //matrix inverse sqrt
+    if(univ){
+      DCcube.slice(k) = DiagC_univ( x,  p,  sgd,  k,  G, true); //matrix inverse sqrt
+    } else {
+      DCcube.slice(k) = DiagC( x,  p,  sgd,  k,  G, true);
+    }
     SHcube.slice(k) = DCcube.slice(k) * h_all.cols(k-G,k+G-1)  ;
-  } 
-  
+  }
+
   arma::mat h_temp;
   for(int m = 0; m < M; m++){
     perturb = randn(L);

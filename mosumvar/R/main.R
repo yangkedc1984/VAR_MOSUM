@@ -72,7 +72,9 @@ mosumvar <- function(x, p, G, method = c("Wald","Score")[1], estim = c("DiagC","
 #' @param df Integer t-distribution degrees of freedom
 #' @return data frame of time series
 #' @examples
-#' VAR.sim(1000)
+#' A <- diag(0.7,4)
+#' data <- VAR.sim(100, coeffs=A)
+#' plot.ts(data)
 VAR.sim <- function(n, mu = NULL, Sigma = NULL, coeffs, error_dist = c("normal","t","garch")[1], P1 = NULL, Q1 = NULL, df = 1){
   if(is.matrix(coeffs)) coeffs <- list(coeffs)
   d <- ncol(coeffs[[1]])
@@ -113,3 +115,26 @@ fit_out_model <- function(x,cps, p=NULL, pen = log(nrow(x))^1.01 ){
   sSIC <- pen*q + (n/2) * log(RSS / n)
   return(list(model = out, sSIC = sSIC))
 }
+
+##### data documentation
+
+#' Simulated data from a regression model with change points at 400, 1000, and 1600
+#'
+#' @name X1df
+#' @docType data
+#' @usage data(X1df)
+NULL
+
+#' Simulated data from a regression model without change points
+#'
+#' @name X0df
+#' @docType data
+#' @usage data(X0df)
+NULL
+
+#' Volatility data of five technology assets (IBM, AAPL, INTC, MSFT, ORCL), the S&P technology sector (XLK), and the S&P index (SP) 
+#'
+#' @name voldata
+#' @docType data
+#' @usage data(voldata)
+NULL

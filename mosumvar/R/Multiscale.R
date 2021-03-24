@@ -48,14 +48,13 @@
 #' @param Gset integer vector of MOSUM bandwidths
 #' @param method string indicating which of `Wald` or `Score` to use
 #' @param estim string estimation method
-#' @param varEstim string variance estimation method
 #' @param alpha Numeric significance level
 #' @return list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
 #'  Numeric vector of test statistic `mosum`, Integer vector of estimated changepoints `cps`, Plot `plot`, 
 #'  String of input estimator `estim`
 #' @examples
 #' data(voldata)
-#' MFA(voldata[,2:5], 1, c(100, 250, 400) )
+#' MFA(voldata[1:3000,2:4], 1, c(100, 250, 400) )
 MFA <- function(x, p, Gset, method = c("Wald","Score")[1],  estim = c("DiagC","DiagH")[1],  alpha = 0.05){
    x <- as.matrix(x)
    p <- as.integer(p)

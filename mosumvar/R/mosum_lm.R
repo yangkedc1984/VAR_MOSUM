@@ -94,7 +94,7 @@ mosum_lm <- function(X, G, method = c("Wald", "Score")[1], alpha = 0.05, criteri
   if(method == "Wald") { 
     Croot <-  (ev$vectors) %*% diag( (ev$values)^(.5) ) %*% t(ev$vectors) 
     for (t in (G+1):(n-G)) {
-      stat[t] <- get_Wk_fixed(X, k=t, G, d = dim(X0)[2], Croot ) 
+      stat[t] <- get_Wk_fixed(X, k=t, G, d = dim(X)[2], Croot ) 
     }
   } 
   if(method == "Score"){  
@@ -283,8 +283,6 @@ mosum_lm_sub <- function(X, G, method = c("Wald", "Score")[1], kap = 0.1,  alpha
 #' @return list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
 #'  Numeric vector of test statistic `mosum`, Integer vector of estimated change points `cps`, Plot `plot`, 
 #' @examples
-#' data(X0df)
-#' mosum_lm_bs(X0df, 200)
 #' data(X1df)
 #' mosum_lm_bs(X1df, 200)
 mosum_lm_bs <- function(X, G, alpha = 0.05, max_iter = 10){

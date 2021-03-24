@@ -23,8 +23,6 @@ list containing Boolean test outcome `Reject`, Numeric rejection threshold `Thre
 MOSUM Binary Segmentation procedure for multivariate regression
 }
 \examples{
-data(X0df)
-mosum_lm_bs(X0df, 200)
 data(X1df)
 mosum_lm_bs(X1df, 200)
 }

@@ -13,7 +13,9 @@ mosumvar(
   varEstim = c("Local", "Global")[1],
   alpha = 0.05,
   criterion = c("eps", "eta")[1],
-  nu = 0.25
+  nu = 0.25,
+  do_bootstrap = c(F, "multiplier", "regression")[1],
+  M = 1000
 )
 }
 \arguments{
@@ -34,6 +36,10 @@ mosumvar(
 \item{criterion}{string location procedure}
 
 \item{nu}{Numeric location procedure hyperparameter}
+
+\item{do_bootstrap}{Bootstrap procedure to use (For Score procedure only)}
+
+\item{M}{Integer; number of bootstrap replicates}
 }
 \value{
 list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 

@@ -22,7 +22,7 @@ VAR.sim(
 
 \item{Sigma}{error covariance matrix, defaults to identity}
 
-\item{coeffs}{list or matrix of VAR coefficients}
+\item{coeffs}{list or matrix of VAR coefficients; dimension `d` and lag `p` are inferred from this}
 
 \item{error_dist}{string of error distribution}
 
@@ -39,5 +39,7 @@ data frame of time series
 Simulate multiple time series from a VAR model
 }
 \examples{
-VAR.sim(1000)
+A <- diag(0.7,4)
+data <- VAR.sim(100, coeffs=A)
+plot.ts(data)
 }

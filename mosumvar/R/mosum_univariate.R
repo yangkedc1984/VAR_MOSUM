@@ -64,27 +64,27 @@ mosum_univ <- function(x, p, G,  method = c("Wald","Score")[1], estim = c("DiagC
       } 
     }
   }
-  if(do_bootstrap == "regression"){ ## RUN BOOTSTRAP
-    #bsmod <- bsPhi <- as.list(1:d)
-    #N <- 250
-    bsResid <- matrix(0, nrow = 2*G, ncol = d)
-    for(i in 1:d){ ##obtain residuals from start and end G-segments
-      #bsResid[,i] <- rbind( as.matrix(ar(x[1:G,i], order.max = p, demean = T, method = "ols", aic = F)$resid),
-      #                    as.matrix(ar(x[(n-G+1):n,i], order.max = p, demean = T, method = "ols", aic = F)$resid)  ) ##model on start/end
-      temp_resids <- as.matrix(ar(x[,i], order.max = p, demean = T, method = "ols", aic = F)$resid)
-      bsResid[,i] <- temp_resids[c(1:G, (n-G+1):n)]
-    }
-    bsResid <- na.omit(bsResid)
-    n_tilde <- nrow(bsResid)
-    max_m <- bootstrap(x,p,G, Phi,bsResid , n_tilde, M, estim, varEstim)
-    D_n <- quantile(max_m, 1-alpha)
-  } else {
+  # if(do_bootstrap == "regression"){ ## RUN BOOTSTRAP
+  #   #bsmod <- bsPhi <- as.list(1:d)
+  #   #N <- 250
+  #   bsResid <- matrix(0, nrow = 2*G, ncol = d)
+  #   for(i in 1:d){ ##obtain residuals from start and end G-segments
+  #     #bsResid[,i] <- rbind( as.matrix(ar(x[1:G,i], order.max = p, demean = T, method = "ols", aic = F)$resid),
+  #     #                    as.matrix(ar(x[(n-G+1):n,i], order.max = p, demean = T, method = "ols", aic = F)$resid)  ) ##model on start/end
+  #     temp_resids <- as.matrix(ar(x[,i], order.max = p, demean = T, method = "ols", aic = F)$resid)
+  #     bsResid[,i] <- temp_resids[c(1:G, (n-G+1):n)]
+  #   }
+  #   bsResid <- na.omit(bsResid)
+  #   n_tilde <- nrow(bsResid)
+  #   max_m <- bootstrap(x,p,G, Phi,bsResid , n_tilde, M, estim, varEstim)
+  #   D_n <- quantile(max_m, 1-alpha)
+  # } else {
     c_alpha <- -log(log( (1-alpha)^(-1/2))) #critical value
     a <- sqrt(2*log(n/G)) #test transform multipliers
     b <- 2*log(n/G) + (d*p+1)/2 * log(log(n/G)) - log(2/3 * gamma( (d*p+1)/2)) ##CORRECTED
     D_n <- (b+c_alpha)/a #threshold
     D_n <- max(D_n, sqrt(2*log(n)) + c_alpha/sqrt(2*log(n)) )##ASYMPTOTIC
-  }
+  #}
   Reject <- FALSE
   ##Run test-----------------------------
   stat <- rep(0, n) #initialise statistic vector

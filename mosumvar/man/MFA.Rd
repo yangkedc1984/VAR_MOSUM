@@ -8,7 +8,7 @@ MFA(
   x,
   p,
   Gset,
-  test = c("Wald", "Score")[1],
+  method = c("Wald", "Score")[1],
   estim = c("DiagC", "DiagH")[1],
   alpha = 0.05
 )
@@ -20,13 +20,11 @@ MFA(
 
 \item{Gset}{integer vector of MOSUM bandwidths}
 
+\item{method}{string indicating which of `Wald` or `Score` to use}
+
 \item{estim}{string estimation method}
 
 \item{alpha}{Numeric significance level}
-
-\item{method}{string indicating which of `Wald` or `Score` to use}
-
-\item{varEstim}{string variance estimation method}
 }
 \value{
 list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
@@ -38,5 +36,5 @@ MOSUM procedure for multiple time series at multiple scales
 }
 \examples{
 data(voldata)
-MFA(voldata[,2:5], 1, c(100, 250, 400) )
+MFA(voldata[1:3000,2:4], 1, c(100, 250, 400) )
 }

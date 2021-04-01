@@ -1,19 +1,20 @@
 
-#' MOSUM procedure using dimension reduction
+#' Detect change points in the autoregressive structure of multiple time series x with the MOSUM procedure, using AR(p) models for each channel.
+#' Optionally, perform dimension reduction and use residuals from a global VAR model.
 #'
 #' @param x data matrix
 #' @param p integer VAR model order
 #' @param G integer MOSUM bandwidth
 #' @param method string indicating which of `Wald` or `Score` to use
-#' @param estim string estimation method
-#' @param varEstim string variance estimation method
+#' @param estim string estimation method, `DiagC` or `DiagH`
+#' @param varEstim string variance estimation method, `Local` or `Global` 
 #' @param alpha Numeric significance level
-#' @param criterion string location procedure
+#' @param criterion string location procedure, `eps` or `eta`
 #' @param nu Numeric location procedure hyperparameter
-#' @param rm_cross_terms Boolean perform dimension reduction
-#' @param do_bootstrap string threshold bootstrap method, `multiplier`
-#' @param M integer number of simulations for `do_bootstrap`
-#' @param global_resids Boolean use 
+#' @param rm_cross_terms Boolean, perform dimension reduction
+#' @param do_bootstrap Boolean, determine threshold via multiplier bootstrap method
+#' @param M integer number of simulations for bootstrap
+#' @param global_resids Boolean, use residuals from full VAR model
 #' @return list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
 #'  Numeric vector of test statistic `mosum`, Integer vector of estimated change points `cps`, Plot `plot`, 
 #'  String of input estimator `estim`
@@ -21,7 +22,7 @@
 #' data(voldata)
 #' mosum_univ(voldata[,2:5], 1, 250)
 mosum_univ <- function(x, p, G,  method = c("Wald","Score")[1], estim = c("DiagC","DiagH")[1], varEstim = c("Local","Global")[1],  alpha = 0.05,  criterion= c("eps","eta")[1], nu=.25,
-                       rm_cross_terms =F, do_bootstrap = c(F,"multiplier","regression")[1], M = 1000, global_resids = F){
+                       rm_cross_terms =FALSE, do_bootstrap = FALSE, M = 1000, global_resids = FALSE){
   x <- as.matrix(x)
   p <- as.integer(p)
   out <- NULL
@@ -107,7 +108,7 @@ mosum_univ <- function(x, p, G,  method = c("Wald","Score")[1], estim = c("DiagC
   } 
   
   ##Multiplier Bootstrap--------------------------
-  if (do_bootstrap == "multiplier"){
+  if (do_bootstrap){
     if( is.null(cps)) cps <- c(0)
     mbs <- multiplier_bootstrap(z, x, p, G, Phi, eps, cps, L = floor(n/4), M, estim, varEstim)
     D_n <- quantile(mbs, 1-alpha) ##overwrite threshold with bootstrap quantile 

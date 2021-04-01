@@ -7,10 +7,10 @@ output: html_document
 
 
 ```{r}
-airqual <- read.csv("air-quality-data-2010-2020.csv") #("air-quality-parson-street.csv")
+airqual <- read.csv("air-quality-data-2010-2021.csv") #("air-quality-parson-street.csv")
 #stpauls <- read.csv("air-quality-stpauls.csv")
 #traffic <- read.csv("fact-traffic-counts.csv")
-weather <- read.csv("met-data-bristol-2010-2020.csv") #"met-data-bristol-lulsgate.csv")
+weather <- read.csv("met-data-bristol-2010-2021.csv") #"met-data-bristol-lulsgate.csv")
 head(airqual)
 #head(stpauls)
 #head(traffic)
@@ -49,7 +49,7 @@ dfmap <- dfmap %>% arrange(Date.Time) # in order
 colnames(dfmap)[2:6] <- c("NOx215","NOx270","NOx452","NOx463","NOx203") 
 dfmap[,2:6][which(dfmap[,2:6] ==0, arr.ind = T)] <- 0.01 #prevent -Inf
 #dfmap <- na.omit(dfmap)
-dfmap[,2:6] <- log(dfmap[,2:6]) ##take logs
+dfmap[,2:6] <- sqrt(dfmap[,2:6])#log(dfmap[,2:6]) ##take logs
 head(dfmap)
 ```
 daily average
@@ -249,28 +249,29 @@ summary(meteo_models)
 plot.ts(meteo_models$residuals, main = " ")
 #par(mfrow = c(3,1))
 acf(meteo_models$residuals[,1], lag.max = 28, axes=F, main= " " );axis(1,7*(0:4));axis(2); # abline(v = 7*(1:3), col="green" )
-acf(meteo_models$residuals[,1], lag.max = 28*4, axes=F, main= " "); axis(1,28*(0:4));axis(2) ##monthly
-acf(meteo_models$residuals[,1], lag.max = 28*12*4, axes=F, main= " "); axis(1,365*(0:4));axis(2)  ##yearly seasonality
+acf(meteo_models$residuals[,1], lag.max = 28*4, axes=F, main= " ", xlab = "Lag"); axis(1,28*(0:4));axis(2) ##monthly
+#acf(meteo_models$residuals[,1], lag.max = 28*12*4, axes=F, main= " ", xlab = "Lag"); axis(1,365*(0:4));axis(2)  ##yearly seasonality
 ```
 
 ```{r}
-ardfmap <- ar.ols(meteo_models$residuals, AIC=T, intercept = T) ## this is actually overspecified - try AIC on post-segments
+ardfmap <- ar.ols(meteo_models$residuals[1:300,], AIC=T, intercept = T) ## this is actually overspecified - try AIC on post-segments
 plot(ardfmap$aic) ##choose p=4?
 ```
 
 ```{r}
-library(Rcpp)
-library(RcppParallel)
-library(RcppArmadillo)
-library(Matrix)
-sourceCpp(file = "/home/do16317/Documents/Changepoints/Wald_RcppParallel.cpp")
-sourceCpp(file = "/home/do16317/Documents/Changepoints/Score_Rcpp.cpp")
+# library(Rcpp)
+# library(RcppParallel)
+# library(RcppArmadillo)
+# library(Matrix)
+# sourceCpp(file = "/home/do16317/Documents/Changepoints/Wald_RcppParallel.cpp")
+# sourceCpp(file = "/home/do16317/Documents/Changepoints/Score_Rcpp.cpp")
 ```
 
 7 days * 40 weeks =  280
 
 ```{r}
-airqual_mosum_wald <-  test_Wald_new(meteo_models$residuals, p=2, G= 7*52, criterion = "eta", nu = 0.3)
+library(mosumvar)
+airqual_mosum_wald <-  mosumvar::mosumvar(meteo_models$residuals, p=2, G= 280, criterion = "eta", nu = 0.2)
 airqual_mosum_wald$plot
 #mosum_sub(meteo_models$residuals, p=2, G= 7*52, method = "Wald", criterion = "eta", kap = 1/(52*7))
 #logdfmap$`dfmap$Date.Time`[airqual_mosum_wald$cps]
@@ -279,7 +280,9 @@ airqual_mosum_wald$cps
 ```
 
 ```{r}
-airqual_mosum_score <- test_Score_new(meteo_models$residuals, p=2, G= 7*52, criterion = "eta", nu = 0.3)
+airqual_mosum_score <- mosumvar::mosumvar(meteo_models$residuals, method = "Score", p=2, G= 7*40, criterion = "eta", nu = 0.2 )
+par(mfrow=c(2,1))
+airqual_mosum_wald$plot
 airqual_mosum_score$plot
 #mosum_sub(meteo_models$residuals, p=3, G= 7*52, method = "Score", criterion = "eta")
 #logdfmap$`dfmap$Date.Time`[airqual_mosum_score$cps]
@@ -287,20 +290,26 @@ airqual_mosum_score$plot
 
 acf comparison
 ```{r}
-longest_segment <- meteo_models$residuals[882:1188,1]
+longest_segment <- meteo_models$residuals[airqual_mosum_wald$cps[5]:airqual_mosum_wald$cps[6],1]
 acf(longest_segment, main = "")
 ```
 ```{r}
-airqual_mosum_wald$cps
-par(mfrow = c(4,2), mar = 2*c(1, 2, 1, 1))
-acf(meteo_models$residuals[1:370,1], main = "", xlab = "", ylab = 1, lag.max = 7)
-acf(meteo_models$residuals[371:881,1] , main = "", xlab = "", ylab = 2, lag.max = 7)
-acf(meteo_models$residuals[882:1187,1], main = "", xlab = "", ylab = 3, lag.max = 7)
-acf(meteo_models$residuals[1188:1513,1], main = "", xlab = "", ylab = 4, lag.max = 7)
-acf(meteo_models$residuals[1514:2042,1], main = "", xlab = "", ylab = 5, lag.max = 7)
-acf(meteo_models$residuals[2043:2408,1], main = "", xlab = "", ylab = 6, lag.max = 7)
-acf(meteo_models$residuals[2409:2703,1], main = "", xlab = "", ylab = 7, lag.max = 7)
-acf(meteo_models$residuals[2704:3164,1], main = "", xlab = "", ylab = 8, lag.max = 7)
+airqual_mosum_score$cps
+# par(mfrow = c(4,2), mar = 2*c(1, 2, 1, 1))
+# acf(meteo_models$residuals[1:444,1], main = "", xlab = "", ylab = 1, lag.max = 7)
+# acf(meteo_models$residuals[445:905,1] , main = "", xlab = "", ylab = 2, lag.max = 7)
+# acf(meteo_models$residuals[906:1333,1], main = "", xlab = "", ylab = 3, lag.max = 7)
+# acf(meteo_models$residuals[1334:1716,1], main = "", xlab = "", ylab = 4, lag.max = 7)
+# acf(meteo_models$residuals[1717:2046,1], main = "", xlab = "", ylab = 5, lag.max = 7)
+# acf(meteo_models$residuals[2047:2295,1], main = "", xlab = "", ylab = 6, lag.max = 7)
+# acf(meteo_models$residuals[2296:2972,1], main = "", xlab = "", ylab = 7, lag.max = 7)
+# acf(meteo_models$residuals[2973:nrow(meteo_models$residuals),1], main = "", xlab = "", ylab = 8, lag.max = 7)
+par(mfrow = c(5,1), mar = 2*c(1, 2, 1, 1))
+acf(meteo_models$residuals[1:340,1], ylab = "NOx215",main = "", xlab = "",  lag.max = 14)
+acf(meteo_models$residuals[1:340,1], ylab = "NOx270",main = "", xlab = "",  lag.max = 14)
+acf(meteo_models$residuals[1:340,1], ylab = "NOx452",main = "", xlab = "",  lag.max = 14)
+acf(meteo_models$residuals[1:340,1], ylab = "NOx463",main = "", xlab = "",  lag.max = 14)
+acf(meteo_models$residuals[1:340,1], ylab = "NOx203",main = "", xlab = "",  lag.max = 14)
 ```
 ### model diagnostics
 ```{r}
@@ -327,8 +336,34 @@ acf(meteo_models$residuals[2704:3164,1])
 
 ```{r}
 #compare sSIC
-fit_out_model(meteo_models$residuals, cps=c())$sSIC
-fit_out_model(meteo_models$residuals, cps=airqual_mosum_wald$cps)$sSIC
-fit_out_model(meteo_models$residuals, cps=airqual_mosum_score$cps)$sSIC
+fit_out_model(meteo_models$residuals, cps=c(), pen = log(nrow(x)))$sSIC
+fit_out_model(meteo_models$residuals, cps=airqual_mosum_wald$cps, pen = log(nrow(x)))$sSIC
+fit_out_model(meteo_models$residuals, cps=airqual_mosum_score$cps, pen = log(nrow(x)))$sSIC
+#[1] 11545.51
+#[1] 8243.216
+#[1] 7894.406
+```
+## blog
+
+```{r}
+gg_df <- data.frame(day =dfmap_meteo$day, meteo_models$residuals)
+head(gg_df)
+
+my.ts.panel <- function(x, col = col, bg = bg, pch = pch, type = type,  vpos=airqual_mosum_score$cps, ...){
+      lines(x, col = col, bg = bg, pch = pch, type = type, ...)
+      abline(v=vpos, col="red")
+}
+
+ax <- gg_df$day[seq(1, length(gg_df$day), 350)]
+
+plot.ts(gg_df[,2:6], panel=my.ts.panel, nc =1, xaxt = "n", main = " ", xlab = " " );
+axis(1, at = seq(1, length(gg_df$day), 350), labels = ax, las = 1, cex.axis = .5, line = 1.1)#pos = -5.4, outer =F)#axis(1, at = seq(1, length(gg_df$day), 60), labels = ax, las = 2, cex.axis = .5, pos = -3)
+# plot(gg_df$NOx215)
+# plot(gg_df$NOx270)
+# plot(gg_df$NOx452)
+# plot(gg_df$NOx463)
+# plot(gg_df$NOx203)
+
+# ggplot(gg_df, aes(x=day)) + geom_line(aes(y=NOx215), color="green") + geom_line(aes(y=NOx270),color="blue") + geom_line(aes(y=NOx452),color="grey") + geom_line(aes(y=NOx463),color="purple") + geom_line(aes(y=NOx203),color="orange")
 ```
 

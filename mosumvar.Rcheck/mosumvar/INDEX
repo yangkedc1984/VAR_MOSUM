@@ -1,0 +1,22 @@
+MFA                     MOSUM procedure for multiple time series at
+                        multiple scales
+MOSUMBS                 MOSUM Binary Segmentation procedure for
+                        multiple time series
+VAR.sim                 Simulate multiple time series from a VAR model
+X0df                    Simulated data from a regression model without
+                        change points
+X1df                    Simulated data from a regression model with
+                        change points at 400, 1000, and 1600
+fit_out_model           Fit piecewise VAR model to data
+mosum_lm                MOSUM procedure for multivariate regression
+mosum_lm_bs             MOSUM Binary Segmentation procedure for
+                        multivariate regression
+mosum_lm_sub            MOSUM subsampling procedure for multivariate
+                        regression
+mosum_sub               MOSUM subsampling procedure for multiple time
+                        series
+mosum_univ              MOSUM procedure using dimension reduction
+mosumvar                MOSUM procedure for multiple time series
+voldata                 Volatility data of five technology assets (IBM,
+                        AAPL, INTC, MSFT, ORCL), the S&P technology
+                        sector (XLK), and the S&P index (SP)

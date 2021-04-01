@@ -24,16 +24,16 @@ VAR.sim(
 
 \item{coeffs}{list or matrix of VAR coefficients; dimension `d` and lag `p` are inferred from this}
 
-\item{error_dist}{string of error distribution}
+\item{error_dist}{string for error distribution, one of `normal`, `t`, `garch`}
 
-\item{P1}{Matrix for BEKK}
+\item{P1}{Matrix for BEKK garch}
 
-\item{Q1}{Matrix for BEKK}
+\item{Q1}{Matrix for BEKK garch}
 
-\item{df}{Integer t-distribution degrees of freedom}
+\item{df}{Integer degrees of freedom for t-distribution}
 }
 \value{
-data frame of time series
+data frame of simulated time series
 }
 \description{
 Simulate multiple time series from a VAR model

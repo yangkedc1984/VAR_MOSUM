@@ -1,0 +1,23 @@
+Package: mosumvar
+Type: Package
+Title: Multiple Change Point Analysis for Vector Autoregressions via
+        MOSUM Statistics
+Version: 0.1.0
+Date: 2021-03-23
+Authors@R: c(
+    person("Dom", "Owens", email = "dom.owens@bristol.ac.uk", role = c("aut", "cre")),
+    person("Haeran", "Cho", role = c("aut")) )
+Description: A variety of methods for the analysis of multiple change points in time series data. 
+        All methods use Moving Sum (MOSUM) statistics for segmentation,
+        and dependence properties are extracted with Vector Autoregression (VAR) models. 
+License: MIT + file LICENSE
+Imports: Rcpp (>= 1.0.4.6)
+LinkingTo: Rcpp, RcppArmadillo
+RoxygenNote: 7.1.0
+Depends: R (>= 2.10)
+NeedsCompilation: yes
+Packaged: 2021-03-24 13:56:34 UTC; do16317
+Author: Dom Owens [aut, cre],
+  Haeran Cho [aut]
+Maintainer: Dom Owens <dom.owens@bristol.ac.uk>
+Built: R 4.0.3; x86_64-pc-linux-gnu; 2021-03-24 13:56:49 UTC; unix

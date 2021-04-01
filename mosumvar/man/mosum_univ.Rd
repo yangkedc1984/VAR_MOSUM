@@ -2,7 +2,8 @@
 % Please edit documentation in R/mosum_univariate.R
 \name{mosum_univ}
 \alias{mosum_univ}
-\title{MOSUM procedure using dimension reduction}
+\title{Detect change points in the autoregressive structure of multiple time series x with the MOSUM procedure, using AR(p) models for each channel.
+Optionally, perform dimension reduction and use residuals from a global VAR model.}
 \usage{
 mosum_univ(
   x,
@@ -14,10 +15,10 @@ mosum_univ(
   alpha = 0.05,
   criterion = c("eps", "eta")[1],
   nu = 0.25,
-  rm_cross_terms = F,
-  do_bootstrap = c(F, "multiplier", "regression")[1],
+  rm_cross_terms = FALSE,
+  do_bootstrap = FALSE,
   M = 1000,
-  global_resids = F
+  global_resids = FALSE
 )
 }
 \arguments{
@@ -29,23 +30,23 @@ mosum_univ(
 
 \item{method}{string indicating which of `Wald` or `Score` to use}
 
-\item{estim}{string estimation method}
+\item{estim}{string estimation method, `DiagC` or `DiagH`}
 
-\item{varEstim}{string variance estimation method}
+\item{varEstim}{string variance estimation method, `Local` or `Global`}
 
 \item{alpha}{Numeric significance level}
 
-\item{criterion}{string location procedure}
+\item{criterion}{string location procedure, `eps` or `eta`}
 
 \item{nu}{Numeric location procedure hyperparameter}
 
-\item{rm_cross_terms}{Boolean perform dimension reduction}
+\item{rm_cross_terms}{Boolean, perform dimension reduction}
 
-\item{do_bootstrap}{string threshold bootstrap method, `multiplier`}
+\item{do_bootstrap}{Boolean, determine threshold via multiplier bootstrap method}
 
-\item{M}{integer number of simulations for `do_bootstrap`}
+\item{M}{integer number of simulations for bootstrap}
 
-\item{global_resids}{Boolean use}
+\item{global_resids}{Boolean, use residuals from full VAR model}
 }
 \value{
 list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
@@ -53,7 +54,8 @@ list containing Boolean test outcome `Reject`, Numeric rejection threshold `Thre
  String of input estimator `estim`
 }
 \description{
-MOSUM procedure using dimension reduction
+Detect change points in the autoregressive structure of multiple time series x with the MOSUM procedure, using AR(p) models for each channel.
+Optionally, perform dimension reduction and use residuals from a global VAR model.
 }
 \examples{
 data(voldata)

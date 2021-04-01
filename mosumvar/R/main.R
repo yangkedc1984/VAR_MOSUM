@@ -7,14 +7,12 @@ dim_warning <- function(n, G, d, p, method) {
   dim <- d*(d*p + 1 ) + d*(d+1)/2
   dimScore <- d*(d*p + 1 )/2 + d*(d+1)/2
   fl <- floor(n^(2/3))
-  
-  
+
   W3dim <- paste0("Bandwidth too small relative to model dimensions: set G > d(dp + 1) * log(d(dp + 1)) = ", d*(d*p + 1)* log(d*(d*p + 1)),
                   "\n")
   Wfl <- paste0("Bandwidth small relative to sample size: consider setting G > floor(n^(2/3)) = ", fl, "\n" )
   Wlarge <- "Large dimensions: consider `option = univariate`\n"
-  
-  
+
   if(G < dim & method == "Wald") warning(paste0("Not enough degrees of freedom for Wald method: set G > d(dp + 1) + d(d+1)/2 = ", d*(d*p + 1)* log(d*(d*p + 1)), "\n"))
   if(G < dimScore & method == "Score")warning(paste0("Not enough degrees of freedom for Score method: set G > d(dp + 1)/2 + d(d+1)/2 = ", dimScore, "\n"))
   if(G < d*(d*p + 1)* log(d*(d*p + 1)) ) warning(W3dim)
@@ -25,18 +23,18 @@ dim_warning <- function(n, G, d, p, method) {
 # dim_warning(100, 10, 5,5)
 # dim_warning(100, 145, 5,5)
 
-#' MOSUM procedure for multiple time series
+#' Detect change points in the autoregressive structure of multiple time series x with the MOSUM procedure 
 #'
 #' @param x data matrix
 #' @param p integer VAR model order
 #' @param G integer MOSUM bandwidth
 #' @param method string indicating which of `Wald` or `Score` to use
-#' @param estim string estimation method
-#' @param varEstim string variance estimation method
+#' @param estim string estimation method, `DiagC` or `DiagH`
+#' @param varEstim string variance estimation method, `Local` or `Global` 
 #' @param alpha Numeric significance level
-#' @param criterion string location procedure
+#' @param criterion string location procedure, `eps` or `eta`
 #' @param nu Numeric location procedure hyperparameter
-#' @param do_bootstrap Bootstrap procedure to use (For Score procedure only)
+#' @param do_bootstrap Boolean, determine threshold via multiplier bootstrap method
 #' @param M Integer; number of bootstrap replicates
 #' @return list containing Boolean test outcome `Reject`, Numeric rejection threshold `Threshold`, 
 #'  Numeric vector of test statistic `mosum`, Integer vector of estimated changepoints `cps`, Plot `plot`, 
@@ -45,7 +43,7 @@ dim_warning <- function(n, G, d, p, method) {
 #' data(voldata)
 #' mosumvar(voldata[,2:5], 1, 250)
 mosumvar <- function(x, p, G, method = c("Wald","Score")[1], estim = c("DiagC","DiagH")[1], varEstim = c("Local","Global")[1],  
-                     alpha = 0.05, criterion= c("eps","eta")[1], nu=.25, do_bootstrap = c(F,"multiplier","regression")[1], M=1000){
+                     alpha = 0.05, criterion= c("eps","eta")[1], nu=.25, do_bootstrap = FALSE, M=1000){
   x <- as.matrix(x)
   p <- as.integer(p)
   out <- NULL
@@ -66,11 +64,11 @@ mosumvar <- function(x, p, G, method = c("Wald","Score")[1], estim = c("DiagC","
 #' @param mu Numeric vector of means, defaults to zero 
 #' @param Sigma error covariance matrix, defaults to identity
 #' @param coeffs list or matrix of VAR coefficients; dimension `d` and lag `p` are inferred from this
-#' @param error_dist string of error distribution
-#' @param P1 Matrix for BEKK
-#' @param Q1 Matrix for BEKK
-#' @param df Integer t-distribution degrees of freedom
-#' @return data frame of time series
+#' @param error_dist string for error distribution, one of `normal`, `t`, `garch`
+#' @param P1 Matrix for BEKK garch
+#' @param Q1 Matrix for BEKK garch
+#' @param df Integer degrees of freedom for t-distribution
+#' @return data frame of simulated time series
 #' @examples
 #' A <- diag(0.7,4)
 #' data <- VAR.sim(100, coeffs=A)

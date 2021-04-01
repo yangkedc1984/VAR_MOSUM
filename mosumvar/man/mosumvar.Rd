@@ -2,7 +2,7 @@
 % Please edit documentation in R/main.R
 \name{mosumvar}
 \alias{mosumvar}
-\title{MOSUM procedure for multiple time series}
+\title{Detect change points in the autoregressive structure of multiple time series x with the MOSUM procedure}
 \usage{
 mosumvar(
   x,
@@ -14,7 +14,7 @@ mosumvar(
   alpha = 0.05,
   criterion = c("eps", "eta")[1],
   nu = 0.25,
-  do_bootstrap = c(F, "multiplier", "regression")[1],
+  do_bootstrap = FALSE,
   M = 1000
 )
 }
@@ -27,17 +27,17 @@ mosumvar(
 
 \item{method}{string indicating which of `Wald` or `Score` to use}
 
-\item{estim}{string estimation method}
+\item{estim}{string estimation method, `DiagC` or `DiagH`}
 
-\item{varEstim}{string variance estimation method}
+\item{varEstim}{string variance estimation method, `Local` or `Global`}
 
 \item{alpha}{Numeric significance level}
 
-\item{criterion}{string location procedure}
+\item{criterion}{string location procedure, `eps` or `eta`}
 
 \item{nu}{Numeric location procedure hyperparameter}
 
-\item{do_bootstrap}{Bootstrap procedure to use (For Score procedure only)}
+\item{do_bootstrap}{Boolean, determine threshold via multiplier bootstrap method}
 
 \item{M}{Integer; number of bootstrap replicates}
 }
@@ -47,7 +47,7 @@ list containing Boolean test outcome `Reject`, Numeric rejection threshold `Thre
  String of input estimator `estim`
 }
 \description{
-MOSUM procedure for multiple time series
+Detect change points in the autoregressive structure of multiple time series x with the MOSUM procedure
 }
 \examples{
 data(voldata)
